@@ -36,6 +36,8 @@ export type Profile = z.infer<typeof ProfileSchema>;
 export const NumberingSchema = z.object({
   mode: z.enum(["auto", "custom"]).default("auto"),
   prefix: z.string().default("INV-"),
+  // Pad width for auto numbering: "INV-0001" → 4. Min 3, max 6.
+  minDigits: z.number().int().min(3).max(6).default(4),
   counter: z.number().int().nonnegative().default(0),
   customFormat: z.string().optional(),
 });
@@ -45,6 +47,7 @@ export const SettingsSchema = z.object({
   numbering: NumberingSchema.default({
     mode: "auto",
     prefix: "INV-",
+    minDigits: 4,
     counter: 0,
   }),
   lineItemMode: z.enum(["basic", "units"]).default("basic"),
@@ -94,6 +97,15 @@ export const ClientSnapshotSchema = z.object({
 });
 export type ClientSnapshot = z.infer<typeof ClientSnapshotSchema>;
 
+// ---------- discount ----------
+// pct: value is basis points (0–10000) so 10% = 1000 (kept as integer to
+// avoid float drift). fixed: value is integer cents.
+export const DiscountSchema = z.object({
+  type: z.enum(["pct", "fixed"]),
+  value: z.number().int().nonnegative(),
+});
+export type Discount = z.infer<typeof DiscountSchema>;
+
 // ---------- line item ----------
 export const LineItemSchema = z.object({
   description: z.string().default(""),
@@ -101,6 +113,11 @@ export const LineItemSchema = z.object({
   unit: z.string().optional(),
   unitPriceCents: z.number().int().nonnegative().default(0),
   gstRate: z.number().min(0).max(1).default(0.1),
+  // Phase 3 additions
+  lineDiscount: DiscountSchema.optional(),
+  lineDiscountAmountCents: z.number().int().nonnegative().default(0),
+  // taxableCents = qty * unitPrice − lineDiscountAmount; populated by enrichLine.
+  taxableCents: z.number().int().nonnegative().default(0),
   gstAmountCents: z.number().int().nonnegative().default(0),
   lineTotalCents: z.number().int().nonnegative().default(0),
 });
@@ -128,7 +145,13 @@ export const InvoiceSchema = z.object({
   issueDate: ISO_DATE,
   dueDate: ISO_DATE,
   lineItems: z.array(LineItemSchema),
+  invoiceDiscount: DiscountSchema.optional(),
   subtotalCents: z.number().int().nonnegative(),
+  // Sum of per-line discounts (post per-line discount, pre invoice discount).
+  lineDiscountTotalCents: z.number().int().nonnegative().default(0),
+  // Whole-invoice discount applied proportionally across taxable lines.
+  invoiceDiscountTotalCents: z.number().int().nonnegative().default(0),
+  // Aggregate of both. Kept for cheap rendering / list summaries.
   discountTotalCents: z.number().int().nonnegative().default(0),
   gstTotalCents: z.number().int().nonnegative(),
   totalCents: z.number().int().nonnegative(),
@@ -165,6 +188,74 @@ export const CounterDocSchema = z.object({
 });
 export type CounterDoc = z.infer<typeof CounterDocSchema>;
 
+// ---------- credit note ----------
+// Credit notes mirror invoice line items but allow negative amounts. They are
+// issued in one shot (no draft state) and reference the original invoice.
+export const CreditNoteLineItemSchema = z.object({
+  description: z.string().default(""),
+  qty: z.number().default(0), // can be negative
+  unit: z.string().optional(),
+  unitPriceCents: z.number().int().default(0), // can be negative
+  gstRate: z.number().min(0).max(1).default(0.1),
+  taxableCents: z.number().int().default(0),
+  gstAmountCents: z.number().int().default(0),
+  lineTotalCents: z.number().int().default(0),
+});
+export type CreditNoteLineItem = z.infer<typeof CreditNoteLineItemSchema>;
+
+export const CreditNoteSchema = z.object({
+  id: z.string(),
+  number: z.string(), // CN-####
+  originalInvoiceId: z.string(),
+  originalInvoiceNumber: z.string(),
+  currency: CurrencyCodeSchema,
+  clientSnapshot: ClientSnapshotSchema,
+  issueDate: ISO_DATE,
+  reason: z.string().default(""),
+  lineItems: z.array(CreditNoteLineItemSchema),
+  // Totals are non-positive (zero or negative) since CNs reduce the invoice.
+  subtotalCents: z.number().int(),
+  gstTotalCents: z.number().int(),
+  totalCents: z.number().int(),
+  pdfUrl: z.string().url().optional(),
+  createdAt: ISO_DATETIME,
+  updatedAt: ISO_DATETIME,
+  deletedAt: ISO_DATETIME.optional(),
+});
+export type CreditNote = z.infer<typeof CreditNoteSchema>;
+
+export const CreditNoteInputSchema = z.object({
+  originalInvoiceId: z.string(),
+  originalInvoiceNumber: z.string(),
+  currency: CurrencyCodeSchema,
+  clientSnapshot: ClientSnapshotSchema,
+  issueDate: ISO_DATE,
+  reason: z.string().default(""),
+  lineItems: z.array(CreditNoteLineItemSchema),
+});
+export type CreditNoteInput = z.infer<typeof CreditNoteInputSchema>;
+
+// ---------- line item library ----------
+export const LineItemLibraryEntrySchema = z.object({
+  id: z.string(),
+  description: NON_EMPTY,
+  defaultQty: z.number().nonnegative().default(1),
+  unit: z.string().optional(),
+  unitPriceCents: z.number().int().nonnegative().default(0),
+  gstRate: z.number().min(0).max(1).default(0.1),
+  createdAt: ISO_DATETIME,
+});
+export type LineItemLibraryEntry = z.infer<typeof LineItemLibraryEntrySchema>;
+
+export const LineItemLibraryInputSchema = LineItemLibraryEntrySchema.pick({
+  description: true,
+  defaultQty: true,
+  unit: true,
+  unitPriceCents: true,
+  gstRate: true,
+}).partial({ unit: true });
+export type LineItemLibraryInput = z.infer<typeof LineItemLibraryInputSchema>;
+
 // ---------- form input shapes (looser than persisted shape) ----------
 export const InvoiceDraftInputSchema = z.object({
   clientId: z.string().nullable(),
@@ -173,6 +264,7 @@ export const InvoiceDraftInputSchema = z.object({
   dueDate: ISO_DATE,
   currency: CurrencyCodeSchema,
   lineItems: z.array(LineItemSchema),
+  invoiceDiscount: DiscountSchema.optional(),
   notes: z.string().default(""),
   paymentInstructionsSnapshot: PaymentDetailsSchema.default({}),
 });

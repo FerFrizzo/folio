@@ -18,6 +18,8 @@ function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     dueDate: "2026-05-15",
     lineItems: [],
     subtotalCents: 0,
+    lineDiscountTotalCents: 0,
+    invoiceDiscountTotalCents: 0,
     discountTotalCents: 0,
     gstTotalCents: 0,
     totalCents: 0,
