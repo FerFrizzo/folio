@@ -1,0 +1,299 @@
+import type { Invoice, Profile, Settings } from "@/src/types/schemas";
+import { formatMoney } from "@/src/lib/money";
+import { formatAbn } from "@/src/lib/abn";
+
+// "Classic professional" PDF template per spec §12.
+// A4, 20 mm top/bottom margins, 15 mm left/right, Source Serif 4 headings,
+// Inter body, hairline 0.5 pt borders, single navy accent #0B3D5C.
+//
+// renderInvoiceHtml is pure — easy to snapshot test. Caller pipes the result
+// into expo-print's printToFileAsync.
+
+const ACCENT = "#0B3D5C";
+const FOREGROUND = "#111827";
+const MUTED = "#4B5563";
+const BORDER = "#D1D5DB";
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function fmtDate(iso: string): string {
+  // Display as DD MMM YYYY, e.g. "01 May 2026" — readable on a tax document
+  // and unambiguous across AU/UK/US conventions.
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+export type RenderInvoiceArgs = {
+  invoice: Invoice;
+  profile: Profile;
+  settings: Settings;
+};
+
+export function renderInvoiceHtml({
+  invoice,
+  profile,
+  settings,
+}: RenderInvoiceArgs): string {
+  const isExport = invoice.currency !== "AUD";
+  const businessName = escapeHtml(profile.businessName || "Your Business");
+  const abn = profile.abn ? escapeHtml(formatAbn(profile.abn)) : "";
+  const buyer = escapeHtml(invoice.clientSnapshot.name);
+  const buyerAddress = invoice.clientSnapshot.address
+    ? escapeHtml(invoice.clientSnapshot.address)
+    : "";
+  const buyerAbn = invoice.clientSnapshot.abn
+    ? escapeHtml(formatAbn(invoice.clientSnapshot.abn))
+    : "";
+
+  const businessAddress = profile.address ? escapeHtml(profile.address) : "";
+  const businessEmail = profile.email ? escapeHtml(profile.email) : "";
+  const businessPhone = profile.phone ? escapeHtml(profile.phone) : "";
+
+  const logoTag = profile.logoUrl
+    ? `<img class="logo" src="${escapeHtml(profile.logoUrl)}" alt="${businessName} logo" />`
+    : "";
+
+  const rows = invoice.lineItems
+    .map((line) => {
+      const amount = formatMoney(
+        line.lineTotalCents - line.gstAmountCents,
+        invoice.currency,
+      );
+      const unitText = line.unit ? ` ${escapeHtml(line.unit)}` : "";
+      return `
+      <tr>
+        <td class="desc">${escapeHtml(line.description || "")}</td>
+        <td class="num">${line.qty}${unitText}</td>
+        <td class="num">${formatMoney(line.unitPriceCents, invoice.currency)}</td>
+        <td class="num">${amount}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const payment = settings.paymentDetails;
+  const paymentRows: string[] = [];
+  if (payment.bsb && payment.accNumber) {
+    paymentRows.push(
+      `<div><span class="label">BSB</span><span>${escapeHtml(payment.bsb)}</span></div>`,
+      `<div><span class="label">Account</span><span>${escapeHtml(payment.accNumber)}</span></div>`,
+    );
+    if (payment.accName) {
+      paymentRows.push(
+        `<div><span class="label">Name</span><span>${escapeHtml(payment.accName)}</span></div>`,
+      );
+    }
+  }
+  if (payment.payId) {
+    paymentRows.push(
+      `<div><span class="label">PayID</span><span>${escapeHtml(payment.payId)}</span></div>`,
+    );
+  }
+  if (payment.otherNotes) {
+    paymentRows.push(
+      `<div class="other"><span class="label">Other</span><span>${escapeHtml(payment.otherNotes)}</span></div>`,
+    );
+  }
+  const paymentHtml = paymentRows.length
+    ? `<section class="payment">
+         <h2>Payment</h2>
+         ${paymentRows.join("")}
+       </section>`
+    : "";
+
+  const exportNote = isExport
+    ? `<p class="export-note">Treated as an export — no GST applies under Australian law.</p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(invoice.number)} — Tax Invoice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    @page { size: A4; margin: 20mm 15mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 10.5pt;
+      color: ${FOREGROUND};
+      line-height: 1.45;
+      font-feature-settings: "tnum";
+    }
+    h1, h2, h3 {
+      font-family: "Source Serif 4", "Playfair Display", Georgia, serif;
+      color: ${ACCENT};
+      margin: 0;
+    }
+    h1 { font-size: 22pt; font-weight: 600; letter-spacing: -0.01em; }
+    h2 { font-size: 11pt; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: ${MUTED}; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      padding-bottom: 16px;
+      border-bottom: 0.5pt solid ${BORDER};
+      margin-bottom: 16px;
+    }
+    .business { max-width: 60%; }
+    .logo { max-height: 56px; max-width: 220px; object-fit: contain; }
+    .business-name { font-family: "Source Serif 4", serif; font-size: 14pt; font-weight: 600; color: ${ACCENT}; margin-top: 8px; }
+    .business-meta { color: ${MUTED}; font-size: 9pt; margin-top: 4px; line-height: 1.5; white-space: pre-line; }
+    .doc { text-align: right; }
+    .doc h1 { letter-spacing: 0.02em; }
+    .doc-meta { color: ${MUTED}; font-size: 9pt; margin-top: 8px; line-height: 1.6; }
+    .doc-meta strong { color: ${FOREGROUND}; font-weight: 600; }
+    .parties {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 18px;
+    }
+    .party { flex: 1; }
+    .party h2 { margin-bottom: 6px; }
+    .party-name { font-weight: 600; font-size: 11pt; }
+    .party-meta { color: ${MUTED}; font-size: 9pt; line-height: 1.5; white-space: pre-line; }
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 18px;
+    }
+    table.items thead th {
+      text-align: left;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: ${MUTED};
+      border-bottom: 0.5pt solid ${BORDER};
+      padding: 8px 6px;
+    }
+    table.items tbody td {
+      border-bottom: 0.5pt solid ${BORDER};
+      padding: 10px 6px;
+      vertical-align: top;
+    }
+    .num { text-align: right; white-space: nowrap; }
+    .desc { width: 55%; }
+    .totals { margin-left: auto; width: 45%; margin-top: 4px; }
+    .totals .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 6px;
+      font-size: 10pt;
+    }
+    .totals .row.grand {
+      border-top: 0.5pt solid ${BORDER};
+      margin-top: 6px;
+      padding-top: 8px;
+      font-size: 13pt;
+      font-weight: 600;
+      color: ${ACCENT};
+    }
+    .totals .row .label { color: ${MUTED}; }
+    .payment {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 0.5pt solid ${BORDER};
+    }
+    .payment h2 { margin-bottom: 8px; }
+    .payment > div {
+      display: flex;
+      gap: 12px;
+      padding: 4px 0;
+      font-size: 10pt;
+    }
+    .payment .label { color: ${MUTED}; min-width: 64px; }
+    .payment .other { align-items: flex-start; white-space: pre-line; }
+    .notes {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 0.5pt solid ${BORDER};
+      font-size: 10pt;
+      color: ${MUTED};
+      white-space: pre-line;
+    }
+    .notes h2 { color: ${MUTED}; margin-bottom: 6px; }
+    .export-note {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: rgba(11, 61, 92, 0.06);
+      border-left: 2pt solid ${ACCENT};
+      color: ${FOREGROUND};
+      font-size: 9.5pt;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="business">
+      ${logoTag}
+      <div class="business-name">${businessName}</div>
+      <div class="business-meta">${[abn ? `ABN ${abn}` : "", businessAddress, businessEmail, businessPhone]
+        .filter(Boolean)
+        .join("\n")}</div>
+    </div>
+    <div class="doc">
+      <h1>Tax Invoice</h1>
+      <div class="doc-meta">
+        <div><strong>${escapeHtml(invoice.number)}</strong></div>
+        <div>Issued ${fmtDate(invoice.issueDate)}</div>
+        <div>Due ${fmtDate(invoice.dueDate)}</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="parties">
+    <div class="party">
+      <h2>Bill to</h2>
+      <div class="party-name">${buyer}</div>
+      ${buyerAbn ? `<div class="party-meta">ABN ${buyerAbn}</div>` : ""}
+      ${buyerAddress ? `<div class="party-meta">${buyerAddress}</div>` : ""}
+    </div>
+  </section>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th class="desc">Description</th>
+        <th class="num">Qty</th>
+        <th class="num">Unit price</th>
+        <th class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="totals">
+    <div class="row"><span class="label">Subtotal</span><span>${formatMoney(invoice.subtotalCents, invoice.currency)}</span></div>
+    ${
+      isExport
+        ? ""
+        : `<div class="row"><span class="label">GST</span><span>${formatMoney(invoice.gstTotalCents, invoice.currency)}</span></div>`
+    }
+    <div class="row grand"><span>Total</span><span>${formatMoney(invoice.totalCents, invoice.currency)}</span></div>
+  </div>
+
+  ${exportNote}
+  ${paymentHtml}
+
+  ${
+    invoice.notes
+      ? `<section class="notes"><h2>Notes</h2>${escapeHtml(invoice.notes)}</section>`
+      : ""
+  }
+</body>
+</html>`;
+}
