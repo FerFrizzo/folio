@@ -30,7 +30,9 @@ import {
   useArchiveInvoice,
   useDeleteDraft,
   useInvoices,
+  useRestoreInvoice,
 } from "@/src/features/invoices/queries";
+import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
 
 const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -39,6 +41,7 @@ const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "partial", label: "Partial" },
   { value: "overdue", label: "Overdue" },
   { value: "paid", label: "Paid" },
+  { value: "archived", label: "Archived" },
 ];
 
 const FILTERED_EMPTY_LABELS: Record<InvoiceStatusFilter, string> = {
@@ -48,6 +51,7 @@ const FILTERED_EMPTY_LABELS: Record<InvoiceStatusFilter, string> = {
   partial: "No partially paid invoices.",
   overdue: "No overdue invoices.",
   paid: "No paid invoices.",
+  archived: "Nothing archived.",
 };
 
 export default function InvoicesScreen() {
@@ -57,12 +61,15 @@ export default function InvoicesScreen() {
   const { query, statusFilter, setQuery, setStatusFilter } = useInvoiceListStore();
   const toast = useToast();
 
-  const invoicesQuery = useInvoices();
+  const showArchived = statusFilter === "archived";
+  const invoicesQuery = useInvoices({ includeDeleted: showArchived });
   const deleteDraft = useDeleteDraft();
   const archiveInvoice = useArchiveInvoice();
+  const restoreInvoice = useRestoreInvoice();
 
   const [contextInvoice, setContextInvoice] = useState<Invoice | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Invoice | null>(null);
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
 
   const all = useMemo(
     () => invoicesQuery.data ?? [],
@@ -71,8 +78,13 @@ export default function InvoicesScreen() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return all.filter((inv) => {
-      const display = deriveDisplayStatus(inv);
-      if (statusFilter !== "all" && display !== statusFilter) return false;
+      if (statusFilter === "archived") {
+        if (!inv.deletedAt) return false;
+      } else {
+        if (inv.deletedAt) return false;
+        const display = deriveDisplayStatus(inv);
+        if (statusFilter !== "all" && display !== statusFilter) return false;
+      }
       if (!q) return true;
       return (
         inv.number.toLowerCase().includes(q) ||
@@ -146,7 +158,9 @@ export default function InvoicesScreen() {
               label={f.label}
               selected={statusFilter === f.value}
               onPress={() => setStatusFilter(f.value)}
-              status={f.value === "all" ? undefined : f.value}
+              status={
+                f.value === "all" || f.value === "archived" ? undefined : f.value
+              }
             />
           ))}
         </ScrollView>
@@ -181,15 +195,22 @@ export default function InvoicesScreen() {
             ) : undefined
           }
           renderItem={({ item }) => (
-            <InvoiceRow
-              invoice={item}
-              onPress={openInvoice}
-              onLongPress={setContextInvoice}
-              onDelete={confirmDelete}
-              // Phase 2: Mark paid + Record payment land in Phase 3 once
-              // payment tracking exists. Hide the swipe affordances by passing
-              // undefined handlers.
-            />
+            <View
+              style={item.deletedAt ? { opacity: 0.6 } : undefined}
+            >
+              <InvoiceRow
+                invoice={item}
+                onPress={openInvoice}
+                onLongPress={setContextInvoice}
+                onDelete={confirmDelete}
+                onMarkPaid={async (inv) => {
+                  // Wired in Phase 3: full-amount mark-paid via PaymentSheet's
+                  // shortcut; for the swipe action we open the sheet directly.
+                  setPaymentInvoice(inv);
+                }}
+                onRecordPayment={(inv) => setPaymentInvoice(inv)}
+              />
+            </View>
           )}
         />
       )}
@@ -202,24 +223,61 @@ export default function InvoicesScreen() {
         title={contextInvoice?.number || "Draft"}
       >
         <View className="gap-2">
-          <Button
-            variant="secondary"
-            label={contextInvoice?.status === "draft" ? "Edit" : "View"}
-            onPress={() => {
-              const t = contextInvoice;
-              setContextInvoice(null);
-              if (t) router.push(`/invoices/${t.id}`);
-            }}
-          />
-          <Button
-            variant="danger"
-            label={contextInvoice?.status === "draft" ? "Delete" : "Archive"}
-            onPress={() => {
-              const target = contextInvoice;
-              setContextInvoice(null);
-              if (target) confirmDelete(target);
-            }}
-          />
+          {contextInvoice?.deletedAt ? (
+            <>
+              <Button
+                variant="secondary"
+                label="View"
+                onPress={() => {
+                  const t = contextInvoice;
+                  setContextInvoice(null);
+                  if (t) router.push(`/invoices/${t.id}`);
+                }}
+              />
+              <Button
+                label="Restore"
+                onPress={async () => {
+                  const t = contextInvoice;
+                  setContextInvoice(null);
+                  if (!t) return;
+                  await restoreInvoice.mutateAsync(t.id);
+                  toast.show({ message: `${t.number || "Draft"} restored.`, variant: "success" });
+                }}
+              />
+              {contextInvoice?.status === "draft" ? (
+                <Button
+                  variant="danger"
+                  label="Delete permanently"
+                  onPress={() => {
+                    const t = contextInvoice;
+                    setContextInvoice(null);
+                    if (t) confirmDelete(t);
+                  }}
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                label={contextInvoice?.status === "draft" ? "Edit" : "View"}
+                onPress={() => {
+                  const t = contextInvoice;
+                  setContextInvoice(null);
+                  if (t) router.push(`/invoices/${t.id}`);
+                }}
+              />
+              <Button
+                variant="danger"
+                label={contextInvoice?.status === "draft" ? "Delete" : "Archive"}
+                onPress={() => {
+                  const target = contextInvoice;
+                  setContextInvoice(null);
+                  if (target) confirmDelete(target);
+                }}
+              />
+            </>
+          )}
           <Button
             variant="ghost"
             label="Cancel"
@@ -227,6 +285,11 @@ export default function InvoicesScreen() {
           />
         </View>
       </Sheet>
+
+      <PaymentSheet
+        invoice={paymentInvoice}
+        onClose={() => setPaymentInvoice(null)}
+      />
 
       <ConfirmDialog
         visible={!!pendingDelete}

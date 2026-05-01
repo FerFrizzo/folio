@@ -4,7 +4,14 @@ import { create } from "zustand";
 // hydrating from SecureStore so it survives app reload comes with the rest of
 // the settings persistence in Phase 2.
 
-export type InvoiceStatusFilter = "all" | "draft" | "sent" | "partial" | "overdue" | "paid";
+export type InvoiceStatusFilter =
+  | "all"
+  | "draft"
+  | "sent"
+  | "partial"
+  | "overdue"
+  | "paid"
+  | "archived";
 
 type State = {
   query: string;

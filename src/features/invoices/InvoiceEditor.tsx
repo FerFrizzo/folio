@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, ScrollView, Text, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
 import { addDays, format } from "date-fns";
 import { Button } from "@/src/components/ui/Button";
 import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
+import { CurrencyInput } from "@/src/components/ui/CurrencyInput";
 import { DateInput } from "@/src/components/ui/DateInput";
 import { IconButton } from "@/src/components/ui/IconButton";
+import { NumberInput } from "@/src/components/ui/NumberInput";
+import { Select } from "@/src/components/ui/Select";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useToast } from "@/src/components/ui/Toast";
 import { ClientSection } from "@/src/features/invoices/sections/ClientSection";
@@ -28,14 +31,24 @@ import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
 import { formatMoney } from "@/src/lib/money";
 import type {
   ClientSnapshot,
+  CurrencyCode,
+  Discount,
   Invoice,
   InvoiceDraftInput,
   PaymentDetails,
 } from "@/src/types/schemas";
 
 type Props = {
-  initial?: Invoice; // existing draft to edit; undefined → new draft
+  initial?: Invoice;
 };
+
+const CURRENCY_OPTIONS: { value: CurrencyCode; label: string }[] = [
+  { value: "AUD", label: "AUD — Australian dollar" },
+  { value: "USD", label: "USD — US dollar" },
+  { value: "EUR", label: "EUR — Euro" },
+  { value: "GBP", label: "GBP — British pound" },
+  { value: "NZD", label: "NZD — New Zealand dollar" },
+];
 
 function dollarsToCents(text: string): number {
   if (!text) return 0;
@@ -54,6 +67,7 @@ function lineInputsFrom(invoice: Invoice): LineItemInput[] {
     qty: String(l.qty),
     unitPriceText: centsToDollars(l.unitPriceCents),
     gstRate: l.gstRate,
+    ...(l.lineDiscount ? { lineDiscount: l.lineDiscount } : {}),
   }));
 }
 
@@ -79,6 +93,9 @@ export function InvoiceEditor({ initial }: Props) {
 
   const [draftId, setDraftId] = useState<string | null>(initial?.id ?? null);
   const [number, setNumber] = useState<string>(initial?.number ?? "DRAFT");
+  const [currency, setCurrency] = useState<CurrencyCode>(
+    initial?.currency ?? "AUD",
+  );
   const [clientId, setClientId] = useState<string | null>(initial?.clientId ?? null);
   const [clientSnapshot, setClientSnapshot] = useState<ClientSnapshot>(
     initial?.clientSnapshot ?? { name: "" },
@@ -93,12 +110,36 @@ export function InvoiceEditor({ initial }: Props) {
       { description: "", qty: "1", unitPriceText: "", gstRate: 0.1 },
     ],
   );
+  const [invoiceDiscount, setInvoiceDiscount] = useState<Discount | undefined>(
+    initial?.invoiceDiscount,
+  );
   const [notes, setNotes] = useState<string>(initial?.notes ?? "");
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
   const [submitting, setSubmitting] = useState(false);
 
-  // Recompute settings-derived defaults once settings load (only on the new
-  // path — we don't want to overwrite a user-set due date on an existing draft).
+  const exportMode = currency !== "AUD";
+  // Switching currency mid-edit is locked once any non-empty line exists. The
+  // user is steered to clear lines first to avoid implicit conversions.
+  const currencyLocked = items.some(
+    (it) => it.description.trim() || it.unitPriceText.trim(),
+  );
+
+  // Force GST=0 on every line when in export mode (non-AUD).
+  useEffect(() => {
+    if (!exportMode) return;
+    setItems((curr) => {
+      let changed = false;
+      const next = curr.map((it) => {
+        if (it.gstRate !== 0) {
+          changed = true;
+          return { ...it, gstRate: 0 };
+        }
+        return it;
+      });
+      return changed ? next : curr;
+    });
+  }, [exportMode]);
+
   useEffect(() => {
     if (!isNew || !settings.data) return;
     setDueDate((d) =>
@@ -113,22 +154,27 @@ export function InvoiceEditor({ initial }: Props) {
         qty: Number(it.qty) || 0,
         unitPriceCents: dollarsToCents(it.unitPriceText),
         gstRate: it.gstRate,
+        ...(it.lineDiscount ? { lineDiscount: it.lineDiscount } : {}),
       })),
     [items],
   );
-  const computed = useMemo(() => computeFromInputs(lineInputs), [lineInputs]);
+  const computed = useMemo(
+    () => computeFromInputs(lineInputs, invoiceDiscount),
+    [lineInputs, invoiceDiscount],
+  );
 
-  // Auto-save every 3s while there's a Draft in play.
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSerializedRef = useRef<string>("");
   useEffect(() => {
     if (!draftId) return;
     const serialized = JSON.stringify({
+      currency,
       clientId,
       clientSnapshot,
       issueDate,
       dueDate,
       items,
+      invoiceDiscount,
       notes,
     });
     if (serialized === lastSerializedRef.current) return;
@@ -140,10 +186,8 @@ export function InvoiceEditor({ initial }: Props) {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
-    // persistDraft closes over current state via refs; intentionally excluded
-    // from deps so the effect fires on user-driven input changes only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId, clientId, clientSnapshot, issueDate, dueDate, items, notes]);
+  }, [draftId, currency, clientId, clientSnapshot, issueDate, dueDate, items, invoiceDiscount, notes]);
 
   function buildDraftInput(): InvoiceDraftInput {
     return {
@@ -151,11 +195,11 @@ export function InvoiceEditor({ initial }: Props) {
       clientSnapshot,
       issueDate,
       dueDate,
-      currency: "AUD", // Phase 2: AUD only
+      currency,
       lineItems: computed.lines,
+      ...(invoiceDiscount ? { invoiceDiscount } : {}),
       notes,
-      paymentInstructionsSnapshot: (settings.data?.paymentDetails ??
-        {}) as PaymentDetails,
+      paymentInstructionsSnapshot: (settings.data?.paymentDetails ?? {}) as PaymentDetails,
     };
   }
 
@@ -185,6 +229,9 @@ export function InvoiceEditor({ initial }: Props) {
     if (!issueDate || !dueDate) return "Issue and due dates are required.";
     if (computed.totals.totalCents <= 0) {
       return "Total must be greater than zero.";
+    }
+    if (computed.totals.discountTotalCents > computed.totals.grossSubtotalCents) {
+      return "Total discount can't exceed the subtotal.";
     }
     return null;
   }
@@ -219,28 +266,29 @@ export function InvoiceEditor({ initial }: Props) {
     try {
       const id = await persistDraft();
       const { number: claimed } = await markSent.mutateAsync({ id });
-      // Re-fetch the now-locked invoice to feed the PDF template.
       const sentInvoice: Invoice = {
         ...(initial ?? ({} as Invoice)),
         id,
         number: claimed,
         status: "sent",
-        currency: "AUD",
+        currency,
         clientId,
         clientSnapshot,
         issueDate,
         dueDate,
         lineItems: computed.lines,
+        ...(invoiceDiscount ? { invoiceDiscount } : {}),
         subtotalCents: computed.totals.subtotalCents,
-        discountTotalCents: 0,
+        lineDiscountTotalCents: computed.totals.lineDiscountTotalCents,
+        invoiceDiscountTotalCents: computed.totals.invoiceDiscountTotalCents,
+        discountTotalCents: computed.totals.discountTotalCents,
         gstTotalCents: computed.totals.gstTotalCents,
         totalCents: computed.totals.totalCents,
         amountPaidCents: 0,
         balanceCents: computed.totals.totalCents,
         payments: [],
         notes,
-        paymentInstructionsSnapshot:
-          (settings.data?.paymentDetails ?? {}) as PaymentDetails,
+        paymentInstructionsSnapshot: (settings.data?.paymentDetails ?? {}) as PaymentDetails,
         creditNoteIds: [],
         createdAt: initial?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -257,7 +305,7 @@ export function InvoiceEditor({ initial }: Props) {
           gstRegistered: true,
         },
         settings: settings.data ?? {
-          numbering: { mode: "auto", prefix: "INV-", counter: 0 },
+          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0 },
           lineItemMode: "basic",
           defaultGstRate: 0.1,
           defaultPaymentTermsDays: 14,
@@ -282,7 +330,6 @@ export function InvoiceEditor({ initial }: Props) {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Sticky header */}
       <View
         className="flex-row items-center justify-between border-b border-border bg-background px-4 pb-3"
         style={{ paddingTop: insets.top + 8 }}
@@ -311,6 +358,30 @@ export function InvoiceEditor({ initial }: Props) {
         className="flex-1"
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 96 }}
       >
+        <View className="flex-row gap-3">
+          <View className="flex-1">
+            <Select
+              label="Currency"
+              value={currency}
+              onChange={(v) => setCurrency(v)}
+              options={CURRENCY_OPTIONS}
+            />
+            {currencyLocked ? (
+              <Text className="mt-1 text-caption text-muted">
+                Clear all lines to change currency.
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        {exportMode ? (
+          <View className="rounded-card border border-border bg-surface p-3">
+            <Text className="text-caption text-muted">
+              Non-AUD invoices are GST-free exports. GST won&apos;t be applied to
+              any line on this invoice.
+            </Text>
+          </View>
+        ) : null}
+
         <View className="flex-row gap-3">
           <View className="flex-1">
             <DateInput
@@ -345,9 +416,24 @@ export function InvoiceEditor({ initial }: Props) {
           <ItemsSection
             items={items}
             onChange={setItems}
-            currency="AUD"
+            currency={currency}
+            exportMode={exportMode}
             computedLineTotalsCents={computed.lines.map((l) => l.lineTotalCents)}
           />
+        </CollapsibleCard>
+
+        <CollapsibleCard title="Discount">
+          <InvoiceDiscountEditor
+            currency={currency}
+            value={invoiceDiscount}
+            onChange={setInvoiceDiscount}
+          />
+          {computed.totals.invoiceDiscountTotalCents > 0 ? (
+            <Text className="mt-2 text-caption text-muted">
+              Reduces subtotal by{" "}
+              {formatMoney(computed.totals.invoiceDiscountTotalCents, currency)}.
+            </Text>
+          ) : null}
         </CollapsibleCard>
 
         <CollapsibleCard title="Payment" defaultExpanded={isNew}>
@@ -359,7 +445,6 @@ export function InvoiceEditor({ initial }: Props) {
         </CollapsibleCard>
       </ScrollView>
 
-      {/* Sticky footer */}
       <View
         className="border-t border-border bg-surface px-4 py-3"
         style={{ paddingBottom: insets.bottom + 12 }}
@@ -368,7 +453,7 @@ export function InvoiceEditor({ initial }: Props) {
           <View>
             <Text className="text-caption text-muted">Total</Text>
             <Text className="text-h1 font-semibold text-foreground [font-feature-settings:'tnum']">
-              {formatMoney(computed.totals.totalCents, "AUD")}
+              {formatMoney(computed.totals.totalCents, currency)}
             </Text>
           </View>
           <View className="flex-row gap-2">
@@ -390,7 +475,88 @@ export function InvoiceEditor({ initial }: Props) {
   );
 }
 
-// Helper alias used by both /new and /[id] routes.
+function InvoiceDiscountEditor({
+  currency,
+  value,
+  onChange,
+}: {
+  currency: CurrencyCode;
+  value: Discount | undefined;
+  onChange: (next: Discount | undefined) => void;
+}) {
+  const [pctText, setPctText] = useState(
+    value?.type === "pct" ? (value.value / 100).toString() : "",
+  );
+  const [fixedText, setFixedText] = useState(
+    value?.type === "fixed" ? (value.value / 100).toFixed(2) : "",
+  );
+
+  return (
+    <View className="gap-2">
+      <Text className="text-label text-foreground">Whole-invoice discount</Text>
+      <View className="flex-row gap-2">
+        {(["none", "pct", "fixed"] as const).map((opt) => {
+          const active =
+            (opt === "none" && !value) || (value && opt === value.type);
+          return (
+            <Pressable
+              key={opt}
+              onPress={() => {
+                if (opt === "none") {
+                  onChange(undefined);
+                  setPctText("");
+                  setFixedText("");
+                } else if (opt === "pct") {
+                  onChange({ type: "pct", value: Math.round(Number(pctText || "0") * 100) });
+                } else {
+                  onChange({ type: "fixed", value: Math.round(Number(fixedText || "0") * 100) });
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Whole-invoice discount: ${opt}`}
+              className={
+                active
+                  ? "rounded-chip border border-accent bg-accent px-3 py-1"
+                  : "rounded-chip border border-border bg-surface px-3 py-1"
+              }
+            >
+              <Text
+                className={
+                  active ? "text-label text-white" : "text-label text-foreground"
+                }
+              >
+                {opt === "none" ? "None" : opt === "pct" ? "Percent" : "Fixed"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {value?.type === "pct" ? (
+        <NumberInput
+          label="Percent (0–100)"
+          value={pctText}
+          onChangeText={(v) => {
+            setPctText(v);
+            onChange({ type: "pct", value: Math.round(Number(v || "0") * 100) });
+          }}
+          placeholder="10"
+        />
+      ) : null}
+      {value?.type === "fixed" ? (
+        <CurrencyInput
+          label="Amount off"
+          value={fixedText}
+          onChangeText={(v) => {
+            setFixedText(v);
+            onChange({ type: "fixed", value: Math.round(Number(v || "0") * 100) });
+          }}
+          symbol={currency === "AUD" ? "$" : currency}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function NewInvoiceEditor() {
   return <InvoiceEditor />;
 }

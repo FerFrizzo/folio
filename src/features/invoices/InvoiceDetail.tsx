@@ -16,8 +16,12 @@ import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import {
   useArchiveInvoice,
   useCreateDraft,
+  useRecordPayment,
 } from "@/src/features/invoices/queries";
+import { useCreditNotesForInvoice } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
+import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
+import { PaymentsLog } from "@/src/features/invoices/PaymentsLog";
 import type { Invoice } from "@/src/types/schemas";
 
 type Props = {
@@ -32,11 +36,14 @@ export function InvoiceDetail({ invoice }: Props) {
   const settings = useSettings();
   const archive = useArchiveInvoice();
   const createDraft = useCreateDraft();
+  const recordPayment = useRecordPayment();
+  const creditNotes = useCreditNotesForInvoice(invoice.id);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfHtml, setPdfHtml] = useState<string | null>(null);
   const [generating, setGenerating] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +62,7 @@ export function InvoiceDetail({ invoice }: Props) {
             gstRegistered: true,
           },
           settings: settings.data ?? {
-            numbering: { mode: "auto", prefix: "INV-", counter: 0 },
+            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0 },
             lineItemMode: "basic",
             defaultGstRate: 0.1,
             defaultPaymentTermsDays: 14,
@@ -140,6 +147,38 @@ export function InvoiceDetail({ invoice }: Props) {
     }
   }
 
+  async function markPaidNow() {
+    if (invoice.balanceCents <= 0) return;
+    try {
+      await recordPayment.mutateAsync({
+        id: invoice.id,
+        payment: {
+          date: new Date().toISOString().slice(0, 10),
+          amountCents: invoice.balanceCents,
+          method: "Manual",
+        },
+      });
+      toast.show({ message: `${invoice.number} marked paid.`, variant: "success" });
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't mark paid.",
+        variant: "error",
+      });
+    }
+  }
+
+  function issueCreditNote() {
+    router.push({
+      pathname: "/credit-notes/new",
+      params: { invoiceId: invoice.id },
+    });
+  }
+
+  // Linked credit note totals → "Net balance" per spec §7.
+  const cnList = creditNotes.data ?? [];
+  const cnTotalCents = cnList.reduce((sum, c) => sum + c.totalCents, 0);
+  const netBalanceCents = invoice.totalCents + cnTotalCents - invoice.amountPaidCents;
+
   return (
     <View className="flex-1 bg-background">
       <View
@@ -198,15 +237,52 @@ export function InvoiceDetail({ invoice }: Props) {
             Subtotal {formatMoney(invoice.subtotalCents, invoice.currency)} ·
             GST {formatMoney(invoice.gstTotalCents, invoice.currency)}
           </Text>
+          {invoice.amountPaidCents > 0 ? (
+            <Text className="mt-1 text-caption text-muted">
+              Paid {formatMoney(invoice.amountPaidCents, invoice.currency)} ·
+              Outstanding {formatMoney(invoice.balanceCents, invoice.currency)}
+            </Text>
+          ) : null}
+          {cnList.length > 0 ? (
+            <View className="mt-3 border-t border-border pt-3">
+              <Text className="text-caption text-muted">
+                Credit notes ({cnList.length}):{" "}
+                {formatMoney(cnTotalCents, invoice.currency)}
+              </Text>
+              <Text className="mt-1 text-body font-semibold text-foreground [font-feature-settings:'tnum']">
+                Net balance: {formatMoney(netBalanceCents, invoice.currency)}
+              </Text>
+            </View>
+          ) : null}
         </Card>
 
+        {invoice.status !== "draft" ? <PaymentsLog invoice={invoice} /> : null}
+
         <View className="gap-2">
+          {invoice.status !== "draft" && invoice.balanceCents > 0 ? (
+            <>
+              <Button label="Mark paid" onPress={markPaidNow} />
+              <Button
+                label="Record payment"
+                variant="secondary"
+                onPress={() => setPaymentInvoice(invoice)}
+              />
+            </>
+          ) : null}
           <Button
             label={sharing ? "Sharing…" : "Share PDF"}
+            variant="secondary"
             disabled={!pdfUri || sharing}
             onPress={share}
           />
-          <Button label="Duplicate as draft" variant="secondary" onPress={duplicate} />
+          {invoice.status !== "draft" ? (
+            <Button
+              label="Issue credit note"
+              variant="secondary"
+              onPress={issueCreditNote}
+            />
+          ) : null}
+          <Button label="Duplicate as draft" variant="ghost" onPress={duplicate} />
           {invoice.status !== "draft" ? (
             <Button
               label="Archive"
@@ -215,15 +291,12 @@ export function InvoiceDetail({ invoice }: Props) {
             />
           ) : null}
         </View>
-
-        <Card>
-          <Text className="text-label text-muted">Phase 3</Text>
-          <Text className="mt-1 text-caption text-muted">
-            Mark paid, Record payment, and Issue credit note land alongside
-            payment tracking in Phase 3.
-          </Text>
-        </Card>
       </ScrollView>
+
+      <PaymentSheet
+        invoice={paymentInvoice}
+        onClose={() => setPaymentInvoice(null)}
+      />
 
       <ConfirmDialog
         visible={confirmArchive}

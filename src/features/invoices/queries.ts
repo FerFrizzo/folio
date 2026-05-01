@@ -9,11 +9,16 @@ import {
   createDraft,
   deleteDraft,
   getInvoice,
+  linkCreditNote,
   listInvoices,
   markSent,
+  recordPayment,
+  removePayment,
+  restoreInvoice,
   softDeleteInvoice,
   updateDraft,
   type InvoiceFilter,
+  type RecordPaymentInput,
 } from "@/src/lib/firestore/invoices";
 import type {
   Invoice,
@@ -90,9 +95,9 @@ export function useMarkSent() {
   const auth = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, prefix }: { id: string; prefix?: string }) => {
+    mutationFn: ({ id }: { id: string }) => {
       if (auth.status !== "ready") throw new Error("Not signed in");
-      return markSent(auth.user.uid, id, prefix);
+      return markSent(auth.user.uid, id);
     },
     onSuccess: (_, vars) => {
       if (auth.status === "ready") {
@@ -130,6 +135,78 @@ export function useArchiveInvoice() {
     onSuccess: () => {
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
+      }
+    },
+  });
+}
+
+export function useRestoreInvoice() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return restoreInvoice(auth.user.uid, id);
+    },
+    onSuccess: () => {
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
+      }
+    },
+  });
+}
+
+export function useRecordPayment() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payment,
+    }: {
+      id: string;
+      payment: RecordPaymentInput;
+    }) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return recordPayment(auth.user.uid, id, payment);
+    },
+    onSuccess: (_, vars) => {
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
+        qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
+      }
+    },
+  });
+}
+
+export function useRemovePayment() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, index }: { id: string; index: number }) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return removePayment(auth.user.uid, id, index);
+    },
+    onSuccess: (_, vars) => {
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
+        qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
+      }
+    },
+  });
+}
+
+export function useLinkCreditNote() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ invoiceId, creditNoteId }: { invoiceId: string; creditNoteId: string }) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return linkCreditNote(auth.user.uid, invoiceId, creditNoteId);
+    },
+    onSuccess: (_, vars) => {
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.invoiceId) });
       }
     },
   });
