@@ -1,61 +1,62 @@
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/src/components/ui/Card";
-import { Button } from "@/src/components/ui/Button";
-import { useToast } from "@/src/components/ui/Toast";
-import { Link } from "expo-router";
-import { setPin, clearPin, hasPin } from "@/src/features/auth/pin";
-import { useEffect, useState } from "react";
+import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
+import { LogoPicker } from "@/src/features/settings/LogoPicker";
+import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
+import { SecurityCard } from "@/src/features/settings/SecurityCard";
+import { ThemeCard } from "@/src/features/settings/ThemeCard";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const toast = useToast();
-  const [pinSet, setPinSet] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    void hasPin().then(setPinSet);
-  }, []);
 
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 32 }}
+      contentContainerStyle={{
+        paddingTop: insets.top + 16,
+        paddingBottom: 48,
+        gap: 16,
+      }}
     >
-      <View className="gap-4 px-4">
+      <View className="px-4">
         <Text className="text-h1 text-foreground">Settings</Text>
+      </View>
+
+      <View className="gap-4 px-4">
+        <Card>
+          <Text className="text-h2 text-foreground">Logo</Text>
+          <View className="mt-3">
+            <LogoPicker />
+          </View>
+        </Card>
+
+        <BusinessProfileForm />
+        <PaymentDetailsForm />
 
         <Card>
-          <Text className="text-h2 text-foreground">Phase 1 dev tools</Text>
+          <Text className="text-h2 text-foreground">Numbering</Text>
           <Text className="mt-1 text-caption text-muted">
-            Real settings UI ships in Phase 2/3. These are scaffolds for verifying
-            the foundation only.
+            Auto · INV-0001, INV-0002, … Custom formats land in Phase 3.
           </Text>
-          <View className="mt-4 gap-2">
-            <Button
-              label={pinSet ? "Reset demo PIN to 1234" : "Set demo PIN to 1234"}
-              variant="secondary"
-              onPress={async () => {
-                await setPin("1234");
-                setPinSet(true);
-                toast.show({
-                  message: "Demo PIN set to 1234. Reload the app to see the gate.",
-                  variant: "success",
-                });
-              }}
-            />
-            <Button
-              label="Clear demo PIN"
-              variant="ghost"
-              onPress={async () => {
-                await clearPin();
-                setPinSet(false);
-                toast.show({ message: "Demo PIN cleared.", variant: "info" });
-              }}
-            />
-            <Link href="/_dev/components" asChild>
-              <Button label="Open component preview (dev)" variant="secondary" />
-            </Link>
-          </View>
+        </Card>
+
+        <ThemeCard />
+        <SecurityCard />
+
+        <Card>
+          <Text className="text-h2 text-foreground">Data</Text>
+          <Text className="mt-1 text-caption text-muted">
+            Archived view + CSV / PDF ZIP exports land in Phase 3.
+          </Text>
+        </Card>
+
+        <Card>
+          <Text className="text-h2 text-foreground">About</Text>
+          <Text className="mt-1 text-caption text-muted">
+            Privacy policy, terms, and changelog land in Phase 5 ahead of
+            store submission.
+          </Text>
         </Card>
       </View>
     </ScrollView>
