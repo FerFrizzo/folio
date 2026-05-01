@@ -2,7 +2,10 @@ import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/src/components/ui/Card";
 import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
+import { DataCard } from "@/src/features/settings/DataCard";
+import { LineItemLibraryCard } from "@/src/features/settings/LineItemLibraryCard";
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
+import { NumberingCard } from "@/src/features/settings/NumberingCard";
 import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
 import { SecurityCard } from "@/src/features/settings/SecurityCard";
 import { ThemeCard } from "@/src/features/settings/ThemeCard";
@@ -33,23 +36,11 @@ export default function SettingsScreen() {
 
         <BusinessProfileForm />
         <PaymentDetailsForm />
-
-        <Card>
-          <Text className="text-h2 text-foreground">Numbering</Text>
-          <Text className="mt-1 text-caption text-muted">
-            Auto · INV-0001, INV-0002, … Custom formats land in Phase 3.
-          </Text>
-        </Card>
-
+        <NumberingCard />
+        <LineItemLibraryCard />
         <ThemeCard />
         <SecurityCard />
-
-        <Card>
-          <Text className="text-h2 text-foreground">Data</Text>
-          <Text className="mt-1 text-caption text-muted">
-            Archived view + CSV / PDF ZIP exports land in Phase 3.
-          </Text>
-        </Card>
+        <DataCard />
 
         <Card>
           <Text className="text-h2 text-foreground">About</Text>

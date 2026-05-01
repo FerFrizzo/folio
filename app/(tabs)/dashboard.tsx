@@ -14,6 +14,7 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { KPICard } from "@/src/components/ui/KPICard";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
+import { LinkAccountBanner } from "@/src/features/dashboard/LinkAccountBanner";
 import { OnboardingBanner } from "@/src/features/dashboard/OnboardingBanner";
 import {
   periodLabel,
@@ -144,7 +145,8 @@ export default function DashboardScreen() {
         ))}
       </ScrollView>
 
-      <View className="px-4">
+      <View className="gap-3 px-4">
+        <LinkAccountBanner />
         <OnboardingBanner />
       </View>
 
