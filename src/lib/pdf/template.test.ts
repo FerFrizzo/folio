@@ -38,11 +38,15 @@ const invoice: Invoice = {
       qty: 1,
       unitPriceCents: 120000,
       gstRate: 0.1,
+      lineDiscountAmountCents: 0,
+      taxableCents: 120000,
       gstAmountCents: 12000,
       lineTotalCents: 132000,
     },
   ],
   subtotalCents: 120000,
+  lineDiscountTotalCents: 0,
+  invoiceDiscountTotalCents: 0,
   discountTotalCents: 0,
   gstTotalCents: 12000,
   totalCents: 132000,
@@ -111,5 +115,85 @@ describe("renderInvoiceHtml", () => {
     expect(html).toContain("BSB");
     expect(html).toContain("063-123");
     expect(html).toContain("PayID");
+  });
+
+  it("shows the spec §5 mixed-rate wording when lines mix GST rates", () => {
+    const mixed: Invoice = {
+      ...invoice,
+      lineItems: [
+        {
+          description: "Service",
+          qty: 1,
+          unitPriceCents: 50000,
+          gstRate: 0.1,
+          lineDiscountAmountCents: 0,
+          taxableCents: 50000,
+          gstAmountCents: 5000,
+          lineTotalCents: 55000,
+        },
+        {
+          description: "GST-free item",
+          qty: 1,
+          unitPriceCents: 50000,
+          gstRate: 0,
+          lineDiscountAmountCents: 0,
+          taxableCents: 50000,
+          gstAmountCents: 0,
+          lineTotalCents: 50000,
+        },
+      ],
+      subtotalCents: 100000,
+      gstTotalCents: 5000,
+      totalCents: 105000,
+      balanceCents: 105000,
+    };
+    const html = renderInvoiceHtml({ invoice: mixed, profile, settings });
+    expect(html).toContain("Includes $50.00 GST on $500.00 of taxable items");
+    expect(html).toContain("Subtotal (ex-GST)");
+  });
+
+  it("renders per-line discount disclosure", () => {
+    const discounted: Invoice = {
+      ...invoice,
+      lineItems: [
+        {
+          description: "Service",
+          qty: 1,
+          unitPriceCents: 10000,
+          gstRate: 0.1,
+          lineDiscount: { type: "pct", value: 1000 },
+          lineDiscountAmountCents: 1000,
+          taxableCents: 9000,
+          gstAmountCents: 900,
+          lineTotalCents: 9900,
+        },
+      ],
+      subtotalCents: 9000,
+      lineDiscountTotalCents: 1000,
+      discountTotalCents: 1000,
+      gstTotalCents: 900,
+      totalCents: 9900,
+      balanceCents: 9900,
+    };
+    const html = renderInvoiceHtml({ invoice: discounted, profile, settings });
+    expect(html).toContain("Discount 10%");
+    expect(html).toContain("Line discounts");
+    expect(html).toContain("−$10.00");
+  });
+
+  it("renders whole-invoice discount disclosure", () => {
+    const wholeDiscounted: Invoice = {
+      ...invoice,
+      invoiceDiscount: { type: "fixed", value: 5000 },
+      subtotalCents: 115000, // taxable after $50 discount
+      invoiceDiscountTotalCents: 5000,
+      discountTotalCents: 5000,
+      gstTotalCents: 11500,
+      totalCents: 126500,
+      balanceCents: 126500,
+    };
+    const html = renderInvoiceHtml({ invoice: wholeDiscounted, profile, settings });
+    expect(html).toContain("Invoice discount");
+    expect(html).toContain("−$50.00");
   });
 });

@@ -1,6 +1,17 @@
-import type { Invoice, Profile, Settings } from "@/src/types/schemas";
+import type { Discount, Invoice, Profile, Settings } from "@/src/types/schemas";
 import { formatMoney } from "@/src/lib/money";
 import { formatAbn } from "@/src/lib/abn";
+
+function formatDiscount(d: Discount, currency: Invoice["currency"]): string {
+  if (d.type === "pct") return `${(d.value / 100).toFixed(2).replace(/\.00$/, "")}%`;
+  return `−${formatMoney(d.value, currency)}`;
+}
+
+function uniqueGstRates(invoice: Invoice): number[] {
+  const rates = new Set<number>();
+  for (const l of invoice.lineItems) rates.add(l.gstRate);
+  return Array.from(rates).sort((a, b) => a - b);
+}
 
 // "Classic professional" PDF template per spec §12.
 // A4, 20 mm top/bottom margins, 15 mm left/right, Source Serif 4 headings,
@@ -64,20 +75,85 @@ export function renderInvoiceHtml({
 
   const rows = invoice.lineItems
     .map((line) => {
-      const amount = formatMoney(
-        line.lineTotalCents - line.gstAmountCents,
-        invoice.currency,
-      );
+      const amount = formatMoney(line.taxableCents, invoice.currency);
       const unitText = line.unit ? ` ${escapeHtml(line.unit)}` : "";
+      const discountTag =
+        line.lineDiscount && line.lineDiscountAmountCents > 0
+          ? `<div class="line-discount">Discount ${formatDiscount(line.lineDiscount, invoice.currency)} (−${formatMoney(line.lineDiscountAmountCents, invoice.currency)})</div>`
+          : "";
       return `
       <tr>
-        <td class="desc">${escapeHtml(line.description || "")}</td>
+        <td class="desc">${escapeHtml(line.description || "")}${discountTag}</td>
         <td class="num">${line.qty}${unitText}</td>
         <td class="num">${formatMoney(line.unitPriceCents, invoice.currency)}</td>
         <td class="num">${amount}</td>
       </tr>`;
     })
     .join("");
+
+  // Build the totals block with GST mix awareness + discount disclosure.
+  const rates = uniqueGstRates(invoice);
+  const isMixedRate = !isExport && rates.length > 1;
+  const taxableSubtotalCents = invoice.subtotalCents;
+  const totalsRows: string[] = [];
+
+  // Gross subtotal (pre-discount) shown when discounts exist; otherwise just
+  // the (post-discount) subtotal.
+  const grossSubtotalCents =
+    taxableSubtotalCents +
+    invoice.lineDiscountTotalCents +
+    invoice.invoiceDiscountTotalCents;
+
+  if (invoice.lineDiscountTotalCents > 0 || invoice.invoiceDiscountTotalCents > 0) {
+    totalsRows.push(
+      `<div class="row"><span class="label">Subtotal</span><span>${formatMoney(grossSubtotalCents, invoice.currency)}</span></div>`,
+    );
+    if (invoice.lineDiscountTotalCents > 0) {
+      totalsRows.push(
+        `<div class="row"><span class="label">Line discounts</span><span>−${formatMoney(invoice.lineDiscountTotalCents, invoice.currency)}</span></div>`,
+      );
+    }
+    if (invoice.invoiceDiscountTotalCents > 0) {
+      const tag = invoice.invoiceDiscount
+        ? ` (${formatDiscount(invoice.invoiceDiscount, invoice.currency)})`
+        : "";
+      totalsRows.push(
+        `<div class="row"><span class="label">Invoice discount${tag}</span><span>−${formatMoney(invoice.invoiceDiscountTotalCents, invoice.currency)}</span></div>`,
+      );
+    }
+    totalsRows.push(
+      `<div class="row"><span class="label">${isExport || isMixedRate ? "Subtotal (ex-GST)" : "Subtotal after discounts"}</span><span>${formatMoney(taxableSubtotalCents, invoice.currency)}</span></div>`,
+    );
+  } else {
+    totalsRows.push(
+      `<div class="row"><span class="label">${isExport || isMixedRate ? "Subtotal (ex-GST)" : "Subtotal"}</span><span>${formatMoney(taxableSubtotalCents, invoice.currency)}</span></div>`,
+    );
+  }
+
+  if (!isExport) {
+    if (isMixedRate) {
+      // Spec §5 wording.
+      let taxableAtRateCents = 0;
+      let gstAtRateCents = 0;
+      for (const l of invoice.lineItems) {
+        if (l.gstRate > 0) {
+          taxableAtRateCents += l.taxableCents;
+          gstAtRateCents += l.gstAmountCents;
+        }
+      }
+      totalsRows.push(
+        `<div class="row mix"><span class="label">Includes ${formatMoney(gstAtRateCents, invoice.currency)} GST on ${formatMoney(taxableAtRateCents, invoice.currency)} of taxable items</span><span></span></div>`,
+      );
+    } else {
+      totalsRows.push(
+        `<div class="row"><span class="label">GST</span><span>${formatMoney(invoice.gstTotalCents, invoice.currency)}</span></div>`,
+      );
+    }
+  }
+
+  totalsRows.push(
+    `<div class="row grand"><span>Total</span><span>${formatMoney(invoice.totalCents, invoice.currency)}</span></div>`,
+  );
 
   const payment = settings.paymentDetails;
   const paymentRows: string[] = [];
@@ -203,6 +279,15 @@ export function renderInvoiceHtml({
       color: ${ACCENT};
     }
     .totals .row .label { color: ${MUTED}; }
+    .totals .row.mix .label {
+      font-size: 9pt;
+      font-style: italic;
+    }
+    .line-discount {
+      font-size: 9pt;
+      color: ${MUTED};
+      margin-top: 2px;
+    }
     .payment {
       margin-top: 24px;
       padding-top: 16px;
@@ -277,13 +362,7 @@ export function renderInvoiceHtml({
   </table>
 
   <div class="totals">
-    <div class="row"><span class="label">Subtotal</span><span>${formatMoney(invoice.subtotalCents, invoice.currency)}</span></div>
-    ${
-      isExport
-        ? ""
-        : `<div class="row"><span class="label">GST</span><span>${formatMoney(invoice.gstTotalCents, invoice.currency)}</span></div>`
-    }
-    <div class="row grand"><span>Total</span><span>${formatMoney(invoice.totalCents, invoice.currency)}</span></div>
+    ${totalsRows.join("\n    ")}
   </div>
 
   ${exportNote}
