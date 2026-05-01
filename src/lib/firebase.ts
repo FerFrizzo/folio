@@ -2,8 +2,15 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   initializeAuth,
+  // getReactNativePersistence is only exposed on the React Native build of
+  // @firebase/auth. Metro resolves it correctly; TypeScript's published types
+  // omit it because they describe the browser build. The runtime import works
+  // on native, so we silence the type error rather than ship a separate file.
+  // @ts-expect-error - getReactNativePersistence is RN-only at the type level
+  getReactNativePersistence,
   type Auth,
 } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { Platform } from "react-native";
@@ -45,14 +52,17 @@ export function getFirebaseApp(): FirebaseApp {
 export function getFirebaseAuth(): Auth {
   if (_auth) return _auth;
   const app = ensureApp();
-  // On native, initializeAuth with AsyncStorage persistence is recommended.
-  // Phase 1 uses default in-memory persistence on native; revisit when we add
-  // real anonymous-session persistence in Phase 2.
+  // Web uses default IndexedDB persistence. Native uses AsyncStorage so the
+  // anonymous UID survives app restarts — non-negotiable for an offline-first
+  // invoicing app. initializeAuth must run exactly once; if it has already run
+  // (hot reload), getAuth returns the existing instance.
   if (Platform.OS === "web") {
     _auth = getAuth(app);
   } else {
     try {
-      _auth = initializeAuth(app);
+      _auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
     } catch {
       _auth = getAuth(app);
     }
