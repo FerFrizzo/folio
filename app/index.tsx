@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
 
-// Phase 1 POC lands on Invoices. Phase 2 will switch this to /dashboard.
+// Land on the Dashboard. The OnboardingBanner there links into /onboarding
+// when steps remain incomplete.
 export default function Index() {
-  return <Redirect href="/invoices" />;
+  return <Redirect href="/dashboard" />;
 }
