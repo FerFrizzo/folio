@@ -17,6 +17,7 @@ import {
   InvoiceSchema,
   type Invoice,
   type InvoiceDraftInput,
+  type PaymentRecord,
 } from "@/src/types/schemas";
 import { fsPaths } from "@/src/lib/firestore/paths";
 import { computeInvoiceTotals } from "@/src/lib/invoice-totals";
@@ -87,7 +88,7 @@ export async function createDraft(
 ): Promise<Invoice> {
   const db = getFirebaseFirestore();
   const ref = doc(collection(db, fsPaths.invoices(uid)));
-  const totals = computeInvoiceTotals(input.lineItems);
+  const totals = computeInvoiceTotals(input.lineItems, input.invoiceDiscount);
   const createdAt = nowIso();
   const data: Omit<Invoice, "id"> = {
     number: "DRAFT",
@@ -98,8 +99,11 @@ export async function createDraft(
     issueDate: input.issueDate,
     dueDate: input.dueDate,
     lineItems: input.lineItems,
+    ...(input.invoiceDiscount ? { invoiceDiscount: input.invoiceDiscount } : {}),
     subtotalCents: totals.subtotalCents,
-    discountTotalCents: 0,
+    lineDiscountTotalCents: totals.lineDiscountTotalCents,
+    invoiceDiscountTotalCents: totals.invoiceDiscountTotalCents,
+    discountTotalCents: totals.discountTotalCents,
     gstTotalCents: totals.gstTotalCents,
     totalCents: totals.totalCents,
     amountPaidCents: 0,
@@ -126,12 +130,20 @@ export async function updateDraft(
     ...patch,
     updatedAt: nowIso(),
   };
-  if (patch.lineItems) {
-    const totals = computeInvoiceTotals(patch.lineItems);
+  if (patch.lineItems || "invoiceDiscount" in patch) {
+    // Need both fields available; if updating one, callers should pass both
+    // (or we'd need to merge with persisted state — keeping this simple for now).
+    const totals = computeInvoiceTotals(
+      patch.lineItems ?? [],
+      patch.invoiceDiscount,
+    );
     update.subtotalCents = totals.subtotalCents;
+    update.lineDiscountTotalCents = totals.lineDiscountTotalCents;
+    update.invoiceDiscountTotalCents = totals.invoiceDiscountTotalCents;
+    update.discountTotalCents = totals.discountTotalCents;
     update.gstTotalCents = totals.gstTotalCents;
     update.totalCents = totals.totalCents;
-    update.balanceCents = totals.totalCents; // Phase 2: no payments yet
+    update.balanceCents = totals.totalCents; // Recomputed in recordPayment.
   }
   await updateDoc(ref, update);
 }
@@ -142,13 +154,18 @@ export async function updateDraft(
 export async function markSent(
   uid: string,
   id: string,
-  prefix: string = "INV-",
 ): Promise<{ number: string }> {
   const db = getFirebaseFirestore();
   const invRef = doc(db, fsPaths.invoice(uid, id));
+  const settingsRef = doc(db, fsPaths.settings(uid));
 
   return runTransaction(db, async (tx) => {
-    const invSnap = await tx.get(invRef);
+    // Read both settings + invoice in the same transaction so a settings
+    // change during the claim still produces a consistent number.
+    const [invSnap, settingsSnap] = await Promise.all([
+      tx.get(invRef),
+      tx.get(settingsRef),
+    ]);
     if (!invSnap.exists()) {
       throw new Error(`Invoice ${id} not found`);
     }
@@ -156,7 +173,18 @@ export async function markSent(
     if (data.status !== "draft") {
       throw new Error(`Invoice ${id} is not a draft (status=${data.status})`);
     }
-    const { number } = await claimNextInvoiceNumberInTransaction(tx, uid, prefix);
+
+    const numbering = settingsSnap.exists()
+      ? (settingsSnap.data().numbering ?? {})
+      : {};
+    const prefix: string = typeof numbering.prefix === "string" ? numbering.prefix : "INV-";
+    const minDigits: number =
+      typeof numbering.minDigits === "number" ? numbering.minDigits : 4;
+
+    const { number } = await claimNextInvoiceNumberInTransaction(tx, uid, {
+      prefix,
+      minDigits,
+    });
     const sentAt = nowIso();
     tx.update(invRef, {
       number,
@@ -165,6 +193,132 @@ export async function markSent(
       updatedAt: sentAt,
     });
     return { number };
+  });
+}
+
+// ---------- Phase 3 mutations ----------
+
+export type RecordPaymentInput = Omit<PaymentRecord, "amountCents"> & {
+  amountCents: number;
+};
+
+// Record a payment against an invoice and recompute status + balance
+// transactionally. Spec §6: status transitions are derived from payments —
+// amountPaid >= total → paid, > 0 → partial.
+export async function recordPayment(
+  uid: string,
+  invoiceId: string,
+  payment: RecordPaymentInput,
+): Promise<{ status: "sent" | "partial" | "paid" }> {
+  if (payment.amountCents <= 0) {
+    throw new Error("Payment amount must be positive.");
+  }
+  const db = getFirebaseFirestore();
+  const ref = doc(db, fsPaths.invoice(uid, invoiceId));
+
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(`Invoice ${invoiceId} not found`);
+    const data = snap.data();
+    if (data.status === "draft") {
+      throw new Error("Send the invoice before recording payments.");
+    }
+
+    const totalCents: number = data.totalCents ?? 0;
+    const currentPaid: number = data.amountPaidCents ?? 0;
+    const nextPaid = currentPaid + payment.amountCents;
+    if (nextPaid > totalCents) {
+      throw new Error(
+        `Payment of ${payment.amountCents}c exceeds remaining balance.`,
+      );
+    }
+    const nextBalance = totalCents - nextPaid;
+    const nextStatus: "sent" | "partial" | "paid" =
+      nextPaid >= totalCents ? "paid" : nextPaid > 0 ? "partial" : "sent";
+
+    const payments = Array.isArray(data.payments) ? data.payments : [];
+    const update: Record<string, unknown> = {
+      payments: [...payments, payment],
+      amountPaidCents: nextPaid,
+      balanceCents: nextBalance,
+      status: nextStatus,
+      updatedAt: nowIso(),
+    };
+    if (nextStatus === "paid") update.paidAt = nowIso();
+    tx.update(ref, update);
+
+    return { status: nextStatus };
+  });
+}
+
+export async function removePayment(
+  uid: string,
+  invoiceId: string,
+  paymentIndex: number,
+): Promise<{ status: "sent" | "partial" | "paid" }> {
+  const db = getFirebaseFirestore();
+  const ref = doc(db, fsPaths.invoice(uid, invoiceId));
+
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(`Invoice ${invoiceId} not found`);
+    const data = snap.data();
+    const payments: PaymentRecord[] = Array.isArray(data.payments) ? data.payments : [];
+    if (paymentIndex < 0 || paymentIndex >= payments.length) {
+      throw new Error("Payment index out of range.");
+    }
+    const removed = payments[paymentIndex];
+    if (!removed) throw new Error("Payment not found.");
+    const nextPayments = payments.filter((_, i) => i !== paymentIndex);
+    const nextPaid: number = (data.amountPaidCents ?? 0) - removed.amountCents;
+    const totalCents: number = data.totalCents ?? 0;
+    const nextBalance = totalCents - nextPaid;
+    const nextStatus: "sent" | "partial" | "paid" =
+      nextPaid >= totalCents
+        ? "paid"
+        : nextPaid > 0
+          ? "partial"
+          : "sent";
+
+    const update: Record<string, unknown> = {
+      payments: nextPayments,
+      amountPaidCents: nextPaid,
+      balanceCents: nextBalance,
+      status: nextStatus,
+      updatedAt: nowIso(),
+    };
+    if (nextStatus !== "paid") update.paidAt = null;
+    tx.update(ref, update);
+
+    return { status: nextStatus };
+  });
+}
+
+export async function linkCreditNote(
+  uid: string,
+  invoiceId: string,
+  creditNoteId: string,
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const ref = doc(db, fsPaths.invoice(uid, invoiceId));
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(`Invoice ${invoiceId} not found`);
+    const data = snap.data();
+    const ids: string[] = Array.isArray(data.creditNoteIds) ? data.creditNoteIds : [];
+    if (ids.includes(creditNoteId)) return;
+    tx.update(ref, {
+      creditNoteIds: [...ids, creditNoteId],
+      updatedAt: nowIso(),
+    });
+  });
+}
+
+export async function restoreInvoice(uid: string, invoiceId: string): Promise<void> {
+  const db = getFirebaseFirestore();
+  await updateDoc(doc(db, fsPaths.invoice(uid, invoiceId)), {
+    deletedAt: null,
+    updatedAt: nowIso(),
   });
 }
 
