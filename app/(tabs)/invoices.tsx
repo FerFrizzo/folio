@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { Chip } from "@/src/components/ui/Chip";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { EmptyState } from "@/src/components/ui/EmptyState";
@@ -17,14 +19,18 @@ import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { Button } from "@/src/components/ui/Button";
 import { useToast } from "@/src/components/ui/Toast";
-import { mockInvoices } from "@/src/mocks/invoices";
-import type { Invoice } from "@/src/types/invoice";
-import { deriveDisplayStatus } from "@/src/types/invoice";
+import type { Invoice } from "@/src/types/schemas";
+import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import {
   useInvoiceListStore,
   type InvoiceStatusFilter,
 } from "@/src/features/invoices/store";
 import { InvoiceRow } from "@/src/features/invoices/InvoiceRow";
+import {
+  useArchiveInvoice,
+  useDeleteDraft,
+  useInvoices,
+} from "@/src/features/invoices/queries";
 
 const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -47,22 +53,24 @@ const FILTERED_EMPTY_LABELS: Record<InvoiceStatusFilter, string> = {
 export default function InvoicesScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const router = useRouter();
   const { query, statusFilter, setQuery, setStatusFilter } = useInvoiceListStore();
   const toast = useToast();
 
-  const [loading, setLoading] = useState(true);
+  const invoicesQuery = useInvoices();
+  const deleteDraft = useDeleteDraft();
+  const archiveInvoice = useArchiveInvoice();
+
   const [contextInvoice, setContextInvoice] = useState<Invoice | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Invoice | null>(null);
 
-  useEffect(() => {
-    // Phase 1: simulate a brief load so the skeleton state is visible.
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
-
+  const all = useMemo(
+    () => invoicesQuery.data ?? [],
+    [invoicesQuery.data],
+  );
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return mockInvoices.filter((inv) => {
+    return all.filter((inv) => {
       const display = deriveDisplayStatus(inv);
       if (statusFilter !== "all" && display !== statusFilter) return false;
       if (!q) return true;
@@ -71,27 +79,49 @@ export default function InvoicesScreen() {
         inv.clientSnapshot.name.toLowerCase().includes(q)
       );
     });
-  }, [query, statusFilter]);
+  }, [all, query, statusFilter]);
 
-  function showSoon(action: string) {
-    toast.show({ message: `${action} — coming in Phase 2.`, variant: "info" });
+  function goNew() {
+    router.push("/invoices/new");
+  }
+
+  function openInvoice(inv: Invoice) {
+    router.push(`/invoices/${inv.id}`);
+  }
+
+  function confirmDelete(inv: Invoice) {
+    setPendingDelete(inv);
+  }
+
+  async function performDelete() {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (!target) return;
+    try {
+      if (target.status === "draft") {
+        await deleteDraft.mutateAsync(target.id);
+        toast.show({ message: `${target.number || "Draft"} deleted.`, variant: "warning" });
+      } else {
+        await archiveInvoice.mutateAsync(target.id);
+        toast.show({ message: `${target.number} archived.`, variant: "warning" });
+      }
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't delete.",
+        variant: "error",
+      });
+    }
   }
 
   return (
     <View className="flex-1 bg-background">
-      {/* Header — sticky search + chips. On web, also a "+ New invoice" button. */}
       <View
         className="border-b border-border bg-background px-4 pb-3"
         style={{ paddingTop: insets.top + 12 }}
       >
         <View className="flex-row items-center justify-between">
           <Text className="text-h1 text-foreground">Invoices</Text>
-          {isWeb ? (
-            <Button
-              label="+ New invoice"
-              onPress={() => showSoon("Creating an invoice")}
-            />
-          ) : null}
+          {isWeb ? <Button label="+ New invoice" onPress={goNew} /> : null}
         </View>
         <View className="mt-3 h-11 flex-row items-center rounded-button border border-border bg-surface px-3">
           <Search size={18} color="#6B7280" />
@@ -122,7 +152,7 @@ export default function InvoicesScreen() {
         </ScrollView>
       </View>
 
-      {loading ? (
+      {invoicesQuery.isLoading ? (
         <View>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <ListRowSkeleton key={i} />
@@ -135,73 +165,59 @@ export default function InvoicesScreen() {
             statusFilter === "all" ? "Create your first invoice." : undefined
           }
           ctaLabel={statusFilter === "all" ? "Create your first invoice" : undefined}
-          onCtaPress={
-            statusFilter === "all"
-              ? () => showSoon("Creating an invoice")
-              : undefined
-          }
+          onCtaPress={statusFilter === "all" ? goNew : undefined}
         />
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(inv) => inv.id}
-          ItemSeparatorComponent={() => (
-            <View className="h-px bg-border" />
-          )}
+          ItemSeparatorComponent={() => <View className="h-px bg-border" />}
+          refreshControl={
+            !isWeb ? (
+              <RefreshControl
+                refreshing={invoicesQuery.isFetching && !invoicesQuery.isLoading}
+                onRefresh={() => void invoicesQuery.refetch()}
+              />
+            ) : undefined
+          }
           renderItem={({ item }) => (
             <InvoiceRow
               invoice={item}
-              onPress={() => showSoon(`Opening ${item.number}`)}
-              onLongPress={() => setContextInvoice(item)}
-              onMarkPaid={() =>
-                toast.show({
-                  message: `${item.number} marked paid.`,
-                  variant: "success",
-                  actionLabel: "Undo",
-                  onAction: () => undefined,
-                })
-              }
-              onDelete={() => setPendingDelete(item)}
-              onRecordPayment={() => showSoon("Recording a payment")}
+              onPress={openInvoice}
+              onLongPress={setContextInvoice}
+              onDelete={confirmDelete}
+              // Phase 2: Mark paid + Record payment land in Phase 3 once
+              // payment tracking exists. Hide the swipe affordances by passing
+              // undefined handlers.
             />
           )}
         />
       )}
 
-      <FAB
-        accessibilityLabel="Create invoice"
-        onPress={() => showSoon("Creating an invoice")}
-      />
+      <FAB accessibilityLabel="Create invoice" onPress={goNew} />
 
-      {/* Long-press context menu — Sheet (BottomSheet on mobile, Modal on web). */}
       <Sheet
         visible={!!contextInvoice}
         onClose={() => setContextInvoice(null)}
-        title={contextInvoice?.number}
+        title={contextInvoice?.number || "Draft"}
       >
         <View className="gap-2">
-          {[
-            { label: "Edit", onPress: () => showSoon("Editing invoice") },
-            { label: "Duplicate", onPress: () => showSoon("Duplicating invoice") },
-            { label: "Share", onPress: () => showSoon("Sharing invoice") },
-          ].map((a) => (
-            <Button
-              key={a.label}
-              variant="secondary"
-              label={a.label}
-              onPress={() => {
-                setContextInvoice(null);
-                a.onPress();
-              }}
-            />
-          ))}
+          <Button
+            variant="secondary"
+            label={contextInvoice?.status === "draft" ? "Edit" : "View"}
+            onPress={() => {
+              const t = contextInvoice;
+              setContextInvoice(null);
+              if (t) router.push(`/invoices/${t.id}`);
+            }}
+          />
           <Button
             variant="danger"
-            label="Delete"
+            label={contextInvoice?.status === "draft" ? "Delete" : "Archive"}
             onPress={() => {
               const target = contextInvoice;
               setContextInvoice(null);
-              if (target) setPendingDelete(target);
+              if (target) confirmDelete(target);
             }}
           />
           <Button
@@ -214,21 +230,20 @@ export default function InvoicesScreen() {
 
       <ConfirmDialog
         visible={!!pendingDelete}
-        title={`Delete ${pendingDelete?.number ?? ""}?`}
-        description="Drafts can be deleted permanently. Sent invoices are archived per ATO retention rules."
-        confirmLabel="Delete"
+        title={
+          pendingDelete?.status === "draft"
+            ? `Delete ${pendingDelete?.number || "this draft"}?`
+            : `Archive ${pendingDelete?.number ?? ""}?`
+        }
+        description={
+          pendingDelete?.status === "draft"
+            ? "Drafts are deleted permanently. This can't be undone."
+            : "Archived invoices are hidden from the main list but kept on file for ATO retention."
+        }
+        confirmLabel={pendingDelete?.status === "draft" ? "Delete" : "Archive"}
         destructive
         onCancel={() => setPendingDelete(null)}
-        onConfirm={() => {
-          const target = pendingDelete;
-          setPendingDelete(null);
-          if (target) {
-            toast.show({
-              message: `${target.number} deleted (mock).`,
-              variant: "warning",
-            });
-          }
-        }}
+        onConfirm={performDelete}
       />
     </View>
   );

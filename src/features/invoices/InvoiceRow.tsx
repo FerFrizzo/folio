@@ -1,10 +1,12 @@
 import { useRef } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import { Swipeable } from "react-native-gesture-handler";
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Check, Trash2, DollarSign } from "lucide-react-native";
-import type { Invoice, InvoiceDisplayStatus } from "@/src/types/invoice";
-import { deriveDisplayStatus } from "@/src/types/invoice";
+import type { Invoice, InvoiceDisplayStatus } from "@/src/types/schemas";
+import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import { formatMoney } from "@/src/lib/money";
 import { ListRow } from "@/src/components/ui/ListRow";
 
@@ -47,7 +49,7 @@ export function InvoiceRow({
   onDelete,
   onRecordPayment,
 }: Props) {
-  const swipeableRef = useRef<Swipeable | null>(null);
+  const swipeableRef = useRef<SwipeableMethods | null>(null);
   const display = deriveDisplayStatus(invoice);
   const overdue = display === "overdue";
 
@@ -135,7 +137,7 @@ export function InvoiceRow({
   }
 
   return (
-    <Swipeable
+    <ReanimatedSwipeable
       ref={swipeableRef}
       friction={2}
       overshootLeft={false}
@@ -147,6 +149,6 @@ export function InvoiceRow({
       renderRightActions={renderRightActions}
     >
       {row}
-    </Swipeable>
+    </ReanimatedSwipeable>
   );
 }
