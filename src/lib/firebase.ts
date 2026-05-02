@@ -13,6 +13,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getFunctions, type Functions } from "firebase/functions";
 import { Platform } from "react-native";
 
 // Firebase Web SDK config — values live in .env (EXPO_PUBLIC_FIREBASE_*).
@@ -33,6 +34,7 @@ let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _firestore: Firestore | null = null;
 let _storage: FirebaseStorage | null = null;
+let _functions: Functions | null = null;
 
 function ensureApp(): FirebaseApp {
   if (!isConfigured) {
@@ -80,6 +82,15 @@ export function getFirebaseStorage(): FirebaseStorage {
   if (_storage) return _storage;
   _storage = getStorage(ensureApp());
   return _storage;
+}
+
+// Cloud Functions are deployed to australia-southeast1 (matching Phase 4's
+// callable region). The client must use the same region or the call fails
+// with `not-found`.
+export function getFirebaseFunctions(): Functions {
+  if (_functions) return _functions;
+  _functions = getFunctions(ensureApp(), "australia-southeast1");
+  return _functions;
 }
 
 export function isFirebaseConfigured(): boolean {
