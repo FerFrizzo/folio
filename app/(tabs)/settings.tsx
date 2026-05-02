@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/src/components/ui/Card";
 import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
 import { DataCard } from "@/src/features/settings/DataCard";
+import { EmailDefaultsCard } from "@/src/features/settings/EmailDefaultsCard";
 import { LineItemLibraryCard } from "@/src/features/settings/LineItemLibraryCard";
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
 import { NumberingCard } from "@/src/features/settings/NumberingCard";
@@ -37,6 +38,7 @@ export default function SettingsScreen() {
         <BusinessProfileForm />
         <PaymentDetailsForm />
         <NumberingCard />
+        <EmailDefaultsCard />
         <LineItemLibraryCard />
         <ThemeCard />
         <SecurityCard />

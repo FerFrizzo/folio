@@ -22,6 +22,7 @@ import { useCreditNotesForInvoice } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
 import { PaymentsLog } from "@/src/features/invoices/PaymentsLog";
+import { SendEmailSheet } from "@/src/features/invoices/SendEmailSheet";
 import type { Invoice } from "@/src/types/schemas";
 
 type Props = {
@@ -44,6 +45,7 @@ export function InvoiceDetail({ invoice }: Props) {
   const [sharing, setSharing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+  const [emailInvoice, setEmailInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +70,7 @@ export function InvoiceDetail({ invoice }: Props) {
             defaultPaymentTermsDays: 14,
             defaultCurrency: "AUD",
             paymentDetails: {},
+            emailDefaults: { subject: "", body: "" },
             themeMode: "system",
             biometricEnabled: false,
           },
@@ -259,9 +262,10 @@ export function InvoiceDetail({ invoice }: Props) {
         {invoice.status !== "draft" ? <PaymentsLog invoice={invoice} /> : null}
 
         <View className="gap-2">
+          <Button label="Send email" onPress={() => setEmailInvoice(invoice)} />
           {invoice.status !== "draft" && invoice.balanceCents > 0 ? (
             <>
-              <Button label="Mark paid" onPress={markPaidNow} />
+              <Button label="Mark paid" variant="secondary" onPress={markPaidNow} />
               <Button
                 label="Record payment"
                 variant="secondary"
@@ -271,7 +275,7 @@ export function InvoiceDetail({ invoice }: Props) {
           ) : null}
           <Button
             label={sharing ? "Sharing…" : "Share PDF"}
-            variant="secondary"
+            variant="ghost"
             disabled={!pdfUri || sharing}
             onPress={share}
           />
@@ -296,6 +300,11 @@ export function InvoiceDetail({ invoice }: Props) {
       <PaymentSheet
         invoice={paymentInvoice}
         onClose={() => setPaymentInvoice(null)}
+      />
+
+      <SendEmailSheet
+        invoice={emailInvoice}
+        onClose={() => setEmailInvoice(null)}
       />
 
       <ConfirmDialog

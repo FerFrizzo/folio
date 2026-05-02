@@ -7,8 +7,11 @@ import { useInvoices } from "@/src/features/invoices/queries";
 import { useCreditNotes } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import { exportCsvZip, exportPdfZip } from "@/src/lib/exports/runExports";
+import { callExportPdfsZip } from "@/src/features/invoices/sendEmail";
 import { useRouter } from "expo-router";
 import { useInvoiceListStore } from "@/src/features/invoices/store";
+
+const SERVER_EXPORT_THRESHOLD = 50;
 
 export function DataCard() {
   const toast = useToast();
@@ -50,17 +53,28 @@ export function DataCard() {
     setBusy("pdf");
     try {
       const liveInvoices = invoices.filter((i) => !i.deletedAt);
-      if (liveInvoices.length > 50) {
+      const liveCreditNotes = creditNotes.filter((c) => !c.deletedAt);
+      // Spec §10: >50 docs goes through the Cloud Function path. The function
+      // returns a signed URL the client opens to download the ZIP.
+      if (liveInvoices.length + liveCreditNotes.length > SERVER_EXPORT_THRESHOLD) {
+        const result = await callExportPdfsZip();
         toast.show({
-          message:
-            ">50 invoices uses a Cloud Function path that lights up in Phase 4.",
-          variant: "warning",
+          message: `Exported ${result.count} docs. Downloading…`,
+          variant: "success",
         });
+        if (typeof window !== "undefined") {
+          // Web: open the signed URL in a new tab to trigger the browser download.
+          window.open(result.url, "_blank");
+        } else {
+          // Native: open in a system browser; downloads through the share sheet.
+          const { Linking } = await import("react-native");
+          await Linking.openURL(result.url);
+        }
         return;
       }
       await exportPdfZip(
         liveInvoices,
-        creditNotes.filter((c) => !c.deletedAt),
+        liveCreditNotes,
         profile.data ?? {
           businessName: "",
           abn: "",
@@ -76,6 +90,7 @@ export function DataCard() {
           defaultPaymentTermsDays: 14,
           defaultCurrency: "AUD",
           paymentDetails: {},
+          emailDefaults: { subject: "", body: "" },
           themeMode: "system",
           biometricEnabled: false,
         },

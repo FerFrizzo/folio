@@ -311,6 +311,7 @@ export function InvoiceEditor({ initial }: Props) {
           defaultPaymentTermsDays: 14,
           defaultCurrency: "AUD",
           paymentDetails: {},
+          emailDefaults: { subject: "", body: "" },
           themeMode: "system",
           biometricEnabled: false,
         },
