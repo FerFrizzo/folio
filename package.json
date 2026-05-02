@@ -21,6 +21,7 @@
     "test:watch": "jest --watch",
     "doctor": "expo-doctor",
     "icons": "node scripts/icons.mjs",
+    "preflight": "node scripts/preflight.mjs",
     "functions:build": "npm --prefix functions run build",
     "functions:test": "npm --prefix functions test"
   },
