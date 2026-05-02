@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/src/components/ui/Card";
+import { AboutCard } from "@/src/features/settings/AboutCard";
 import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
 import { DataCard } from "@/src/features/settings/DataCard";
 import { EmailDefaultsCard } from "@/src/features/settings/EmailDefaultsCard";
@@ -43,14 +44,7 @@ export default function SettingsScreen() {
         <ThemeCard />
         <SecurityCard />
         <DataCard />
-
-        <Card>
-          <Text className="text-h2 text-foreground">About</Text>
-          <Text className="mt-1 text-caption text-muted">
-            Privacy policy, terms, and changelog land in Phase 5 ahead of
-            store submission.
-          </Text>
-        </Card>
+        <AboutCard />
       </View>
     </ScrollView>
   );
