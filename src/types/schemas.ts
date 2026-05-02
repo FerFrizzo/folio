@@ -43,6 +43,12 @@ export const NumberingSchema = z.object({
 });
 export type Numbering = z.infer<typeof NumberingSchema>;
 
+export const EmailDefaultsSchema = z.object({
+  subject: z.string().default(""),
+  body: z.string().default(""),
+});
+export type EmailDefaults = z.infer<typeof EmailDefaultsSchema>;
+
 export const SettingsSchema = z.object({
   numbering: NumberingSchema.default({
     mode: "auto",
@@ -55,6 +61,7 @@ export const SettingsSchema = z.object({
   defaultPaymentTermsDays: z.number().int().nonnegative().default(14),
   defaultCurrency: CurrencyCodeSchema.default("AUD"),
   paymentDetails: PaymentDetailsSchema.default({}),
+  emailDefaults: EmailDefaultsSchema.default({ subject: "", body: "" }),
   themeMode: z.enum(["system", "light", "dark"]).default("system"),
   biometricEnabled: z.boolean().default(false),
 });

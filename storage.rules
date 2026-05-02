@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Per-user subtree mirrors Firestore: a signed-in user can read/write
+    // only their own files. Logos, cached invoice PDFs, and ZIP exports
+    // all live under users/{uid}/...
+    match /users/{userId}/{path=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+
+    // Default-deny anywhere else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
