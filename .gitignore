@@ -47,3 +47,8 @@ yarn-error.*
 
 # Build outputs
 coverage/
+
+# Signing secrets (per-file gitignore in secrets/)
+secrets/*
+!secrets/.gitignore
+!secrets/README.md
