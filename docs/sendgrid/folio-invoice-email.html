@@ -1,0 +1,54 @@
+<!--
+  Folio invoice email — paste into a SendGrid Dynamic Template's Code Editor.
+  All {{merge}} fields are populated by the sendInvoiceEmail Cloud Function.
+  See docs/SENDGRID.md for the merge field list.
+
+  Layout principles:
+   - Inline styles only (most email clients strip <style> blocks).
+   - Single-column 600px max width — Outlook-friendly.
+   - Navy accent #0B3D5C matches the in-app brand + the PDF template.
+-->
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#FAFAF7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111827;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF7;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border:1px solid #E5E5E0;border-radius:12px;">
+            <tr>
+              <td style="padding:32px 32px 8px;">
+                <p style="margin:0;font-size:13px;color:#4B5563;letter-spacing:0.04em;text-transform:uppercase;">{{businessName}}</p>
+                <h1 style="margin:8px 0 4px;font-size:22px;font-weight:600;color:#0B3D5C;font-family:Georgia,serif;">
+                  {{number}} — {{total}}
+                </h1>
+                <p style="margin:0;font-size:13px;color:#4B5563;">Due {{dueDate}}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px;">
+                <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#111827;white-space:pre-line;">{{body}}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 24px;">
+                <a href="{{pdfUrl}}" style="display:inline-block;padding:12px 20px;background:#0B3D5C;color:#FFFFFF;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;">
+                  Open the PDF
+                </a>
+                <p style="margin:12px 0 0;font-size:12px;color:#4B5563;">
+                  The full invoice is attached as a PDF, or open it via the button above.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 24px;border-top:1px solid #E5E5E0;">
+                <p style="margin:0;font-size:12px;color:#9CA3AF;">
+                  Sent via Folio · {{businessName}}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
