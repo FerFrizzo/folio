@@ -72,5 +72,4 @@ counts as acceptance.
 
 ## Contact
 
-For privacy questions, abuse reports, or anything else: replace this
-paragraph with your contact email before publishing the live site.
+For privacy questions, abuse reports, or anything else: fernandofrizzo@gmail.com
