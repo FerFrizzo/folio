@@ -10,11 +10,11 @@ module.exports = {
     extend: {
       colors: {
         // Light/dark surfaces — driven by CSS vars in global.css.
-        background: "rgb(var(--color-background) / <alpha-value>)",
-        surface: "rgb(var(--color-surface) / <alpha-value>)",
-        border: "rgb(var(--color-border) / <alpha-value>)",
-        foreground: "rgb(var(--color-foreground) / <alpha-value>)",
-        muted: "rgb(var(--color-muted) / <alpha-value>)",
+        background: "var(--color-background)",
+        surface: "var(--color-surface)",
+        border: "var(--color-border)",
+        foreground: "var(--color-foreground)",
+        muted: "var(--color-muted)",
 
         // Brand accent — same in both modes.
         accent: {
