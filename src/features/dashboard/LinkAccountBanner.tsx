@@ -20,19 +20,19 @@ import { classifyLinkError } from "@/src/features/auth/linking/linkErrors";
 
 const SILENCE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-export function LinkAccountBanner() {
-  const auth = useAuth();
+type BusyState = "apple" | "google" | null;
+
+// Owns useGoogleAuth — must only be mounted when googleConfigured() is true
+// so the hook never runs without the required platform client ID.
+function GoogleLinkButton({
+  busy,
+  setBusy,
+}: {
+  busy: BusyState;
+  setBusy: (v: BusyState) => void;
+}) {
   const toast = useToast();
-  const dismissedAt = useLinkBannerStore((s) => s.dismissedAt);
-  const dismiss = useLinkBannerStore((s) => s.dismiss);
-  const hydrate = useLinkBannerStore((s) => s.hydrate);
-
   const { promptAsync, response } = useGoogleAuth();
-  const [busy, setBusy] = useState<"apple" | "google" | null>(null);
-
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
 
   useEffect(() => {
     if (!response || response.type !== "success") return;
@@ -40,15 +40,66 @@ export function LinkAccountBanner() {
     if (!idToken) return;
     setBusy("google");
     linkGoogleWithIdToken(idToken)
-      .then(() => {
-        toast.show({ message: "Account linked.", variant: "success" });
-      })
+      .then(() => toast.show({ message: "Account linked.", variant: "success" }))
       .catch((err) => {
         const { message } = classifyLinkError(err);
         toast.show({ message, variant: "error" });
       })
       .finally(() => setBusy(null));
-  }, [response, toast]);
+  }, [response, toast, setBusy]);
+
+  async function onGoogle() {
+    if (Platform.OS === "web") {
+      setBusy("google");
+      try {
+        const result = await linkGoogleWeb();
+        if (!result.ok) {
+          toast.show({ message: "Couldn't link.", variant: "error" });
+          return;
+        }
+        toast.show({ message: "Account linked.", variant: "success" });
+      } catch (err) {
+        const { message } = classifyLinkError(err);
+        toast.show({ message, variant: "error" });
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
+
+    setBusy("google");
+    try {
+      await promptAsync();
+      // linkGoogleWithIdToken runs inside the response useEffect above.
+    } catch (err) {
+      const { message } = classifyLinkError(err);
+      toast.show({ message, variant: "error" });
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Button
+      label={busy === "google" ? "Connecting…" : "Continue with Google"}
+      variant="secondary"
+      disabled={busy !== null}
+      onPress={onGoogle}
+    />
+  );
+}
+
+export function LinkAccountBanner() {
+  const auth = useAuth();
+  const toast = useToast();
+  const dismissedAt = useLinkBannerStore((s) => s.dismissedAt);
+  const dismiss = useLinkBannerStore((s) => s.dismiss);
+  const hydrate = useLinkBannerStore((s) => s.hydrate);
+
+  const [busy, setBusy] = useState<BusyState>(null);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   if (auth.status !== "ready") return null;
   if (!auth.user.isAnonymous) return null;
@@ -83,45 +134,8 @@ export function LinkAccountBanner() {
     }
   }
 
-  async function onGoogle() {
-    if (Platform.OS === "web") {
-      setBusy("google");
-      try {
-        const result = await linkGoogleWeb();
-        if (!result.ok) {
-          toast.show({ message: "Couldn't link.", variant: "error" });
-          return;
-        }
-        toast.show({ message: "Account linked.", variant: "success" });
-      } catch (err) {
-        const { message } = classifyLinkError(err);
-        toast.show({ message, variant: "error" });
-      } finally {
-        setBusy(null);
-      }
-      return;
-    }
-
-    if (!googleConfigured()) {
-      toast.show({
-        message:
-          "Set EXPO_PUBLIC_GOOGLE_*_CLIENT_ID env vars first. See docs/AUTH_PROVIDERS.md.",
-        variant: "error",
-      });
-      return;
-    }
-    setBusy("google");
-    try {
-      await promptAsync();
-      // The follow-on linkGoogleWithIdToken runs inside the response useEffect.
-    } catch (err) {
-      const { message } = classifyLinkError(err);
-      toast.show({ message, variant: "error" });
-      setBusy(null);
-    }
-  }
-
   const showApple = appleAvailableOnPlatform();
+  const showGoogle = googleConfigured();
 
   return (
     <Card>
@@ -151,12 +165,9 @@ export function LinkAccountBanner() {
             onPress={onApple}
           />
         ) : null}
-        <Button
-          label={busy === "google" ? "Connecting…" : "Continue with Google"}
-          variant="secondary"
-          disabled={busy !== null}
-          onPress={onGoogle}
-        />
+        {showGoogle ? (
+          <GoogleLinkButton busy={busy} setBusy={setBusy} />
+        ) : null}
       </View>
     </Card>
   );
