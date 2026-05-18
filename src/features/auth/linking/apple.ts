@@ -8,7 +8,7 @@ import {
   signInWithCredential,
   type User,
 } from "firebase/auth";
-import { getFirebaseAuth } from "@/src/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 
 // Apple sign-in + linkWithCredential. Spec §8: preserve the existing
 // anonymous UID and all data when linking.
@@ -128,5 +128,5 @@ export async function signInWithApple(): Promise<User> {
 }
 
 export function appleAvailableOnPlatform(): boolean {
-  return Platform.OS === "ios" || Platform.OS === "web";
+  return Platform.OS === "ios";
 }
