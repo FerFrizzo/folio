@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ReactNode } from "react";
 import { Stepper } from "@/src/components/ui/Stepper";
 
-const STEPS = ["Profile", "Logo", "Payment", "PIN"];
+const STEPS = ["Profile", "Logo", "Payment", "Pro"];
 
 type Props = {
   stepIndex: 0 | 1 | 2 | 3;

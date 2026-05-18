@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function Chip({ label, selected, onPress, status, accessibilityLabel }: Props) {
-  const tint = status ? Status[status] : "#0B3D5C";
+  const tint = status ? Status[status] : "#1473FF";
 
   return (
     <Pressable

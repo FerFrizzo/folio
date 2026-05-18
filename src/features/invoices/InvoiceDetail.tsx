@@ -19,7 +19,7 @@ import {
   useRecordPayment,
 } from "@/src/features/invoices/queries";
 import { useCreditNotesForInvoice } from "@/src/features/credit-notes/queries";
-import { useProfile, useSettings } from "@/src/features/settings/queries";
+import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
 import { PaymentsLog } from "@/src/features/invoices/PaymentsLog";
 import { SendEmailSheet } from "@/src/features/invoices/SendEmailSheet";
@@ -35,6 +35,7 @@ export function InvoiceDetail({ invoice }: Props) {
   const toast = useToast();
   const profile = useProfile();
   const settings = useSettings();
+  const isPro = useEntitlement() === "pro";
   const archive = useArchiveInvoice();
   const createDraft = useCreateDraft();
   const recordPayment = useRecordPayment();
@@ -55,6 +56,7 @@ export function InvoiceDetail({ invoice }: Props) {
       try {
         const result = await generateInvoicePdf({
           invoice,
+          isPro,
           profile: profile.data ?? {
             businessName: "",
             abn: "",
@@ -94,8 +96,9 @@ export function InvoiceDetail({ invoice }: Props) {
     };
     // toast is from context and stable across renders; excluded to avoid
     // re-running PDF generation on toast identity changes.
+    // isPro triggers regeneration on upgrade/downgrade (lazy re-render per spec §4).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoice, profile.data, settings.data]);
+  }, [invoice, profile.data, settings.data, isPro]);
 
   const display = deriveDisplayStatus(invoice);
 
@@ -212,7 +215,7 @@ export function InvoiceDetail({ invoice }: Props) {
           <View style={{ height: 520 }}>
             {generating ? (
               <View className="flex-1 items-center justify-center bg-background">
-                <ActivityIndicator color="#0B3D5C" />
+                <ActivityIndicator color="#1473FF" />
                 <Text className="mt-2 text-caption text-muted">
                   Generating PDF…
                 </Text>
@@ -262,7 +265,16 @@ export function InvoiceDetail({ invoice }: Props) {
         {invoice.status !== "draft" ? <PaymentsLog invoice={invoice} /> : null}
 
         <View className="gap-2">
-          <Button label="Send email" onPress={() => setEmailInvoice(invoice)} />
+          <Button
+            label="Send email"
+            onPress={() => {
+              if (!isPro) {
+                router.push("/paywall");
+                return;
+              }
+              setEmailInvoice(invoice);
+            }}
+          />
           {invoice.status !== "draft" && invoice.balanceCents > 0 ? (
             <>
               <Button label="Mark paid" variant="secondary" onPress={markPaidNow} />
@@ -279,6 +291,13 @@ export function InvoiceDetail({ invoice }: Props) {
             disabled={!pdfUri || sharing}
             onPress={share}
           />
+          {!isPro ? (
+            <Button
+              label="Download without watermark"
+              variant="ghost"
+              onPress={() => router.push("/paywall")}
+            />
+          ) : null}
           {invoice.status !== "draft" ? (
             <Button
               label="Issue credit note"

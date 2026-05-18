@@ -4,13 +4,12 @@ import { X, ArrowRight } from "lucide-react-native";
 import { Card } from "@/src/components/ui/Card";
 import { useOnboardingStore } from "@/src/features/onboarding/store";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
-import { hasPin } from "@/src/features/auth/pin";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 type Item = {
   key: string;
   label: string;
-  href: "/onboarding" | "/onboarding/logo" | "/onboarding/payment" | "/onboarding/pin";
+  href: "/onboarding" | "/onboarding/logo" | "/onboarding/payment";
 };
 
 export function OnboardingBanner() {
@@ -18,11 +17,6 @@ export function OnboardingBanner() {
   const settings = useSettings();
   const dismissed = useOnboardingStore((s) => s.dismissed);
   const dismiss = useOnboardingStore((s) => s.dismiss);
-  const [pinSet, setPinSet] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    void hasPin().then(setPinSet);
-  }, []);
 
   const items: Item[] = useMemo(() => {
     const out: Item[] = [];
@@ -37,16 +31,13 @@ export function OnboardingBanner() {
     if (!hasPaymentDetails) {
       out.push({ key: "payment", label: "Add payment details", href: "/onboarding/payment" });
     }
-    if (pinSet === false) {
-      out.push({ key: "pin", label: "Set a PIN", href: "/onboarding/pin" });
-    }
     return out;
-  }, [profile.data, settings.data, pinSet]);
+  }, [profile.data, settings.data]);
 
   if (items.length === 0 || dismissed) return null;
 
   return (
-    <Card>
+    <Card className="mx-4">
       <View className="flex-row items-start justify-between">
         <View className="flex-1">
           <Text className="text-h2 text-foreground">Finish setting up</Text>
@@ -72,7 +63,7 @@ export function OnboardingBanner() {
               className="flex-row items-center justify-between rounded-button border border-border bg-surface px-3 py-2 active:bg-background"
             >
               <Text className="text-body text-foreground">{item.label}</Text>
-              <ArrowRight size={16} color="#0B3D5C" />
+              <ArrowRight size={16} color="#1473FF" />
             </Pressable>
           </Link>
         ))}

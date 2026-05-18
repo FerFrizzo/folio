@@ -219,7 +219,7 @@ export function ItemsSection({
                   accessibilityLabel="Save line to library"
                   className="flex-row items-center gap-2"
                 >
-                  <BookmarkPlus size={14} color="#0B3D5C" />
+                  <BookmarkPlus size={14} color="#1473FF" />
                   <Text className="text-label font-semibold text-accent">
                     Save to library
                   </Text>
@@ -237,7 +237,7 @@ export function ItemsSection({
           accessibilityLabel="Add line item"
           className="flex-1 flex-row items-center justify-center gap-2 rounded-button border border-dashed border-accent py-3"
         >
-          <Plus size={16} color="#0B3D5C" />
+          <Plus size={16} color="#1473FF" />
           <Text className="text-body font-semibold text-accent">Add line</Text>
         </Pressable>
         <Pressable
@@ -246,7 +246,7 @@ export function ItemsSection({
           accessibilityLabel="Insert from library"
           className="flex-row items-center gap-2 rounded-button border border-border bg-surface px-3"
         >
-          <Library size={16} color="#0B3D5C" />
+          <Library size={16} color="#1473FF" />
           <Text className="text-body font-semibold text-foreground">Library</Text>
         </Pressable>
       </View>

@@ -21,7 +21,7 @@ export function Switch({ label, helperText, value, onValueChange, disabled }: Pr
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: "#E5E5E0", true: "#0B3D5C" }}
+        trackColor={{ false: "#E5E5E0", true: "#1473FF" }}
         thumbColor="#FFFFFF"
         accessibilityLabel={label ?? "Toggle"}
       />

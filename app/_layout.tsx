@@ -4,12 +4,14 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
-import { View } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Platform } from "react-native";
 import { vars, useColorScheme } from "nativewind";
-import { AuthProvider } from "@/src/features/auth/AuthProvider";
+import { AuthProvider, useAuth } from "@/src/features/auth/AuthProvider";
 import { Gate } from "@/src/features/auth/Gate";
 import { ToastProvider } from "@/src/components/ui";
+import Purchases, { LOG_LEVEL } from "react-native-purchases";
+import Constants from "expo-constants";
 
 const lightVars = vars({
   "--color-background": "#FAFAF7",
@@ -26,6 +28,24 @@ const darkVars = vars({
   "--color-foreground": "#F3F4F6",
   "--color-muted": "#9CA3AF",
 });
+
+function RevenueCatInitializer() {
+  const auth = useAuth();
+  const uid = auth.status === "ready" ? auth.user.uid : null;
+  useEffect(() => {
+    if (!uid) return;
+    const key =
+      Platform.OS === "ios"
+        ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? ""
+        : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "";
+    if (!key) return; // Web or dev env without keys — skip silently
+    if (Constants.executionEnvironment === "storeClient") return; // Expo Go: native store unavailable
+    Purchases.setLogLevel(LOG_LEVEL.ERROR);
+    void Purchases.configure({ apiKey: key });
+    void Purchases.logIn(uid);
+  }, [uid]);
+  return null;
+}
 
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
@@ -49,6 +69,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <Gate>
+              <RevenueCatInitializer />
               <ToastProvider>
                 <StatusBar style="auto" />
                 <Stack
@@ -56,7 +77,9 @@ export default function RootLayout() {
                     headerShown: false,
                     contentStyle: { backgroundColor: "transparent" },
                   }}
-                />
+                >
+                  <Stack.Screen name="paywall" options={{ presentation: "modal", headerShown: false }} />
+                </Stack>
               </ToastProvider>
             </Gate>
           </AuthProvider>

@@ -3,8 +3,8 @@
 // inline styles). Keep in sync with tailwind.config.js + global.css.
 
 export const Accent = {
-  DEFAULT: "#0B3D5C",
-  hover: "#1B5A82",
+  DEFAULT: "#1473FF",
+  hover: "#0A5CE8",
 } as const;
 
 export const Status = {

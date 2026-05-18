@@ -172,3 +172,28 @@ export const CreditNoteSchema = z.object({
   deletedAt: ISO_DATETIME.optional(),
 });
 export type CreditNote = z.infer<typeof CreditNoteSchema>;
+
+// ---------- subscription ----------
+// Kept in sync with src/types/schemas.ts SubscriptionSchema.
+export const SubscriptionStateSchema = z.enum([
+  "free",
+  "trial",
+  "active",
+  "grace",
+  "lapsed",
+]);
+export type SubscriptionState = z.infer<typeof SubscriptionStateSchema>;
+
+export const EntitlementSchema = z.enum(["free", "pro"]);
+export type Entitlement = z.infer<typeof EntitlementSchema>;
+
+export const SubscriptionSchema = z.object({
+  entitlement: EntitlementSchema,
+  state: SubscriptionStateSchema,
+  productId: z.string().optional(),
+  currentPeriodEndsAt: ISO_DATETIME.optional(),
+  gracePeriodEndsAt: ISO_DATETIME.optional(),
+  rcUserId: z.string().optional(),
+  updatedAt: ISO_DATETIME,
+});
+export type Subscription = z.infer<typeof SubscriptionSchema>;

@@ -3,3 +3,4 @@
 
 export { sendInvoiceEmail } from "./sendInvoiceEmail";
 export { exportPdfsZip } from "./exportPdfsZip";
+export { revenueCatWebhook } from "./revenueCatWebhook";

@@ -263,6 +263,33 @@ export const LineItemLibraryInputSchema = LineItemLibraryEntrySchema.pick({
 }).partial({ unit: true });
 export type LineItemLibraryInput = z.infer<typeof LineItemLibraryInputSchema>;
 
+// ---------- subscription ----------
+// Written exclusively by the revenueCatWebhook Cloud Function via Admin SDK.
+// Clients read this doc; they never write it directly.
+// `entitlement` is the single source of truth for all feature gating.
+export const SubscriptionStateSchema = z.enum([
+  "free",
+  "trial",
+  "active",
+  "grace",
+  "lapsed",
+]);
+export type SubscriptionState = z.infer<typeof SubscriptionStateSchema>;
+
+export const EntitlementSchema = z.enum(["free", "pro"]);
+export type Entitlement = z.infer<typeof EntitlementSchema>;
+
+export const SubscriptionSchema = z.object({
+  entitlement: EntitlementSchema,
+  state: SubscriptionStateSchema,
+  productId: z.string().optional(),
+  currentPeriodEndsAt: ISO_DATETIME.optional(),
+  gracePeriodEndsAt: ISO_DATETIME.optional(),
+  rcUserId: z.string().optional(),
+  updatedAt: ISO_DATETIME,
+});
+export type Subscription = z.infer<typeof SubscriptionSchema>;
+
 // ---------- form input shapes (looser than persisted shape) ----------
 export const InvoiceDraftInputSchema = z.object({
   clientId: z.string().nullable(),

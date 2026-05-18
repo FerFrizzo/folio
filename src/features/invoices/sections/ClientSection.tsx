@@ -123,7 +123,7 @@ export function ClientSection({ clientId, snapshot, onChange, error }: Props) {
               accessibilityLabel="Add a new client"
               className="flex-row items-center gap-2 rounded-button border border-dashed border-accent bg-surface p-3"
             >
-              <Plus size={16} color="#0B3D5C" />
+              <Plus size={16} color="#1473FF" />
               <Text className="text-body font-semibold text-accent">
                 Add new client
               </Text>

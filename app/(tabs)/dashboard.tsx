@@ -14,8 +14,8 @@ import { EmptyState } from "@/src/components/ui/EmptyState";
 import { KPICard } from "@/src/components/ui/KPICard";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
-import { LinkAccountBanner } from "@/src/features/dashboard/LinkAccountBanner";
 import { OnboardingBanner } from "@/src/features/dashboard/OnboardingBanner";
+import { SubscriptionBanner } from "@/src/features/dashboard/SubscriptionBanner";
 import {
   periodLabel,
   periodRange,
@@ -31,6 +31,7 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: "month", label: "This month" },
   { key: "quarter", label: "This quarter" },
   { key: "fy", label: "This FY" },
+  { key: "all", label: "All" },
 ];
 
 export default function DashboardScreen() {
@@ -145,10 +146,8 @@ export default function DashboardScreen() {
         ))}
       </ScrollView>
 
-      <View className="gap-3 px-4">
-        <LinkAccountBanner />
-        <OnboardingBanner />
-      </View>
+      <OnboardingBanner />
+      <SubscriptionBanner />
 
       <View className="gap-3 px-4">
         <KPICard
@@ -169,10 +168,37 @@ export default function DashboardScreen() {
               label="Paid this period"
               amount={formatMoney(stats.paidThisPeriodCents, "AUD")}
               tone={stats.paidThisPeriodCents > 0 ? "paid" : undefined}
-              helperText="Phase 3"
             />
           </View>
         </View>
+      </View>
+
+      <View className="gap-3 px-4">
+        <Text className="text-h2 text-foreground">Recent activity</Text>
+        {invoicesQuery.isLoading ? (
+          <View><ListRowSkeleton /><ListRowSkeleton /><ListRowSkeleton /></View>
+        ) : recent.length === 0 ? (
+          <Card>
+            <Text className="text-body text-muted">No invoices yet.</Text>
+          </Card>
+        ) : (
+          <View className="overflow-hidden rounded-card border border-border bg-surface">
+            {recent.map((inv, idx) => (
+              <View key={inv.id}>
+                <ListRow
+                  primary={inv.number || "Draft"}
+                  secondary={inv.clientSnapshot.name}
+                  trailingAmount={formatMoney(inv.totalCents, inv.currency)}
+                  status={deriveDisplayStatus(inv, today)}
+                  onPress={() => router.push(`/invoices/${inv.id}`)}
+                />
+                {idx < recent.length - 1 ? (
+                  <View className="h-px bg-border" />
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       <View className="gap-3 px-4">
@@ -202,34 +228,6 @@ export default function DashboardScreen() {
                 </View>
               );
             })}
-          </View>
-        )}
-      </View>
-
-      <View className="gap-3 px-4">
-        <Text className="text-h2 text-foreground">Recent activity</Text>
-        {invoicesQuery.isLoading ? (
-          <View><ListRowSkeleton /><ListRowSkeleton /><ListRowSkeleton /></View>
-        ) : recent.length === 0 ? (
-          <Card>
-            <Text className="text-body text-muted">No invoices yet.</Text>
-          </Card>
-        ) : (
-          <View className="overflow-hidden rounded-card border border-border bg-surface">
-            {recent.map((inv, idx) => (
-              <View key={inv.id}>
-                <ListRow
-                  primary={inv.number || "Draft"}
-                  secondary={inv.clientSnapshot.name}
-                  trailingAmount={formatMoney(inv.totalCents, inv.currency)}
-                  status={deriveDisplayStatus(inv, today)}
-                  onPress={() => router.push(`/invoices/${inv.id}`)}
-                />
-                {idx < recent.length - 1 ? (
-                  <View className="h-px bg-border" />
-                ) : null}
-              </View>
-            ))}
           </View>
         )}
       </View>

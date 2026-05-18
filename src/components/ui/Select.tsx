@@ -75,7 +75,7 @@ export function Select<V extends string>({
                 >
                   {opt.label}
                 </Text>
-                {selected ? <Check size={16} color="#0B3D5C" /> : null}
+                {selected ? <Check size={16} color="#1473FF" /> : null}
               </Pressable>
             );
           })}

@@ -2,6 +2,7 @@ import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/src/components/ui/Card";
 import { AboutCard } from "@/src/features/settings/AboutCard";
+import { SubscriptionCard } from "@/src/features/settings/SubscriptionCard";
 import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
 import { DataCard } from "@/src/features/settings/DataCard";
 import { EmailDefaultsCard } from "@/src/features/settings/EmailDefaultsCard";
@@ -9,7 +10,6 @@ import { LineItemLibraryCard } from "@/src/features/settings/LineItemLibraryCard
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
 import { NumberingCard } from "@/src/features/settings/NumberingCard";
 import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
-import { SecurityCard } from "@/src/features/settings/SecurityCard";
 import { ThemeCard } from "@/src/features/settings/ThemeCard";
 
 export default function SettingsScreen() {
@@ -29,6 +29,8 @@ export default function SettingsScreen() {
       </View>
 
       <View className="gap-4 px-4">
+        <SubscriptionCard />
+
         <Card>
           <Text className="text-h2 text-foreground">Logo</Text>
           <View className="mt-3">
@@ -42,7 +44,6 @@ export default function SettingsScreen() {
         <EmailDefaultsCard />
         <LineItemLibraryCard />
         <ThemeCard />
-        <SecurityCard />
         <DataCard />
         <AboutCard />
       </View>

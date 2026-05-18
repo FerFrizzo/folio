@@ -7,7 +7,7 @@ import {
   isWithinInterval,
 } from "date-fns";
 
-export type PeriodKey = "month" | "quarter" | "fy";
+export type PeriodKey = "month" | "quarter" | "fy" | "all";
 
 // Australian financial year runs 1 July → 30 June.
 function australianFy(today: Date): { start: Date; end: Date } {
@@ -26,6 +26,9 @@ export function periodRange(key: PeriodKey, today: Date = new Date()): { start: 
   if (key === "quarter") {
     return { start: startOfQuarter(today), end: endOfQuarter(today) };
   }
+  if (key === "all") {
+    return { start: new Date(0), end: new Date(8640000000000000) };
+  }
   return australianFy(today);
 }
 
@@ -35,6 +38,7 @@ export function periodLabel(key: PeriodKey, today: Date = new Date()): string {
     const r = periodRange("quarter", today);
     return `${format(r.start, "MMM")}–${format(r.end, "MMM yyyy")}`;
   }
+  if (key === "all") return "All time";
   const r = periodRange("fy", today);
   return `FY ${format(r.start, "yy")}–${format(r.end, "yy")}`;
 }

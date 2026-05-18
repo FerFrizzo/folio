@@ -26,7 +26,7 @@ export function IconButton({
   const bg =
     variant === "filled" ? "bg-surface border border-border" : "bg-transparent active:bg-background";
   const color =
-    tone === "danger" ? "#C0392B" : variant === "filled" ? "#0B3D5C" : undefined;
+    tone === "danger" ? "#C0392B" : variant === "filled" ? "#1473FF" : undefined;
 
   return (
     <Pressable
@@ -42,7 +42,7 @@ export function IconButton({
         className,
       )}
     >
-      <Icon size={size} color={color ?? "#0B3D5C"} />
+      <Icon size={size} color={color ?? "#1473FF"} />
     </Pressable>
   );
 }

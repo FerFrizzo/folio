@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/src/features/auth/AuthProvider";
 import { getProfile, setProfile } from "@/src/lib/firestore/profile";
 import { getSettings, setSettings } from "@/src/lib/firestore/settings";
-import { ProfileSchema, type Profile, type Settings } from "@/src/types/schemas";
+import { getSubscription } from "@/src/lib/firestore/subscription";
+import { ProfileSchema, type Profile, type Settings, type Subscription } from "@/src/types/schemas";
 
 const profileKeys = {
   detail: (uid: string) => ["profile", uid] as const,
@@ -66,6 +67,28 @@ export function useSetSettings() {
       }
     },
   });
+}
+
+const subscriptionKeys = {
+  detail: (uid: string) => ["subscription", uid] as const,
+};
+
+export function useSubscription() {
+  const auth = useAuth();
+  const uid = auth.status === "ready" ? auth.user.uid : null;
+  return useQuery<Subscription | null>({
+    queryKey: subscriptionKeys.detail(uid ?? "anon"),
+    enabled: !!uid,
+    queryFn: () => getSubscription(uid as string),
+    staleTime: 60_000,
+  });
+}
+
+// Single source of entitlement truth. Returns 'free' while loading or when no
+// subscription doc exists (new users start free until a webhook event arrives).
+export function useEntitlement(): "free" | "pro" {
+  const q = useSubscription();
+  return q.data?.entitlement ?? "free";
 }
 
 // Helper for places that need a profile-with-defaults rather than null.

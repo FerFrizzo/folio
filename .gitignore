@@ -52,3 +52,9 @@ coverage/
 secrets/*
 !secrets/.gitignore
 !secrets/README.md
+
+# Docs and project notes (local only)
+docs/
+CHANGELOG.md
+CLAUDE.md
+README.md
