@@ -36,6 +36,19 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme:
+              "com.googleusercontent.apps.792742422119-lhbh2o8p7u7bbdvfn1f482u5cdq76u5k",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
     permissions: [
       // expo-document-picker uses the SAF on modern Android — no broad
       // storage permission needed. expo-image-picker prompts for media
