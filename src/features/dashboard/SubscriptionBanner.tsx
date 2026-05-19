@@ -1,14 +1,10 @@
-import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
 import { Card } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { useEntitlement } from "@/src/features/settings/queries";
 import { useSubscriptionBannerStore } from "@/src/features/dashboard/subscriptionBannerStore";
-
-if (Platform.OS === "android") {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
-}
 
 export function SubscriptionBanner() {
   const entitlement = useEntitlement();
@@ -19,7 +15,6 @@ export function SubscriptionBanner() {
   if (entitlement === "pro" || dismissed) return null;
 
   function handleDismiss() {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     dismiss();
   }
 

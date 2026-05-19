@@ -42,6 +42,7 @@ export function EmailDefaultsCard() {
       await setSettings.mutateAsync(next);
       toast.show({ message: "Email defaults saved.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't save.",
         variant: "error",

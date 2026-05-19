@@ -10,7 +10,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Card } from "@/src/components/ui/Card";
 import { Chip } from "@/src/components/ui/Chip";
-import { EmptyState } from "@/src/components/ui/EmptyState";
 import { KPICard } from "@/src/components/ui/KPICard";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
@@ -206,7 +205,9 @@ export default function DashboardScreen() {
         {invoicesQuery.isLoading ? (
           <View><ListRowSkeleton /><ListRowSkeleton /></View>
         ) : needsAttention.length === 0 ? (
-          <EmptyState title="Nothing urgent." />
+          <Card>
+            <Text className="text-body text-muted">Nothing urgent.</Text>
+          </Card>
         ) : (
           <View className="overflow-hidden rounded-card border border-border bg-surface">
             {needsAttention.map((inv, idx) => {

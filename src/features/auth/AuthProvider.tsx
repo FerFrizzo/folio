@@ -42,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       (error) => {
+        console.error("[Auth error]", error);
         setState({ status: "error", user: null, error });
       },
     );

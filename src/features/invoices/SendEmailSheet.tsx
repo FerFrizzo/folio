@@ -151,6 +151,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
       onClose();
       onSent?.();
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Send failed.",
         variant: "error",

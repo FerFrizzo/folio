@@ -17,11 +17,11 @@ export default function OnboardingPayment() {
         <Button
           label="Skip"
           variant="ghost"
-          onPress={() => router.push("/onboarding/pin")}
+          onPress={() => router.replace("/(tabs)/dashboard")}
         />
         <Button
-          label="Next: PIN"
-          onPress={() => router.push("/onboarding/pin")}
+          label="Done"
+          onPress={() => router.replace("/(tabs)/dashboard")}
         />
       </View>
     </OnboardingShell>

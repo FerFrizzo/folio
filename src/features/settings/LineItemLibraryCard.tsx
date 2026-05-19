@@ -47,6 +47,7 @@ export function LineItemLibraryCard() {
       setUnitPriceText("");
       toast.show({ message: "Added to library.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't save.",
         variant: "error",

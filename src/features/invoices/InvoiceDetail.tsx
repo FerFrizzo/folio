@@ -82,6 +82,7 @@ export function InvoiceDetail({ invoice }: Props) {
         setPdfHtml(result.html);
       } catch (err) {
         if (!cancelled) {
+          console.error(err);
           toast.show({
             message: err instanceof Error ? err.message : "PDF failed.",
             variant: "error",
@@ -108,6 +109,7 @@ export function InvoiceDetail({ invoice }: Props) {
     try {
       await shareInvoicePdf(pdfUri, `${invoice.number}.pdf`);
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't share.",
         variant: "error",
@@ -132,6 +134,7 @@ export function InvoiceDetail({ invoice }: Props) {
       router.replace(`/invoices/${created.id}`);
       toast.show({ message: "Duplicated as draft.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't duplicate.",
         variant: "error",
@@ -146,6 +149,7 @@ export function InvoiceDetail({ invoice }: Props) {
       toast.show({ message: `${invoice.number} archived.`, variant: "info" });
       router.back();
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't archive.",
         variant: "error",
@@ -166,6 +170,7 @@ export function InvoiceDetail({ invoice }: Props) {
       });
       toast.show({ message: `${invoice.number} marked paid.`, variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't mark paid.",
         variant: "error",

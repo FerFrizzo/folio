@@ -27,6 +27,7 @@ export default function EditClientScreen() {
       toast.show({ message: "Client saved.", variant: "success" });
       router.back();
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't save client.",
         variant: "error",

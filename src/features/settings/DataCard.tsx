@@ -40,6 +40,7 @@ export function DataCard() {
       );
       toast.show({ message: "CSV exported.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Export failed.",
         variant: "error",
@@ -97,6 +98,7 @@ export function DataCard() {
       );
       toast.show({ message: "PDFs exported.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Export failed.",
         variant: "error",

@@ -51,6 +51,7 @@ export function BusinessProfileForm() {
       await setProfile.mutateAsync(next);
       toast.show({ message: "Business profile saved.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't save profile.",
         variant: "error",

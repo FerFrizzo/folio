@@ -118,6 +118,7 @@ export default function InvoicesScreen() {
         toast.show({ message: `${target.number} archived.`, variant: "warning" });
       }
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't delete.",
         variant: "error",

@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { View, Platform } from "react-native";
 import { vars, useColorScheme } from "nativewind";
@@ -32,18 +32,32 @@ const darkVars = vars({
 function RevenueCatInitializer() {
   const auth = useAuth();
   const uid = auth.status === "ready" ? auth.user.uid : null;
+
   useEffect(() => {
-    if (!uid) return;
     const key =
       Platform.OS === "ios"
         ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? ""
         : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "";
-    if (!key) return; // Web or dev env without keys — skip silently
-    if (Constants.executionEnvironment === "storeClient") return; // Expo Go: native store unavailable
+    if (!key) {
+      console.warn("[RevenueCat] No API key found — skipping initialization.");
+      return;
+    }
+    if (Constants.executionEnvironment === "storeClient") {
+      console.warn("[RevenueCat] Running in Expo Go — skipping initialization.");
+      return;
+    }
     Purchases.setLogLevel(LOG_LEVEL.ERROR);
     void Purchases.configure({ apiKey: key });
-    void Purchases.logIn(uid);
+  }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+    void Purchases.isConfigured().then((configured) => {
+      if (!configured) return;
+      void Purchases.logIn(uid);
+    });
   }, [uid]);
+
   return null;
 }
 
@@ -52,6 +66,12 @@ export default function RootLayout() {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        queryCache: new QueryCache({
+          onError: (error) => console.error("[Query error]", error),
+        }),
+        mutationCache: new MutationCache({
+          onError: (error) => console.error("[Mutation error]", error),
+        }),
         defaultOptions: {
           queries: {
             staleTime: 30_000,
@@ -68,9 +88,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <Gate>
-              <RevenueCatInitializer />
-              <ToastProvider>
+            <ToastProvider>
+              <Gate>
+                <RevenueCatInitializer />
                 <StatusBar style="auto" />
                 <Stack
                   screenOptions={{
@@ -80,8 +100,8 @@ export default function RootLayout() {
                 >
                   <Stack.Screen name="paywall" options={{ presentation: "modal", headerShown: false }} />
                 </Stack>
-              </ToastProvider>
-            </Gate>
+              </Gate>
+            </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

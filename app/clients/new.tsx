@@ -20,6 +20,7 @@ export default function NewClientScreen() {
       toast.show({ message: "Client added.", variant: "success" });
       router.back();
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't add client.",
         variant: "error",

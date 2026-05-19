@@ -244,6 +244,7 @@ export function InvoiceEditor({ initial }: Props) {
       toast.show({ message: "Draft saved.", variant: "success" });
       router.replace(`/invoices/${id}`);
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Save failed.",
         variant: "error",
