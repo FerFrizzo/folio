@@ -4,10 +4,12 @@ import {
   SettingsSchema,
   InvoiceSchema,
   CreditNoteSchema,
+  SubscriptionSchema,
   type Invoice,
   type Profile,
   type Settings,
   type CreditNote,
+  type Subscription,
 } from "./types";
 
 const paths = {
@@ -18,6 +20,7 @@ const paths = {
   invoices: (uid: string) => `users/${uid}/invoices`,
   creditNote: (uid: string, id: string) => `users/${uid}/creditNotes/${id}`,
   creditNotes: (uid: string) => `users/${uid}/creditNotes`,
+  subscription: (uid: string) => `users/${uid}/subscription/main`,
 };
 
 export { paths as fsPaths };
@@ -51,6 +54,13 @@ export async function listInvoicesForUser(uid: string): Promise<Invoice[]> {
     if (parsed.success && !parsed.data.deletedAt) out.push(parsed.data);
   }
   return out;
+}
+
+export async function fetchSubscription(uid: string): Promise<Subscription | null> {
+  const snap = await adminDb().doc(paths.subscription(uid)).get();
+  if (!snap.exists) return null;
+  const parsed = SubscriptionSchema.safeParse(snap.data());
+  return parsed.success ? parsed.data : null;
 }
 
 export async function listCreditNotesForUser(uid: string): Promise<CreditNote[]> {

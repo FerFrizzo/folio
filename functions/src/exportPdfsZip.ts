@@ -5,6 +5,7 @@ import { requireUid } from "./lib/auth";
 import {
   fetchProfile,
   fetchSettings,
+  fetchSubscription,
   listCreditNotesForUser,
   listInvoicesForUser,
 } from "./lib/firestore";
@@ -26,6 +27,8 @@ export const exportPdfsZip = onCall(
   },
   async (req) => {
     const uid = requireUid(req);
+    const subscription = await fetchSubscription(uid);
+    const isPro = (subscription?.entitlement ?? "free") === "pro";
     const profile = await fetchProfile(uid);
     const settings = await fetchSettings(uid);
     const [invoices, creditNotes] = await Promise.all([
@@ -55,6 +58,7 @@ export const exportPdfsZip = onCall(
         invoice: inv,
         profile,
         settings,
+        isPro,
       });
       archive.append(buffer, { name: `${inv.number}.pdf` });
     }

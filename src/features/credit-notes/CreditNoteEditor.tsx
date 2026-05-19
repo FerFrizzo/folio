@@ -177,6 +177,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
       toast.show({ message: `${cn.number} issued.`, variant: "success" });
       router.replace(`/invoices/${inv.id}`);
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't issue.",
         variant: "error",

@@ -121,7 +121,7 @@ export function CreditNoteDetail({ creditNote }: Props) {
           <View style={{ height: 520 }}>
             {generating ? (
               <View className="flex-1 items-center justify-center">
-                <ActivityIndicator color="#0B3D5C" />
+                <ActivityIndicator color="#1473FF" />
               </View>
             ) : Platform.OS === "web" ? (
               pdfHtml ? (

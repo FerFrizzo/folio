@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   android: {
     package: "com.frizzo.folio",
     adaptiveIcon: {
-      backgroundColor: "#0B3D5C",
+      backgroundColor: "#1473FF",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",

@@ -16,8 +16,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const sourcePath = path.join(repoRoot, "assets", "source", "icon.png");
 const outDir = path.join(repoRoot, "assets", "images");
 
-const ACCENT = "#0B3D5C";
-const FOREGROUND = "#FAFAF7";
+const ACCENT = "#1473FF";
 
 // 1024×1024 placeholder: solid navy with a centered serif "F" via SVG.
 function placeholderSvg() {
@@ -31,42 +30,10 @@ function placeholderSvg() {
     </svg>`;
 }
 
-// 432×432 adaptive-icon foreground: smaller "F" inside the safe area
-// (~66% of the 1024 source maps to ~432 with adaptive icon padding).
-function adaptiveForegroundSvg() {
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="432" height="432">
-      <text x="50%" y="50%" text-anchor="middle"
-            font-family="Georgia, 'Source Serif 4', serif"
-            font-size="280" font-weight="700"
-            fill="${FOREGROUND}" dy="0.34em">F</text>
-    </svg>`;
-}
-
 function adaptiveBackgroundSvg() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="432" height="432">
       <rect width="432" height="432" fill="${ACCENT}" />
-    </svg>`;
-}
-
-function adaptiveMonochromeSvg() {
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="432" height="432">
-      <text x="50%" y="50%" text-anchor="middle"
-            font-family="Georgia, 'Source Serif 4', serif"
-            font-size="280" font-weight="700"
-            fill="#FFFFFF" dy="0.34em">F</text>
-    </svg>`;
-}
-
-function splashSvg() {
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
-      <text x="50%" y="50%" text-anchor="middle"
-            font-family="Georgia, 'Source Serif 4', serif"
-            font-size="140" font-weight="700"
-            fill="${ACCENT}" dy="0.34em">F</text>
     </svg>`;
 }
 
@@ -95,20 +62,37 @@ async function generateAll() {
     .toFile(path.join(outDir, "icon.png"));
 
   // Adaptive icon — Android. Three layers per Material design.
-  await sharp(Buffer.from(adaptiveForegroundSvg()))
+  // Foreground: source icon scaled to ~66% of canvas (safe zone), centred on
+  // transparent 432×432. Background is solid accent. Monochrome is greyscale.
+  const ADAPTIVE_SIZE = 432;
+  const SAFE_SIZE = Math.round(ADAPTIVE_SIZE * 0.66); // ~285px
+  const offset = Math.round((ADAPTIVE_SIZE - SAFE_SIZE) / 2);
+
+  const scaledFg = await source
+    .clone()
+    .resize(SAFE_SIZE, SAFE_SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
-    .toFile(path.join(outDir, "android-icon-foreground.png"));
+    .toBuffer();
+
+  const transparentBase = await sharp({
+    create: { width: ADAPTIVE_SIZE, height: ADAPTIVE_SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  }).png().toBuffer();
+
+  const foreground = await sharp(transparentBase)
+    .composite([{ input: scaledFg, top: offset, left: offset }])
+    .png()
+    .toBuffer();
+
+  await sharp(foreground).toFile(path.join(outDir, "android-icon-foreground.png"));
   await sharp(Buffer.from(adaptiveBackgroundSvg()))
     .png()
     .toFile(path.join(outDir, "android-icon-background.png"));
-  await sharp(Buffer.from(adaptiveMonochromeSvg()))
-    .png()
+  await sharp(foreground)
+    .greyscale()
     .toFile(path.join(outDir, "android-icon-monochrome.png"));
 
   // Legacy square adaptive (some Expo configs still reference this name).
-  await sharp(Buffer.from(adaptiveForegroundSvg()))
-    .png()
-    .toFile(path.join(outDir, "adaptive-icon.png"));
+  await sharp(foreground).toFile(path.join(outDir, "adaptive-icon.png"));
 
   // Web favicon — small, padded.
   await source
@@ -117,8 +101,10 @@ async function generateAll() {
     .png()
     .toFile(path.join(outDir, "favicon.png"));
 
-  // Splash icon: navy "F" on transparent background.
-  await sharp(Buffer.from(splashSvg()))
+  // Splash icon: source icon scaled to 200×200.
+  await source
+    .clone()
+    .resize(200, 200, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toFile(path.join(outDir, "splash-icon.png"));
 

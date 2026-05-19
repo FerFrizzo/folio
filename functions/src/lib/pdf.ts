@@ -1,9 +1,12 @@
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import {
-  renderInvoiceHtml,
+  renderInvoiceHtml as renderProInvoice,
   type RenderInvoiceArgs,
-} from "./template-snapshot/invoice";
+} from "./template-snapshot/invoice-pro";
+import {
+  renderInvoiceHtml as renderFreeInvoice,
+} from "./template-snapshot/invoice-free";
 import {
   renderCreditNoteHtml,
   type RenderCreditNoteArgs,
@@ -27,9 +30,10 @@ async function htmlToBuffer(html: string): Promise<Buffer> {
 }
 
 export async function generateInvoicePdfBuffer(
-  args: RenderInvoiceArgs,
+  args: RenderInvoiceArgs & { isPro: boolean },
 ): Promise<{ buffer: Buffer; html: string }> {
-  const html = renderInvoiceHtml(args);
+  const renderFn = args.isPro ? renderProInvoice : renderFreeInvoice;
+  const html = renderFn(args);
   const buffer = await htmlToBuffer(html);
   return { buffer, html };
 }

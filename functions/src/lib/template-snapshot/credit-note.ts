@@ -15,7 +15,7 @@ import { formatAbn } from "../abn";
 // "Credit Note", references the original invoice, and totals are negative.
 // Per spec §7.
 
-const ACCENT = "#0B3D5C";
+const ACCENT = "#1473FF";
 const DANGER = "#C0392B";
 const FOREGROUND = "#111827";
 const MUTED = "#4B5563";

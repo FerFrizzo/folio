@@ -25,7 +25,7 @@ import {
   useMarkSent,
   useUpdateDraft,
 } from "@/src/features/invoices/queries";
-import { useProfile, useSettings } from "@/src/features/settings/queries";
+import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
 import { formatMoney } from "@/src/lib/money";
@@ -85,6 +85,7 @@ export function InvoiceEditor({ initial }: Props) {
   const toast = useToast();
   const profile = useProfile();
   const settings = useSettings();
+  const isPro = useEntitlement() === "pro";
   const createDraft = useCreateDraft();
   const updateDraft = useUpdateDraft();
   const markSent = useMarkSent();
@@ -243,6 +244,7 @@ export function InvoiceEditor({ initial }: Props) {
       toast.show({ message: "Draft saved.", variant: "success" });
       router.replace(`/invoices/${id}`);
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Save failed.",
         variant: "error",
@@ -296,6 +298,7 @@ export function InvoiceEditor({ initial }: Props) {
       };
       const pdf = await generateInvoicePdf({
         invoice: sentInvoice,
+        isPro,
         profile: profile.data ?? {
           businessName: "",
           abn: "",

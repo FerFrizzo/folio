@@ -34,11 +34,18 @@ const REPLACEMENTS = [
     /from "@\/src\/lib\/abn"/g,
     'from "../abn"',
   ],
+  // template-free.ts imports template-pro.ts via relative path; in the snapshot
+  // directory the file is named invoice-pro.ts.
+  [
+    /from "\.\/template-pro"/g,
+    'from "./invoice-pro"',
+  ],
 ];
 
 const FILES = [
-  { src: "template.ts", out: "invoice.ts" },
-  { src: "credit-note-template.ts", out: "credit-note.ts" },
+  { src: "template-pro.ts",         out: "invoice-pro.ts"  },
+  { src: "template-free.ts",        out: "invoice-free.ts" },
+  { src: "credit-note-template.ts", out: "credit-note.ts"  },
 ];
 
 function transform(srcPath, outPath) {

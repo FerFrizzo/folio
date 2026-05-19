@@ -18,8 +18,8 @@ module.exports = {
 
         // Brand accent — same in both modes.
         accent: {
-          DEFAULT: "#0B3D5C",
-          hover: "#1B5A82",
+          DEFAULT: "#1473FF",
+          hover: "#0A5CE8",
         },
 
         // Status colors — same in both modes; chips/badges use 12% alpha bg.

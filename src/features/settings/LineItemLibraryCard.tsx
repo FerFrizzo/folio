@@ -47,6 +47,7 @@ export function LineItemLibraryCard() {
       setUnitPriceText("");
       toast.show({ message: "Added to library.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't save.",
         variant: "error",
@@ -130,7 +131,7 @@ export function LineItemLibraryCard() {
             accessibilityLabel="Add a library entry"
             className="mt-2 flex-row items-center justify-center gap-2 rounded-button border border-dashed border-accent py-3"
           >
-            <Plus size={16} color="#0B3D5C" />
+            <Plus size={16} color="#1473FF" />
             <Text className="text-body font-semibold text-accent">Add entry</Text>
           </Pressable>
         )}

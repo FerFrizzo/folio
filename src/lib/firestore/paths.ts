@@ -14,4 +14,5 @@ export const fsPaths = {
   lineItemLibrary: (uid: string) => `users/${uid}/lineItemLibrary` as const,
   lineItemLibraryEntry: (uid: string, id: string) =>
     `users/${uid}/lineItemLibrary/${id}` as const,
+  subscription: (uid: string) => `users/${uid}/subscription/main` as const,
 };

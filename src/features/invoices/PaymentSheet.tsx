@@ -84,6 +84,7 @@ export function PaymentSheet({ invoice, onClose }: Props) {
       toast.show({ message: "Payment recorded.", variant: "success" });
       onClose();
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't record.",
         variant: "error",

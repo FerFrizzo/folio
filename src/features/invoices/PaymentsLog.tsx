@@ -36,6 +36,7 @@ export function PaymentsLog({ invoice }: Props) {
       await removePayment.mutateAsync({ id: invoice.id, index: idx });
       toast.show({ message: "Payment removed.", variant: "info" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't remove.",
         variant: "error",

@@ -54,6 +54,7 @@ export function NumberingCard() {
       await setSettings.mutateAsync(next);
       toast.show({ message: "Numbering saved.", variant: "success" });
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't save.",
         variant: "error",

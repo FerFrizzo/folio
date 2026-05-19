@@ -6,7 +6,7 @@ import { Sheet } from "@/src/components/ui/Sheet";
 import { Button } from "@/src/components/ui/Button";
 import { Input } from "@/src/components/ui/Input";
 import { useToast } from "@/src/components/ui/Toast";
-import { useProfile, useSettings } from "@/src/features/settings/queries";
+import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
 import {
   MAX_ATTACHMENTS,
   MAX_ATTACHMENTS_BYTES,
@@ -45,6 +45,7 @@ function bytesLabel(n: number): string {
 export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
   const profile = useProfile();
   const settings = useSettings();
+  const entitlement = useEntitlement();
   const toast = useToast();
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
@@ -120,6 +121,11 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
 
   async function submit() {
     if (!invoice) return;
+    // Second-line entitlement guard — the server is the real gate.
+    if (entitlement !== "pro") {
+      toast.show({ message: "Folio Pro required to send email.", variant: "warning" });
+      return;
+    }
     if (!isEmail(to)) {
       toast.show({ message: "Enter a valid email address.", variant: "error" });
       return;
@@ -145,6 +151,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
       onClose();
       onSent?.();
     } catch (err) {
+      console.error(err);
       toast.show({
         message: err instanceof Error ? err.message : "Send failed.",
         variant: "error",
@@ -191,7 +198,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
               hitSlop={8}
               className="flex-row items-center gap-1"
             >
-              <Paperclip size={14} color="#0B3D5C" />
+              <Paperclip size={14} color="#1473FF" />
               <Text className="text-label font-semibold text-accent">Add files</Text>
             </Pressable>
           </View>

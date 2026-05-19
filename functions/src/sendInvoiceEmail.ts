@@ -7,6 +7,7 @@ import {
   fetchInvoice,
   fetchProfile,
   fetchSettings,
+  fetchSubscription,
 } from "./lib/firestore";
 import { generateInvoicePdfBuffer } from "./lib/pdf";
 import { uploadInvoicePdf } from "./lib/storage";
@@ -46,6 +47,16 @@ export const sendInvoiceEmail = onCall(
   },
   async (req) => {
     const uid = requireUid(req);
+
+    // Server-side entitlement gate — never trust the client.
+    const subscription = await fetchSubscription(uid);
+    if ((subscription?.entitlement ?? "free") !== "pro") {
+      throw new HttpsError(
+        "permission-denied",
+        "Folio Pro is required to send invoices by email. Upgrade in Settings.",
+      );
+    }
+
     const parsed = PayloadSchema.safeParse(req.data);
     if (!parsed.success) {
       throw new HttpsError("invalid-argument", parsed.error.issues[0]?.message ?? "Invalid payload.");
@@ -99,11 +110,12 @@ export const sendInvoiceEmail = onCall(
       });
     }
 
-    // Generate the PDF.
+    // Generate the PDF. isPro is always true here — entitlement gate above.
     const { buffer, html } = await generateInvoicePdfBuffer({
       invoice: workingInvoice,
       profile,
       settings,
+      isPro: true,
     });
     const upload = await uploadInvoicePdf(
       uid,

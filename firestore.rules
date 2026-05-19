@@ -7,12 +7,63 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Per-user subtree. Anonymous and linked Firebase Auth users alike use
-    // their UID as the partition key. A signed-in user can read/write only
-    // their own subtree.
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
+    // Per-user subtree. Firebase Auth users use their UID as the partition key.
+    //
+    // Subscription is intentionally NOT included in the write grants below —
+    // it is written exclusively by the revenueCatWebhook Cloud Function via the
+    // Admin SDK (which bypasses rules). Allowing client writes would let users
+    // self-grant Pro entitlements.
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Profile — read + write
+    match /users/{userId}/profile/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Settings — read + write
+    match /users/{userId}/settings/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Counters (invoice auto-numbering) — read + write
+    match /users/{userId}/counters/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Clients — read + write
+    match /users/{userId}/clients/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Invoices — read + write
+    match /users/{userId}/invoices/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Credit notes — read + write
+    match /users/{userId}/creditNotes/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Line item library — read + write
+    match /users/{userId}/lineItemLibrary/{doc} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Subscription — READ ONLY for the client.
+    // Written exclusively by the Admin SDK (revenueCatWebhook) — never by the client.
+    // Granting client writes here would let users self-grant Pro entitlement.
+    match /users/{userId}/subscription/{doc} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    // Audit log — Admin SDK only. No client access.
+    match /audit/{document=**} {
+      allow read, write: if false;
     }
   }
 }

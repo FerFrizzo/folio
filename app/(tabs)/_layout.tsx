@@ -49,7 +49,7 @@ function WebSidebarLayout({ collapsed }: { collapsed: boolean }) {
                   }
                   style={collapsed ? { justifyContent: "center" } : undefined}
                 >
-                  <Icon size={18} color={active ? "#0B3D5C" : "#4B5563"} />
+                  <Icon size={18} color={active ? "#1473FF" : "#4B5563"} />
                   {collapsed ? null : (
                     <Text
                       className={
@@ -80,7 +80,7 @@ function MobileTabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#0B3D5C",
+        tabBarActiveTintColor: "#1473FF",
         tabBarInactiveTintColor: "#6B7280",
         tabBarStyle: {
           backgroundColor: "#FFFFFF",

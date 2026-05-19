@@ -10,12 +10,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Card } from "@/src/components/ui/Card";
 import { Chip } from "@/src/components/ui/Chip";
-import { EmptyState } from "@/src/components/ui/EmptyState";
 import { KPICard } from "@/src/components/ui/KPICard";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
-import { LinkAccountBanner } from "@/src/features/dashboard/LinkAccountBanner";
 import { OnboardingBanner } from "@/src/features/dashboard/OnboardingBanner";
+import { SubscriptionBanner } from "@/src/features/dashboard/SubscriptionBanner";
 import {
   periodLabel,
   periodRange,
@@ -31,6 +30,7 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: "month", label: "This month" },
   { key: "quarter", label: "This quarter" },
   { key: "fy", label: "This FY" },
+  { key: "all", label: "All" },
 ];
 
 export default function DashboardScreen() {
@@ -145,10 +145,8 @@ export default function DashboardScreen() {
         ))}
       </ScrollView>
 
-      <View className="gap-3 px-4">
-        <LinkAccountBanner />
-        <OnboardingBanner />
-      </View>
+      <OnboardingBanner />
+      <SubscriptionBanner />
 
       <View className="gap-3 px-4">
         <KPICard
@@ -169,41 +167,9 @@ export default function DashboardScreen() {
               label="Paid this period"
               amount={formatMoney(stats.paidThisPeriodCents, "AUD")}
               tone={stats.paidThisPeriodCents > 0 ? "paid" : undefined}
-              helperText="Phase 3"
             />
           </View>
         </View>
-      </View>
-
-      <View className="gap-3 px-4">
-        <Text className="text-h2 text-foreground">Needs attention</Text>
-        {invoicesQuery.isLoading ? (
-          <View><ListRowSkeleton /><ListRowSkeleton /></View>
-        ) : needsAttention.length === 0 ? (
-          <EmptyState title="Nothing urgent." />
-        ) : (
-          <View className="overflow-hidden rounded-card border border-border bg-surface">
-            {needsAttention.map((inv, idx) => {
-              const display = deriveDisplayStatus(inv, today);
-              return (
-                <View key={inv.id}>
-                  <ListRow
-                    primary={inv.number || "Draft"}
-                    secondary={inv.clientSnapshot.name}
-                    trailingAmount={formatMoney(inv.totalCents, inv.currency)}
-                    trailingMeta={`Due ${inv.dueDate}`}
-                    status={display}
-                    overdue={display === "overdue"}
-                    onPress={() => router.push(`/invoices/${inv.id}`)}
-                  />
-                  {idx < needsAttention.length - 1 ? (
-                    <View className="h-px bg-border" />
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        )}
       </View>
 
       <View className="gap-3 px-4">
@@ -230,6 +196,39 @@ export default function DashboardScreen() {
                 ) : null}
               </View>
             ))}
+          </View>
+        )}
+      </View>
+
+      <View className="gap-3 px-4">
+        <Text className="text-h2 text-foreground">Needs attention</Text>
+        {invoicesQuery.isLoading ? (
+          <View><ListRowSkeleton /><ListRowSkeleton /></View>
+        ) : needsAttention.length === 0 ? (
+          <Card>
+            <Text className="text-body text-muted">Nothing urgent.</Text>
+          </Card>
+        ) : (
+          <View className="overflow-hidden rounded-card border border-border bg-surface">
+            {needsAttention.map((inv, idx) => {
+              const display = deriveDisplayStatus(inv, today);
+              return (
+                <View key={inv.id}>
+                  <ListRow
+                    primary={inv.number || "Draft"}
+                    secondary={inv.clientSnapshot.name}
+                    trailingAmount={formatMoney(inv.totalCents, inv.currency)}
+                    trailingMeta={`Due ${inv.dueDate}`}
+                    status={display}
+                    overdue={display === "overdue"}
+                    onPress={() => router.push(`/invoices/${inv.id}`)}
+                  />
+                  {idx < needsAttention.length - 1 ? (
+                    <View className="h-px bg-border" />
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
         )}
       </View>

@@ -6,10 +6,11 @@ import {
   linkWithCredential,
   linkWithPopup,
   signInWithCredential,
+  signInWithPopup,
   type User,
 } from "firebase/auth";
 import { useEffect } from "react";
-import { getFirebaseAuth } from "@/src/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 
 // expo-auth-session needs this called once at module init so the OAuth
 // redirect closes the in-app browser cleanly on iOS / Android.
@@ -77,12 +78,19 @@ export async function linkGoogleWeb(): Promise<GoogleLinkResult> {
   return { ok: true, user: result.user };
 }
 
-// "Switch account" fallback after a credential-already-in-use collision.
-// Drops the current anonymous UID. Callers must confirm with the user.
 export async function signInWithGoogleIdToken(idToken: string): Promise<User> {
   const auth = getFirebaseAuth();
   const credential = GoogleAuthProvider.credential(idToken);
   const result = await signInWithCredential(auth, credential);
+  return result.user;
+}
+
+export async function signInWithGoogleWeb(): Promise<User> {
+  const auth = getFirebaseAuth();
+  const provider = new GoogleAuthProvider();
+  provider.addScope("email");
+  provider.addScope("profile");
+  const result = await signInWithPopup(auth, provider);
   return result.user;
 }
 
