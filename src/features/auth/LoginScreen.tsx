@@ -16,6 +16,14 @@ import { classifyLinkError } from "@/features/auth/linking/linkErrors";
 
 type Mode = "sign-in" | "sign-up" | "forgot-password";
 
+const cardShadow = {
+  shadowColor: "#3B5BDB",
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.12,
+  shadowRadius: 20,
+  elevation: 8,
+} as const;
+
 function GoogleLogo() {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -80,7 +88,6 @@ function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChang
     try {
       await promptAsync();
       // signInWithGoogleIdToken is handled in the response useEffect above.
-      // We don't set busy=false here; the effect will do it.
     } catch (err: unknown) {
       const { message } = classifyLinkError(err);
       toast.show({ message, variant: "error" });
@@ -94,8 +101,8 @@ function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChang
       disabled={busy}
       accessibilityRole="button"
       accessibilityLabel="Continue with Google"
-      className="flex-row items-center justify-center gap-3 rounded-button border border-border bg-surface py-3 active:opacity-70"
-      style={{ opacity: busy ? 0.5 : 1 }}
+      className="flex-row items-center justify-center gap-3 rounded-button bg-white py-[14px] active:opacity-70"
+      style={{ opacity: busy ? 0.5 : 1, ...cardShadow }}
     >
       <GoogleLogo />
       <Text className="text-body font-semibold text-foreground">
@@ -112,12 +119,10 @@ export function LoginScreen() {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [busy, setBusy] = useState(false);
 
-  // Form fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Field-level errors
   const [nameError, setNameError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -177,10 +182,7 @@ export function LoginScreen() {
         toast.show({ message: "Account created. Welcome to Folio!", variant: "success" });
       } else {
         await sendPasswordReset(email.trim());
-        toast.show({
-          message: "Reset email sent — check your inbox.",
-          variant: "success",
-        });
+        toast.show({ message: "Reset email sent — check your inbox.", variant: "success" });
         switchMode("sign-in");
       }
     } catch (err: unknown) {
@@ -214,28 +216,30 @@ export function LoginScreen() {
         className="flex-1 bg-background"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingTop: insets.top + 32,
+          paddingTop: insets.top + 48,
           paddingBottom: insets.bottom + 32,
           paddingHorizontal: 24,
-          gap: 24,
+          gap: 32,
         }}
       >
-        {/* Header */}
-        <View className="items-center gap-3">
+        <View className="items-center">
           <Image
             source={require("@/assets/images/splash-icon-transparent.png")}
-            style={{ width: 64, height: 64 }}
+            style={{ width: 200, height: 200 }}
             resizeMode="contain"
           />
-          <Text className="text-display font-bold text-accent">Folio</Text>
-          <Text className="text-body text-muted">Reset your password</Text>
         </View>
 
-        {/* Form */}
-        <View className="gap-4">
-          <Text className="text-body text-muted">
-            Enter your email address and we'll send you a link to reset your password.
-          </Text>
+        <View
+          className="rounded-2xl bg-white p-6 gap-4"
+          style={cardShadow}
+        >
+          <View className="gap-1">
+            <Text className="text-h2 font-bold text-foreground">Reset password</Text>
+            <Text className="text-caption text-muted">
+              Enter your email and we'll send you a reset link.
+            </Text>
+          </View>
           <Input
             label="Email"
             placeholder="you@example.com"
@@ -253,16 +257,14 @@ export function LoginScreen() {
             disabled={busy}
             onPress={() => void handleSubmit()}
           />
+          <Pressable
+            accessibilityRole="button"
+            className="items-center py-1"
+            onPress={() => switchMode("sign-in")}
+          >
+            <Text className="text-caption text-accent">Back to sign in</Text>
+          </Pressable>
         </View>
-
-        {/* Back link */}
-        <Pressable
-          accessibilityRole="button"
-          className="items-center py-1"
-          onPress={() => switchMode("sign-in")}
-        >
-          <Text className="text-body text-accent">Back to sign in</Text>
-        </Pressable>
       </ScrollView>
     );
   }
@@ -272,121 +274,121 @@ export function LoginScreen() {
       className="flex-1 bg-background"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
-        paddingTop: insets.top + 32,
+        paddingTop: insets.top + 48,
         paddingBottom: insets.bottom + 32,
         paddingHorizontal: 24,
-        gap: 24,
+        gap: 20,
       }}
     >
-      {/* App header */}
-      <View className="items-center gap-3">
+      {/* Brand mark — full logo including wordmark */}
+      <View className="items-center">
         <Image
           source={require("@/assets/images/splash-icon-transparent.png")}
-          style={{ width: 64, height: 64 }}
+          style={{ width: 200, height: 200 }}
           resizeMode="contain"
         />
-        <Text className="text-display font-bold text-accent">Folio</Text>
-        <Text className="text-body text-muted">Simple invoicing for Australian businesses</Text>
       </View>
 
-      {/* Mode toggle tabs */}
-      <View className="flex-row rounded-button border border-border bg-surface p-1">
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: mode === "sign-in" }}
-          className={[
-            "flex-1 items-center rounded-[8px] py-2",
-            mode === "sign-in" ? "bg-accent" : "",
-          ].join(" ")}
-          onPress={() => switchMode("sign-in")}
-        >
-          <Text
+      {/* Auth card */}
+      <View
+        className="rounded-2xl bg-white p-6 gap-5"
+        style={cardShadow}
+      >
+        {/* Sign in / Sign up tabs */}
+        <View className="flex-row rounded-xl bg-gray-100 p-1">
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: mode === "sign-in" }}
             className={[
-              "text-label font-semibold",
-              mode === "sign-in" ? "text-white" : "text-muted",
+              "flex-1 items-center rounded-[10px] py-2.5",
+              mode === "sign-in" ? "bg-accent" : "",
             ].join(" ")}
+            onPress={() => switchMode("sign-in")}
           >
-            Sign in
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: mode === "sign-up" }}
-          className={[
-            "flex-1 items-center rounded-[8px] py-2",
-            mode === "sign-up" ? "bg-accent" : "",
-          ].join(" ")}
-          onPress={() => switchMode("sign-up")}
-        >
-          <Text
-            className={[
-              "text-label font-semibold",
-              mode === "sign-up" ? "text-white" : "text-muted",
-            ].join(" ")}
-          >
-            Sign up
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Email/password form */}
-      <View className="gap-3">
-        {mode === "sign-up" ? (
-          <Input
-            label="Name"
-            placeholder="Your name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            autoComplete="name"
-            autoCorrect={false}
-            error={nameError}
-          />
-        ) : null}
-
-        <Input
-          label="Email"
-          placeholder="you@example.com"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          autoCorrect={false}
-          error={emailError}
-        />
-
-        <View className="gap-1">
-          <Input
-            label="Password"
-            placeholder={mode === "sign-up" ? "At least 8 characters" : "Your password"}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
-            error={passwordError}
-          />
-          {mode === "sign-in" ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => switchMode("forgot-password")}
-              className="self-end py-1"
+            <Text
+              className={[
+                "text-label font-semibold",
+                mode === "sign-in" ? "text-white" : "text-muted",
+              ].join(" ")}
             >
-              <Text className="text-caption text-accent">Forgot password?</Text>
-            </Pressable>
+              Sign in
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: mode === "sign-up" }}
+            className={[
+              "flex-1 items-center rounded-[10px] py-2.5",
+              mode === "sign-up" ? "bg-accent" : "",
+            ].join(" ")}
+            onPress={() => switchMode("sign-up")}
+          >
+            <Text
+              className={[
+                "text-label font-semibold",
+                mode === "sign-up" ? "text-white" : "text-muted",
+              ].join(" ")}
+            >
+              Sign up
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Form fields */}
+        <View className="gap-4">
+          {mode === "sign-up" ? (
+            <Input
+              label="Name"
+              placeholder="Your name"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoComplete="name"
+              autoCorrect={false}
+              error={nameError}
+            />
           ) : null}
+
+          <Input
+            label="Email"
+            placeholder="you@example.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
+            error={emailError}
+          />
+
+          <View className="gap-1">
+            <Input
+              label="Password"
+              placeholder={mode === "sign-up" ? "At least 8 characters" : "Your password"}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
+              error={passwordError}
+            />
+            {mode === "sign-in" ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => switchMode("forgot-password")}
+                className="self-end py-1"
+              >
+                <Text className="text-caption text-accent">Forgot password?</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         <Button
           label={
             busy
-              ? mode === "sign-in"
-                ? "Signing in…"
-                : "Creating account…"
-              : mode === "sign-in"
-                ? "Continue"
-                : "Create account"
+              ? mode === "sign-in" ? "Signing in…" : "Creating account…"
+              : mode === "sign-in" ? "Continue" : "Create account"
           }
           size="lg"
           disabled={busy}
@@ -394,37 +396,36 @@ export function LoginScreen() {
         />
       </View>
 
-      {/* Divider */}
+      {/* Social sign-in */}
       {showSocialSection ? (
-        <View className="flex-row items-center gap-3">
-          <View className="h-px flex-1 bg-border" />
-          <Text className="text-caption text-muted">or</Text>
-          <View className="h-px flex-1 bg-border" />
-        </View>
-      ) : null}
+        <>
+          <View className="flex-row items-center gap-3">
+            <View className="h-px flex-1 bg-border" />
+            <Text className="text-caption text-muted">or continue with</Text>
+            <View className="h-px flex-1 bg-border" />
+          </View>
 
-      {/* Social sign-in buttons */}
-      {showSocialSection ? (
-        <View className="gap-3">
-          {showGoogle ? (
-            <GoogleSignInButton busy={busy} onBusyChange={setBusy} />
-          ) : null}
-          {showApple ? (
-            <Pressable
-              onPress={() => void handleApple()}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel="Continue with Apple"
-              className="flex-row items-center justify-center gap-3 rounded-button border border-border bg-surface py-3 active:opacity-70"
-              style={{ opacity: busy ? 0.5 : 1 }}
-            >
-              <AntDesign name="apple" size={20} color="#111827" />
-              <Text className="text-body font-semibold text-foreground">
-                {busy ? "Signing in…" : "Continue with Apple"}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
+          <View className="gap-3">
+            {showGoogle ? (
+              <GoogleSignInButton busy={busy} onBusyChange={setBusy} />
+            ) : null}
+            {showApple ? (
+              <Pressable
+                onPress={() => void handleApple()}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Apple"
+                className="flex-row items-center justify-center gap-3 rounded-button bg-white py-[14px] active:opacity-70"
+                style={{ opacity: busy ? 0.5 : 1, ...cardShadow }}
+              >
+                <AntDesign name="apple" size={20} color="#111827" />
+                <Text className="text-body font-semibold text-foreground">
+                  {busy ? "Signing in…" : "Continue with Apple"}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </>
       ) : null}
     </ScrollView>
   );
