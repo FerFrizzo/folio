@@ -37,12 +37,12 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "$APPLE_ID",
-        "ascAppId": "$ASC_APP_ID",
-        "appleTeamId": "$APPLE_TEAM_ID",
+        "appleId": "fernandofrizzo@gmail.com",
+        "ascAppId": "6767987024",
+        "appleTeamId": "A7U55R46QX",
         "ascApiKeyPath": "./secrets/AuthKey_7CF792KC2J.p8",
-        "ascApiKeyId": "$ASC_API_KEY_ID",
-        "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID"
+        "ascApiKeyId": "7CF792KC2J",
+        "ascApiKeyIssuerId": "fc87c9b8-c6e9-4377-8cc0-0d55df372f39"
       },
       "android": {
         "serviceAccountKeyPath": "./secrets/play-service-account.json",
