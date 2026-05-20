@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
 import { addDays, format } from "date-fns";
 import { Button } from "@/src/components/ui/Button";
 import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
-import { CurrencyInput } from "@/src/components/ui/CurrencyInput";
 import { DateInput } from "@/src/components/ui/DateInput";
 import { IconButton } from "@/src/components/ui/IconButton";
-import { NumberInput } from "@/src/components/ui/NumberInput";
 import { Select } from "@/src/components/ui/Select";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useToast } from "@/src/components/ui/Toast";
@@ -20,6 +18,7 @@ import {
 } from "@/src/features/invoices/sections/ItemsSection";
 import { PaymentSection } from "@/src/features/invoices/sections/PaymentSection";
 import { NotesSection } from "@/src/features/invoices/sections/NotesSection";
+import { InvoiceDiscountEditor } from "@/src/features/invoices/InvoiceDiscountEditor";
 import {
   useCreateDraft,
   useMarkSent,
@@ -360,7 +359,7 @@ export function InvoiceEditor({ initial }: Props) {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 96 }}
+        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 96 }}
       >
         <View className="flex-row gap-3">
           <View className="flex-1">
@@ -378,30 +377,33 @@ export function InvoiceEditor({ initial }: Props) {
           </View>
         </View>
         {exportMode ? (
-          <View className="rounded-card border border-border bg-surface p-3">
-            <Text className="text-caption text-muted">
+          <View className="rounded-card border border-amber-200 bg-amber-50 p-3">
+            <Text className="text-caption text-amber-800">
               Non-AUD invoices are GST-free exports. GST won&apos;t be applied to
               any line on this invoice.
             </Text>
           </View>
         ) : null}
 
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <DateInput
-              label="Issue date"
-              required
-              value={issueDate}
-              onChange={setIssueDate}
-            />
-          </View>
-          <View className="flex-1">
-            <DateInput
-              label="Due date"
-              required
-              value={dueDate}
-              onChange={setDueDate}
-            />
+        <View className="gap-1">
+          <Text className="text-caption text-muted">Dates</Text>
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <DateInput
+                label="Issue date"
+                required
+                value={issueDate}
+                onChange={setIssueDate}
+              />
+            </View>
+            <View className="flex-1">
+              <DateInput
+                label="Due date"
+                required
+                value={dueDate}
+                onChange={setDueDate}
+              />
+            </View>
           </View>
         </View>
 
@@ -475,88 +477,6 @@ export function InvoiceEditor({ initial }: Props) {
           </View>
         </View>
       </View>
-    </View>
-  );
-}
-
-function InvoiceDiscountEditor({
-  currency,
-  value,
-  onChange,
-}: {
-  currency: CurrencyCode;
-  value: Discount | undefined;
-  onChange: (next: Discount | undefined) => void;
-}) {
-  const [pctText, setPctText] = useState(
-    value?.type === "pct" ? (value.value / 100).toString() : "",
-  );
-  const [fixedText, setFixedText] = useState(
-    value?.type === "fixed" ? (value.value / 100).toFixed(2) : "",
-  );
-
-  return (
-    <View className="gap-2">
-      <Text className="text-label text-foreground">Whole-invoice discount</Text>
-      <View className="flex-row gap-2">
-        {(["none", "pct", "fixed"] as const).map((opt) => {
-          const active =
-            (opt === "none" && !value) || (value && opt === value.type);
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => {
-                if (opt === "none") {
-                  onChange(undefined);
-                  setPctText("");
-                  setFixedText("");
-                } else if (opt === "pct") {
-                  onChange({ type: "pct", value: Math.round(Number(pctText || "0") * 100) });
-                } else {
-                  onChange({ type: "fixed", value: Math.round(Number(fixedText || "0") * 100) });
-                }
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Whole-invoice discount: ${opt}`}
-              className={
-                active
-                  ? "rounded-chip border border-accent bg-accent px-3 py-1"
-                  : "rounded-chip border border-border bg-surface px-3 py-1"
-              }
-            >
-              <Text
-                className={
-                  active ? "text-label text-white" : "text-label text-foreground"
-                }
-              >
-                {opt === "none" ? "None" : opt === "pct" ? "Percent" : "Fixed"}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      {value?.type === "pct" ? (
-        <NumberInput
-          label="Percent (0–100)"
-          value={pctText}
-          onChangeText={(v) => {
-            setPctText(v);
-            onChange({ type: "pct", value: Math.round(Number(v || "0") * 100) });
-          }}
-          placeholder="10"
-        />
-      ) : null}
-      {value?.type === "fixed" ? (
-        <CurrencyInput
-          label="Amount off"
-          value={fixedText}
-          onChangeText={(v) => {
-            setFixedText(v);
-            onChange({ type: "fixed", value: Math.round(Number(v || "0") * 100) });
-          }}
-          symbol={currency === "AUD" ? "$" : currency}
-        />
-      ) : null}
     </View>
   );
 }
