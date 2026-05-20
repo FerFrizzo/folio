@@ -1,4 +1,4 @@
-import { Platform, Pressable, Text, View } from "react-native";
+import { Image, Platform, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,11 +41,25 @@ export default function PaywallScreen() {
           <X size={24} color="#111827" />
         </Pressable>
       </View>
-      <RevenueCatUI.Paywall
+      <RevenueCatUI.OriginalTemplatePaywallFooterContainerView
         onPurchaseCompleted={onPurchased}
         onRestoreCompleted={onPurchased}
         onDismiss={() => router.back()}
-      />
+      >
+        <View className="flex-1 items-center justify-center gap-6 px-6">
+          <Image
+            source={require("../assets/images/icon.png")}
+            style={{ width: 96, height: 96, borderRadius: 22 }}
+            resizeMode="contain"
+          />
+          <View className="items-center gap-2">
+            <Text className="text-h1 font-bold text-foreground">Unlock Folio Pro</Text>
+            <Text className="text-center text-body text-muted">
+              Send invoices by email, download watermark-free PDFs.
+            </Text>
+          </View>
+        </View>
+      </RevenueCatUI.OriginalTemplatePaywallFooterContainerView>
     </View>
   );
 }
