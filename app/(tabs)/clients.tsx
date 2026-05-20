@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
   Text,
   TextInput,
@@ -14,7 +15,6 @@ import { Button } from "@/src/components/ui/Button";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { EmptyState } from "@/src/components/ui/EmptyState";
 import { FAB } from "@/src/components/ui/FAB";
-import { ListRow } from "@/src/components/ui/ListRow";
 import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
 import { useToast } from "@/src/components/ui/Toast";
 import {
@@ -22,6 +22,73 @@ import {
   useSoftDeleteClient,
 } from "@/src/features/clients/queries";
 import type { Client } from "@/src/types/schemas";
+
+const AVATAR_COLORS = [
+  "#4F46E5",
+  "#0891B2",
+  "#059669",
+  "#D97706",
+  "#DC2626",
+  "#7C3AED",
+];
+
+function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  const first = words[0]?.[0] ?? "";
+  const second = words[1]?.[0] ?? "";
+  return (first + second).toUpperCase();
+}
+
+function getAvatarColor(name: string): string {
+  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length] ?? "#4F46E5";
+}
+
+interface ClientRowProps {
+  item: Client;
+  onPress: () => void;
+  onLongPress: () => void;
+}
+
+function ClientRow({ item, onPress, onLongPress }: ClientRowProps) {
+  const initials = getInitials(item.name);
+  const bgColor = getAvatarColor(item.name);
+  const secondary = item.email || item.abn || "";
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityLabel={`Client ${item.name}`}
+      className="flex-row items-center px-4 py-3 bg-surface active:bg-background"
+      style={{ gap: 12 }}
+    >
+      <View
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          backgroundColor: bgColor,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text
+          style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}
+        >
+          {initials}
+        </Text>
+      </View>
+      <View className="flex-1">
+        <Text className="text-body font-semibold text-foreground">{item.name}</Text>
+        {secondary ? (
+          <Text className="text-caption text-muted" numberOfLines={1}>
+            {secondary}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
 
 export default function ClientsScreen() {
   const insets = useSafeAreaInsets();
@@ -108,7 +175,6 @@ export default function ClientsScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(c) => c.id}
-          ItemSeparatorComponent={() => <View className="h-px bg-border" />}
           refreshControl={
             !isWeb ? (
               <RefreshControl
@@ -118,12 +184,10 @@ export default function ClientsScreen() {
             ) : undefined
           }
           renderItem={({ item }) => (
-            <ListRow
-              primary={item.name}
-              secondary={item.email || item.abn || ""}
+            <ClientRow
+              item={item}
               onPress={() => router.push(`/clients/${item.id}`)}
               onLongPress={() => setPendingDelete(item)}
-              accessibilityLabel={`Client ${item.name}`}
             />
           )}
         />
