@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Share2 } from "lucide-react-native";
 import WebView from "react-native-webview";
 import { Button } from "@/src/components/ui/Button";
 import { Card } from "@/src/components/ui/Card";
@@ -209,7 +209,13 @@ export function InvoiceDetail({ invoice }: Props) {
             </Text>
           </View>
         </View>
-        <StatusBadge status={display} />
+        <IconButton
+            icon={Share2}
+            accessibilityLabel="Share PDF"
+            onPress={share}
+            disabled={!pdfUri || sharing || generating}
+          />
+          <StatusBadge status={display} />
       </View>
 
       <ScrollView
@@ -233,8 +239,8 @@ export function InvoiceDetail({ invoice }: Props) {
                   title={`${invoice.number} preview`}
                 />
               ) : null
-            ) : pdfUri ? (
-              <WebView source={{ uri: pdfUri }} style={{ flex: 1 }} />
+            ) : pdfHtml ? (
+              <WebView source={{ html: pdfHtml }} style={{ flex: 1 }} />
             ) : null}
           </View>
         </Card>
