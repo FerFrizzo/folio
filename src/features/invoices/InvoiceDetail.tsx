@@ -209,13 +209,13 @@ export function InvoiceDetail({ invoice }: Props) {
             </Text>
           </View>
         </View>
+        <StatusBadge status={display} />
         <IconButton
-            icon={Share2}
-            accessibilityLabel="Share PDF"
-            onPress={share}
-            disabled={!pdfUri || sharing || generating}
-          />
-          <StatusBadge status={display} />
+          icon={Share2}
+          accessibilityLabel="Share PDF"
+          onPress={share}
+          disabled={!pdfUri || sharing || generating}
+        />
       </View>
 
       <ScrollView
