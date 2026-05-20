@@ -210,7 +210,12 @@ export function InvoiceDetail({ invoice }: Props) {
             </Text>
           </View>
         </View>
-        <StatusBadge status={display} />
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, right: 0, alignItems: "center" }}
+        >
+          <StatusBadge status={display} />
+        </View>
         <IconButton
           icon={Share2}
           accessibilityLabel="Share PDF"
