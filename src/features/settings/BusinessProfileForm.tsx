@@ -22,6 +22,20 @@ const BusinessSchema = ProfileSchema.extend({
 
 type BusinessForm = z.infer<typeof BusinessSchema>;
 
+function formatAustralianPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("04") && digits.length === 10) {
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+  if (digits.startsWith("0") && digits.length === 10) {
+    return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6)}`;
+  }
+  if (digits.startsWith("61") && digits.length === 11) {
+    return `+61 ${digits.slice(2, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
+  }
+  return raw;
+}
+
 export function BusinessProfileForm() {
   const profile = useProfile();
   const setProfile = useSetProfile();
@@ -65,7 +79,7 @@ export function BusinessProfileForm() {
       <Text className="mt-1 text-caption text-muted">
         Appears on every invoice. Required for ATO-compliant tax invoices.
       </Text>
-      <View className="mt-4 gap-3">
+      <View className="mt-4 gap-2">
         <Controller
           control={control}
           name="businessName"
@@ -132,6 +146,10 @@ export function BusinessProfileForm() {
               label="Phone"
               value={field.value}
               onChangeText={field.onChange}
+              onBlur={() => {
+                field.onChange(formatAustralianPhone(field.value ?? ""));
+                field.onBlur();
+              }}
               error={fieldState.error?.message ?? null}
               keyboardType="phone-pad"
             />
