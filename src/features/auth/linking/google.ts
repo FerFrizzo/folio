@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
   GoogleAuthProvider,
@@ -35,10 +36,21 @@ export function useGoogleAuth() {
     androidClientId?: string;
     webClientId?: string;
     scopes?: string[];
+    redirectUri?: string;
   } = { scopes: ["openid", "profile", "email"] };
   if (IOS_CLIENT_ID) config.iosClientId = IOS_CLIENT_ID;
   if (ANDROID_CLIENT_ID) config.androidClientId = ANDROID_CLIENT_ID;
   if (WEB_CLIENT_ID) config.webClientId = WEB_CLIENT_ID;
+
+  // Explicitly set the redirect URI so it matches the authorized URI registered
+  // in Google Cloud Console. The scheme mirrors the intent filter in app.config.ts
+  // (android.intentFilters). Without this, expo-auth-session auto-generates a URI
+  // that may not match, causing "Error 400: invalid_request" on Android.
+  const redirectUri = makeRedirectUri({
+    scheme: "com.googleusercontent.apps.792742422119-lhbh2o8p7u7bbdvfn1f482u5cdq76u5k",
+    path: "oauth2redirect",
+  });
+  config.redirectUri = redirectUri;
 
   const [request, response, promptAsync] = Google.useAuthRequest(config);
 
