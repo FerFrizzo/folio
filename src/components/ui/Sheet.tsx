@@ -1,4 +1,12 @@
-import { Modal, Platform, Pressable, Text, View, type ViewProps } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  View,
+  type ViewProps,
+} from "react-native";
 
 type Props = ViewProps & {
   visible: boolean;
@@ -36,13 +44,17 @@ export function Sheet({ visible, title, onClose, children, ...rest }: Props) {
           }
           {...rest}
         >
-          {!isWeb ? (
-            <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
-          ) : null}
-          {title ? (
-            <Text className="mb-4 text-h2 text-foreground">{title}</Text>
-          ) : null}
-          {children}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            {!isWeb ? (
+              <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
+            ) : null}
+            {title ? (
+              <Text className="mb-4 text-h2 text-foreground">{title}</Text>
+            ) : null}
+            {children}
+          </KeyboardAvoidingView>
         </Pressable>
       </Pressable>
     </Modal>
