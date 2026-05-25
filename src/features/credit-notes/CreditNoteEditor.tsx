@@ -174,7 +174,6 @@ export function CreditNoteEditor({ invoiceId }: Props) {
         },
       });
       await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
-      toast.show({ message: `${cn.number} issued.`, variant: "success" });
       router.replace(`/invoices/${inv.id}`);
     } catch (err) {
       console.error(err);
