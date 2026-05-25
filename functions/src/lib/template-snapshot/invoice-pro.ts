@@ -17,17 +17,17 @@ function uniqueGstRates(invoice: Invoice): number[] {
   return Array.from(rates).sort((a, b) => a - b);
 }
 
-// "Classic professional" PDF template per spec §12.
-// A4, 20 mm top/bottom margins, 15 mm left/right, Source Serif 4 headings,
-// Inter body, hairline 0.5 pt borders, single navy accent #1473FF.
-//
-// renderInvoiceHtml is pure — easy to snapshot test. Caller pipes the result
-// into expo-print's printToFileAsync.
+// Warm + professional invoice template for the Australian trades & services market.
+// A4, cream header band, Fraunces serif display, Plus Jakarta Sans body,
+// Folio blue (#1473FF) accent, blue grand-total box, blue-ruled payment block.
 
-const ACCENT = "#1473FF";
-const FOREGROUND = "#111827";
-const MUTED = "#4B5563";
-const BORDER = "#D1D5DB";
+const ACCENT      = "#1473FF";
+const NEAR_BLACK  = "#1C1917";
+const STONE       = "#78716C";
+const LIGHT_STONE = "#A8A29E";
+const CREAM       = "#F2EFE9";
+const LIGHT_BLUE  = "#EEF5FF";
+const BORDER_WARM = "#E7E5E4";
 
 function escapeHtml(input: string): string {
   return input
@@ -39,11 +39,9 @@ function escapeHtml(input: string): string {
 }
 
 function fmtDate(iso: string): string {
-  // Display as DD MMM YYYY, e.g. "01 May 2026" — readable on a tax document
-  // and unambiguous across AU/UK/US conventions.
   const d = new Date(iso + "T00:00:00");
   if (isNaN(d.getTime())) return iso;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -70,17 +68,24 @@ export function renderInvoiceHtml({
     : "";
 
   const businessAddress = profile.address ? escapeHtml(profile.address) : "";
-  const businessEmail = profile.email ? escapeHtml(profile.email) : "";
-  const businessPhone = profile.phone ? escapeHtml(profile.phone) : "";
+  const businessEmail   = profile.email   ? escapeHtml(profile.email)   : "";
+  const businessPhone   = profile.phone   ? escapeHtml(profile.phone)   : "";
 
   const logoTag = profile.logoUrl
     ? `<img class="logo" src="${escapeHtml(profile.logoUrl)}" alt="${businessName} logo" />`
     : "";
 
+  const businessMeta = [
+    abn ? `ABN ${abn}` : "",
+    businessAddress,
+    businessEmail,
+    businessPhone,
+  ].filter(Boolean).join("\n");
+
   const rows = invoice.lineItems
     .map((line) => {
-      const amount = formatMoney(line.taxableCents, invoice.currency);
-      const unitText = line.unit ? ` ${escapeHtml(line.unit)}` : "";
+      const amount    = formatMoney(line.taxableCents, invoice.currency);
+      const unitText  = line.unit ? ` ${escapeHtml(line.unit)}` : "";
       const discountTag =
         line.lineDiscount && line.lineDiscountAmountCents > 0
           ? `<div class="line-discount">Discount ${formatDiscount(line.lineDiscount, invoice.currency)} (−${formatMoney(line.lineDiscountAmountCents, invoice.currency)})</div>`
@@ -95,14 +100,12 @@ export function renderInvoiceHtml({
     })
     .join("");
 
-  // Build the totals block with GST mix awareness + discount disclosure.
-  const rates = uniqueGstRates(invoice);
-  const isMixedRate = !isExport && rates.length > 1;
+  // Totals block
+  const rates             = uniqueGstRates(invoice);
+  const isMixedRate       = !isExport && rates.length > 1;
   const taxableSubtotalCents = invoice.subtotalCents;
   const totalsRows: string[] = [];
 
-  // Gross subtotal (pre-discount) shown when discounts exist; otherwise just
-  // the (post-discount) subtotal.
   const grossSubtotalCents =
     taxableSubtotalCents +
     invoice.lineDiscountTotalCents +
@@ -136,13 +139,12 @@ export function renderInvoiceHtml({
 
   if (!isExport) {
     if (isMixedRate) {
-      // Spec §5 wording.
       let taxableAtRateCents = 0;
-      let gstAtRateCents = 0;
+      let gstAtRateCents     = 0;
       for (const l of invoice.lineItems) {
         if (l.gstRate > 0) {
           taxableAtRateCents += l.taxableCents;
-          gstAtRateCents += l.gstAmountCents;
+          gstAtRateCents     += l.gstAmountCents;
         }
       }
       totalsRows.push(
@@ -156,9 +158,10 @@ export function renderInvoiceHtml({
   }
 
   totalsRows.push(
-    `<div class="row grand"><span>Total</span><span>${formatMoney(invoice.totalCents, invoice.currency)}</span></div>`,
+    `<div class="row grand"><span class="grand-label">Total</span><span class="grand-amount">${formatMoney(invoice.totalCents, invoice.currency)}</span></div>`,
   );
 
+  // Payment block
   const payment = settings.paymentDetails;
   const paymentRows: string[] = [];
   if (payment.bsb && payment.accNumber) {
@@ -184,144 +187,262 @@ export function renderInvoiceHtml({
   }
   const paymentHtml = paymentRows.length
     ? `<section class="payment">
-         <h2>Payment</h2>
+         <h2>Payment details</h2>
          ${paymentRows.join("")}
        </section>`
     : "";
 
   const exportNote = isExport
-    ? `<p class="export-note">Treated as an export — no GST applies under Australian law.</p>`
+    ? `<p class="export-note">This invoice is treated as an export — no GST applies under Australian taxation law.</p>`
     : "";
 
+  const gstFooterNote = profile.gstRegistered && !isExport
+    ? "GST registered &nbsp;·&nbsp; ABN issued"
+    : !profile.gstRegistered
+      ? "Not registered for GST"
+      : "";
+
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en-AU">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(invoice.number)} — Tax Invoice</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    @page { size: A4; margin: 20mm 15mm; }
+    @page { size: A4; margin: 18mm 16mm 20mm; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
-      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 10.5pt;
-      color: ${FOREGROUND};
-      line-height: 1.45;
-      font-feature-settings: "tnum";
+      font-family: "Plus Jakarta Sans", -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 10pt;
+      color: ${NEAR_BLACK};
+      line-height: 1.5;
+      background: #FDFCFB;
     }
-    h1, h2, h3 {
-      font-family: "Source Serif 4", "Playfair Display", Georgia, serif;
+    h2 {
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       color: ${ACCENT};
-      margin: 0;
+      margin: 0 0 8px;
     }
-    h1 { font-size: 22pt; font-weight: 600; letter-spacing: -0.01em; }
-    h2 { font-size: 11pt; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: ${MUTED}; }
+
+    /* ── Header band ── */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 24px;
-      padding-bottom: 16px;
-      border-bottom: 0.5pt solid ${BORDER};
-      margin-bottom: 16px;
+      gap: 28px;
+      background: ${CREAM};
+      padding: 20px 22px 18px;
+      border-radius: 8px;
+      margin-bottom: 10px;
     }
-    .business { max-width: 60%; }
-    .logo { max-height: 56px; max-width: 220px; object-fit: contain; }
-    .business-name { font-family: "Source Serif 4", serif; font-size: 14pt; font-weight: 600; color: ${ACCENT}; margin-top: 8px; }
-    .business-meta { color: ${MUTED}; font-size: 9pt; margin-top: 4px; line-height: 1.5; white-space: pre-line; }
-    .doc { text-align: right; }
-    .doc h1 { letter-spacing: 0.02em; }
-    .doc-meta { color: ${MUTED}; font-size: 9pt; margin-top: 8px; line-height: 1.6; }
-    .doc-meta strong { color: ${FOREGROUND}; font-weight: 600; }
-    .parties {
+    .header-rule {
+      height: 3px;
+      background: ${ACCENT};
+      border-radius: 2px;
+      margin-bottom: 22px;
+    }
+    .business { flex: 1; }
+    .logo { max-height: 52px; max-width: 200px; object-fit: contain; display: block; margin-bottom: 10px; }
+    .business-name {
+      font-family: "Fraunces", Georgia, "Times New Roman", serif;
+      font-size: 15pt;
+      font-weight: 700;
+      color: ${NEAR_BLACK};
+      line-height: 1.2;
+      margin-bottom: 7px;
+    }
+    .business-meta {
+      font-size: 8.5pt;
+      color: ${STONE};
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+    .doc { text-align: right; flex-shrink: 0; }
+    .doc-title {
+      font-family: "Fraunces", Georgia, "Times New Roman", serif;
+      font-size: 22pt;
+      font-weight: 700;
+      color: ${ACCENT};
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .doc-number {
+      font-size: 12pt;
+      font-weight: 700;
+      color: ${NEAR_BLACK};
+      letter-spacing: 0.01em;
+      margin-bottom: 9px;
+    }
+    /* ── Date cards ── */
+    .date-cards {
       display: flex;
-      gap: 24px;
-      margin-bottom: 18px;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 6px;
     }
-    .party { flex: 1; }
-    .party h2 { margin-bottom: 6px; }
-    .party-name { font-weight: 600; font-size: 11pt; }
-    .party-meta { color: ${MUTED}; font-size: 9pt; line-height: 1.5; white-space: pre-line; }
+    .date-card {
+      text-align: center;
+      padding: 7px 12px;
+      background: #FFFFFF;
+      border-radius: 7px;
+      border: 1pt solid ${BORDER_WARM};
+      min-width: 62pt;
+    }
+    .dc-lbl {
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: ${LIGHT_STONE};
+      margin-bottom: 2px;
+    }
+    .dc-val {
+      font-size: 9pt;
+      font-weight: 600;
+      color: ${NEAR_BLACK};
+    }
+    .date-card.due {
+      background: ${LIGHT_BLUE};
+      border-color: ${ACCENT};
+    }
+    .date-card.due .dc-lbl { color: ${ACCENT}; }
+    .date-card.due .dc-val { color: ${ACCENT}; }
+
+    /* ── Bill to ── */
+    .bill-to { margin-bottom: 22px; }
+    .party-name { font-weight: 600; font-size: 11pt; color: ${NEAR_BLACK}; margin-bottom: 3px; }
+    .party-meta { font-size: 8.5pt; color: ${STONE}; line-height: 1.55; white-space: pre-line; }
+
+    /* ── Items table ── */
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin: 8px 0 18px;
+      margin-bottom: 14px;
+      font-feature-settings: "tnum";
     }
     table.items thead th {
-      text-align: left;
-      font-size: 9pt;
-      font-weight: 600;
-      letter-spacing: 0.04em;
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: ${MUTED};
-      border-bottom: 0.5pt solid ${BORDER};
-      padding: 8px 6px;
+      color: ${STONE};
+      background: ${CREAM};
+      padding: 8px 10px;
+      text-align: left;
     }
+    table.items thead th:first-child { border-radius: 5px 0 0 5px; }
+    table.items thead th:last-child  { border-radius: 0 5px 5px 0; }
     table.items tbody td {
-      border-bottom: 0.5pt solid ${BORDER};
-      padding: 10px 6px;
+      padding: 11px 10px;
+      border-bottom: 1pt solid #EDE9E3;
       vertical-align: top;
+      font-size: 10pt;
     }
+    table.items tbody tr:nth-child(even) td { background: #FAF8F5; }
+    table.items tbody tr:last-child td { border-bottom: none; }
     .num { text-align: right; white-space: nowrap; }
     .desc { width: 55%; }
-    .totals { margin-left: auto; width: 45%; margin-top: 4px; }
+    .line-discount { font-size: 8.5pt; color: ${LIGHT_STONE}; margin-top: 3px; }
+
+    /* ── Totals ── */
+    .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+    .totals {
+      width: 44%;
+      background: #FAF7F3;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1pt solid ${BORDER_WARM};
+    }
     .totals .row {
       display: flex;
       justify-content: space-between;
-      padding: 4px 6px;
-      font-size: 10pt;
+      padding: 7px 14px;
+      font-size: 9.5pt;
+      border-bottom: 1pt solid ${BORDER_WARM};
     }
+    .totals .row:last-child { border-bottom: none; }
+    .totals .label { color: ${STONE}; }
+    .totals .row.mix .label { font-size: 8.5pt; font-style: italic; }
     .totals .row.grand {
-      border-top: 0.5pt solid ${BORDER};
-      margin-top: 6px;
-      padding-top: 8px;
-      font-size: 13pt;
-      font-weight: 600;
-      color: ${ACCENT};
+      background: ${ACCENT};
+      padding: 12px 14px;
+      align-items: flex-end;
+      border-bottom: none;
     }
-    .totals .row .label { color: ${MUTED}; }
-    .totals .row.mix .label {
-      font-size: 9pt;
-      font-style: italic;
+    .grand-label {
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      padding-bottom: 2pt;
     }
-    .line-discount {
-      font-size: 9pt;
-      color: ${MUTED};
-      margin-top: 2px;
+    .grand-amount {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 18pt;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.02em;
+      line-height: 1;
     }
+
+    /* ── Payment ── */
     .payment {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 0.5pt solid ${BORDER};
+      background: ${LIGHT_BLUE};
+      border-left: 3pt solid ${ACCENT};
+      border-radius: 0 8px 8px 0;
+      padding: 14px 16px;
+      margin-top: 16px;
     }
-    .payment h2 { margin-bottom: 8px; }
     .payment > div {
       display: flex;
       gap: 12px;
-      padding: 4px 0;
-      font-size: 10pt;
+      padding: 3px 0;
+      font-size: 9.5pt;
+      align-items: baseline;
     }
-    .payment .label { color: ${MUTED}; min-width: 64px; }
+    .payment .label { color: ${STONE}; min-width: 60px; font-size: 9pt; }
     .payment .other { align-items: flex-start; white-space: pre-line; }
+
+    /* ── Notes ── */
     .notes {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 0.5pt solid ${BORDER};
-      font-size: 10pt;
-      color: ${MUTED};
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: #FAF9F7;
+      border-left: 3pt solid ${BORDER_WARM};
+      border-radius: 0 6px 6px 0;
+      font-size: 9.5pt;
+      color: ${STONE};
       white-space: pre-line;
     }
-    .notes h2 { color: ${MUTED}; margin-bottom: 6px; }
+    .notes h2 { color: ${LIGHT_STONE}; margin-bottom: 5px; }
+
+    /* ── Export note ── */
     .export-note {
-      margin-top: 12px;
-      padding: 8px 12px;
-      background: rgba(11, 61, 92, 0.06);
-      border-left: 2pt solid ${ACCENT};
-      color: ${FOREGROUND};
-      font-size: 9.5pt;
+      margin: 12px 0 0;
+      padding: 9px 14px;
+      background: ${LIGHT_BLUE};
+      border-left: 3pt solid ${ACCENT};
+      border-radius: 0 6px 6px 0;
+      color: ${NEAR_BLACK};
+      font-size: 9pt;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 28pt;
+      padding-top: 8pt;
+      border-top: 1pt solid ${BORDER_WARM};
+      text-align: center;
+      font-size: 7.5pt;
+      color: ${LIGHT_STONE};
     }
   </style>
 </head>
@@ -330,27 +451,31 @@ export function renderInvoiceHtml({
     <div class="business">
       ${logoTag}
       <div class="business-name">${businessName}</div>
-      <div class="business-meta">${[abn ? `ABN ${abn}` : "", businessAddress, businessEmail, businessPhone]
-        .filter(Boolean)
-        .join("\n")}</div>
+      <div class="business-meta">${businessMeta}</div>
     </div>
     <div class="doc">
-      <h1>Tax Invoice</h1>
-      <div class="doc-meta">
-        <div><strong>${escapeHtml(invoice.number)}</strong></div>
-        <div>Issued ${fmtDate(invoice.issueDate)}</div>
-        <div>Due ${fmtDate(invoice.dueDate)}</div>
+      <div class="doc-title">Tax Invoice</div>
+      <div class="doc-number">${escapeHtml(invoice.number)}</div>
+      <div class="date-cards">
+        <div class="date-card">
+          <div class="dc-lbl">Issued</div>
+          <div class="dc-val">${fmtDate(invoice.issueDate)}</div>
+        </div>
+        <div class="date-card due">
+          <div class="dc-lbl">Due</div>
+          <div class="dc-val">${fmtDate(invoice.dueDate)}</div>
+        </div>
       </div>
     </div>
   </header>
 
-  <section class="parties">
-    <div class="party">
-      <h2>Bill to</h2>
-      <div class="party-name">${buyer}</div>
-      ${buyerAbn ? `<div class="party-meta">ABN ${buyerAbn}</div>` : ""}
-      ${buyerAddress ? `<div class="party-meta">${buyerAddress}</div>` : ""}
-    </div>
+  <div class="header-rule"></div>
+
+  <section class="bill-to">
+    <h2>Bill to</h2>
+    <div class="party-name">${buyer}</div>
+    ${buyerAbn     ? `<div class="party-meta">ABN ${buyerAbn}</div>`  : ""}
+    ${buyerAddress ? `<div class="party-meta">${buyerAddress}</div>`  : ""}
   </section>
 
   <table class="items">
@@ -365,18 +490,20 @@ export function renderInvoiceHtml({
     <tbody>${rows}</tbody>
   </table>
 
-  <div class="totals">
-    ${totalsRows.join("\n    ")}
+  <div class="totals-wrap">
+    <div class="totals">
+      ${totalsRows.join("\n      ")}
+    </div>
   </div>
 
   ${exportNote}
   ${paymentHtml}
 
-  ${
-    invoice.notes
-      ? `<section class="notes"><h2>Notes</h2>${escapeHtml(invoice.notes)}</section>`
-      : ""
-  }
+  ${invoice.notes
+    ? `<section class="notes"><h2>Notes</h2>${escapeHtml(invoice.notes)}</section>`
+    : ""}
+
+  <div class="footer">${gstFooterNote}</div>
 </body>
 </html>`;
 }

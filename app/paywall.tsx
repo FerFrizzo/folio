@@ -1,26 +1,16 @@
-import { Image, Platform, Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import Constants from "expo-constants";
 import RevenueCatUI from "react-native-purchases-ui";
 import { X } from "lucide-react-native";
 import { useAuth } from "@/src/features/auth/AuthProvider";
-
-function isRevenueCatReady(): boolean {
-  const key =
-    Platform.OS === "ios"
-      ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? ""
-      : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "";
-  return !!key && Constants.executionEnvironment !== "storeClient";
-}
 
 export default function PaywallScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const auth = useAuth();
-  const rcReady = isRevenueCatReady();
 
   async function onPurchased() {
     if (auth.status === "ready") {

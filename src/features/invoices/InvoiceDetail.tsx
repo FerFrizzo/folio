@@ -43,6 +43,7 @@ export function InvoiceDetail({ invoice }: Props) {
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfHtml, setPdfHtml] = useState<string | null>(null);
   const [generating, setGenerating] = useState(true);
+  const [webViewHeight, setWebViewHeight] = useState(520);
   const [sharing, setSharing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
@@ -209,13 +210,18 @@ export function InvoiceDetail({ invoice }: Props) {
             </Text>
           </View>
         </View>
-        <IconButton
-            icon={Share2}
-            accessibilityLabel="Share PDF"
-            onPress={share}
-            disabled={!pdfUri || sharing || generating}
-          />
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, right: 0, alignItems: "center" }}
+        >
           <StatusBadge status={display} />
+        </View>
+        <IconButton
+          icon={Share2}
+          accessibilityLabel="Share PDF"
+          onPress={share}
+          disabled={!pdfUri || sharing || generating}
+        />
       </View>
 
       <ScrollView
@@ -223,7 +229,7 @@ export function InvoiceDetail({ invoice }: Props) {
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
       >
         <Card className="p-0 overflow-hidden">
-          <View style={{ height: 520 }}>
+          <View style={{ height: generating ? 520 : webViewHeight }}>
             {generating ? (
               <View className="flex-1 items-center justify-center bg-background">
                 <ActivityIndicator color="#1473FF" />
@@ -235,12 +241,25 @@ export function InvoiceDetail({ invoice }: Props) {
               pdfHtml ? (
                 <iframe
                   srcDoc={pdfHtml}
-                  style={{ width: "100%", height: "100%", border: 0 }}
+                  style={{ width: "100%", height: webViewHeight, border: 0 }}
                   title={`${invoice.number} preview`}
+                  onLoad={(e) => {
+                    const h = (e.target as HTMLIFrameElement).contentWindow?.document.documentElement.scrollHeight;
+                    if (h) setWebViewHeight(h);
+                  }}
                 />
               ) : null
             ) : pdfHtml ? (
-              <WebView source={{ html: pdfHtml }} style={{ flex: 1 }} />
+              <WebView
+                source={{ html: pdfHtml }}
+                style={{ flex: 1 }}
+                scrollEnabled={false}
+                injectedJavaScript="window.ReactNativeWebView.postMessage(String(document.documentElement.scrollHeight)); true;"
+                onMessage={(e) => {
+                  const h = Number(e.nativeEvent.data);
+                  if (h > 0) setWebViewHeight(h);
+                }}
+              />
             ) : null}
           </View>
         </Card>

@@ -94,7 +94,7 @@ describe("renderInvoiceHtml", () => {
       totalCents: 120000,
     };
     const html = renderInvoiceHtml({ invoice: usdInv, profile, settings });
-    expect(html).toContain("Treated as an export");
+    expect(html).toContain("treated as an export");
     // No "GST" line in the totals block
     expect(html.match(/<span class="label">GST<\/span>/)).toBeNull();
   });
@@ -195,5 +195,22 @@ describe("renderInvoiceHtml", () => {
     const html = renderInvoiceHtml({ invoice: wholeDiscounted, profile, settings });
     expect(html).toContain("Invoice discount");
     expect(html).toContain("−$50.00");
+  });
+
+  it("renders both dates inside date-cards structure", () => {
+    const html = renderInvoiceHtml({ invoice, profile, settings });
+    expect(html).toContain('class="date-cards"');
+    expect(html).toContain('class="date-card"');
+    expect(html).toContain('class="date-card due"');
+    // formatted dates appear in dc-val divs
+    expect(html).toContain("01 May 2026");
+    expect(html).toContain("15 May 2026");
+  });
+
+  it("does not use the old meta-row structure for dates", () => {
+    const html = renderInvoiceHtml({ invoice, profile, settings });
+    expect(html).not.toContain('class="meta-row"');
+    expect(html).not.toContain('class="meta-lbl"');
+    expect(html).not.toContain('class="meta-val"');
   });
 });
