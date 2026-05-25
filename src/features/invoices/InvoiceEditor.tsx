@@ -361,11 +361,11 @@ export function InvoiceEditor({ initial }: Props) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
-      <ScrollView
-        className="flex-1"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 96 }}
-      >
+        <ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 96 }}
+        >
         <View className="flex-row gap-3">
           <View className="flex-1">
             <Select
@@ -454,7 +454,7 @@ export function InvoiceEditor({ initial }: Props) {
         <CollapsibleCard title="Notes" defaultExpanded={isNew}>
           <NotesSection value={notes} onChange={setNotes} />
         </CollapsibleCard>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <View

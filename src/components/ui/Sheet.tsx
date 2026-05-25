@@ -1,5 +1,4 @@
 import {
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -44,18 +43,13 @@ export function Sheet({ visible, title, onClose, children, ...rest }: Props) {
           }
           {...rest}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={{ flex: 1 }}
-          >
-            {!isWeb ? (
-              <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
-            ) : null}
-            {title ? (
-              <Text className="mb-4 text-h2 text-foreground">{title}</Text>
-            ) : null}
-            {children}
-          </KeyboardAvoidingView>
+          {!isWeb ? (
+            <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
+          ) : null}
+          {title ? (
+            <Text className="mb-4 text-h2 text-foreground">{title}</Text>
+          ) : null}
+          {children}
         </Pressable>
       </Pressable>
     </Modal>

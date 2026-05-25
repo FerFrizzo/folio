@@ -216,60 +216,60 @@ export function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
-      <ScrollView
-        className="flex-1 bg-background"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          paddingTop: insets.top + 48,
-          paddingBottom: insets.bottom + 32,
-          paddingHorizontal: 24,
-          gap: 32,
-        }}
-      >
-        <View className="items-center">
-          <Image
-            source={require("@/assets/images/splash-icon-transparent.png")}
-            style={{ width: 200, height: 200 }}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View
-          className="rounded-2xl bg-white p-6 gap-4"
-          style={cardShadow}
+        <ScrollView
+          className="flex-1 bg-background"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingTop: insets.top + 48,
+            paddingBottom: insets.bottom + 32,
+            paddingHorizontal: 24,
+            gap: 32,
+          }}
         >
-          <View className="gap-1">
-            <Text className="text-h2 font-bold text-foreground">Reset password</Text>
-            <Text className="text-caption text-muted">
-              Enter your email and we'll send you a reset link.
-            </Text>
+          <View className="items-center">
+            <Image
+              source={require("@/assets/images/splash-icon-transparent.png")}
+              style={{ width: 200, height: 200 }}
+              resizeMode="contain"
+            />
           </View>
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            autoCorrect={false}
-            error={emailError}
-          />
-          <Button
-            label={busy ? "Sending…" : "Send reset email"}
-            size="lg"
-            disabled={busy}
-            onPress={() => void handleSubmit()}
-          />
-          <Pressable
-            accessibilityRole="button"
-            className="items-center py-1"
-            onPress={() => switchMode("sign-in")}
+
+          <View
+            className="rounded-2xl bg-white p-6 gap-4"
+            style={cardShadow}
           >
-            <Text className="text-caption text-accent">Back to sign in</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+            <View className="gap-1">
+              <Text className="text-h2 font-bold text-foreground">Reset password</Text>
+              <Text className="text-caption text-muted">
+                Enter your email and we'll send you a reset link.
+              </Text>
+            </View>
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect={false}
+              error={emailError}
+            />
+            <Button
+              label={busy ? "Sending…" : "Send reset email"}
+              size="lg"
+              disabled={busy}
+              onPress={() => void handleSubmit()}
+            />
+            <Pressable
+              accessibilityRole="button"
+              className="items-center py-1"
+              onPress={() => switchMode("sign-in")}
+            >
+              <Text className="text-caption text-accent">Back to sign in</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     );
   }
@@ -279,16 +279,16 @@ export function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1 }}
     >
-    <ScrollView
-      className="flex-1 bg-background"
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        paddingTop: insets.top + 48,
-        paddingBottom: insets.bottom + 32,
-        paddingHorizontal: 24,
-        gap: 20,
-      }}
-    >
+      <ScrollView
+        className="flex-1 bg-background"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingTop: insets.top + 48,
+          paddingBottom: insets.bottom + 32,
+          paddingHorizontal: 24,
+          gap: 20,
+        }}
+      >
       {/* Brand mark — full logo including wordmark */}
       <View className="items-center">
         <Image
@@ -436,7 +436,7 @@ export function LoginScreen() {
           </View>
         </>
       ) : null}
-    </ScrollView>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
