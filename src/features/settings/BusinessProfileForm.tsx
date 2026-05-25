@@ -43,7 +43,7 @@ export function BusinessProfileForm() {
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton();
 
-  const { control, handleSubmit, reset } = useForm<BusinessForm>({
+  const { control, handleSubmit, reset, formState } = useForm<BusinessForm>({
     resolver: zodResolver(BusinessSchema),
     defaultValues: {
       businessName: "",
@@ -160,7 +160,7 @@ export function BusinessProfileForm() {
         <Button
           label={succeeded ? "✓ Saved" : setProfile.isPending ? "Saving…" : "Save changes"}
           variant={succeeded ? "success" : "primary"}
-          disabled={setProfile.isPending || succeeded}
+          disabled={setProfile.isPending || succeeded || !formState.isDirty}
           onPress={handleSubmit(onSubmit)}
         />
       </View>

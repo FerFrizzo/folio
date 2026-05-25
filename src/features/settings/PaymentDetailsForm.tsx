@@ -23,7 +23,7 @@ export function PaymentDetailsForm() {
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton();
 
-  const { control, handleSubmit, reset } = useForm<PaymentDetails>({
+  const { control, handleSubmit, reset, formState } = useForm<PaymentDetails>({
     resolver: zodResolver(PaymentDetailsSchema),
     defaultValues: {
       bsb: "",
@@ -128,7 +128,7 @@ export function PaymentDetailsForm() {
         <Button
           label={succeeded ? "✓ Saved" : setSettings.isPending ? "Saving…" : "Save changes"}
           variant={succeeded ? "success" : "primary"}
-          disabled={setSettings.isPending || succeeded}
+          disabled={setSettings.isPending || succeeded || !formState.isDirty}
           onPress={handleSubmit(onSubmit)}
         />
       </View>
