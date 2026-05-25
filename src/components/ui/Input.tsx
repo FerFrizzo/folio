@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 import {
   TextInput,
   Text,
@@ -12,12 +12,15 @@ type Props = TextInputProps & {
   error?: string | null;
   required?: boolean;
   containerClassName?: string;
+  rightElement?: ReactNode;
 };
 
 export const Input = forwardRef<TextInput, Props>(function Input(
-  { label, error, required, containerClassName, className, ...rest },
+  { label, error, required, containerClassName, className, rightElement, ...rest },
   ref,
 ) {
+  const borderClass = error ? "border-status-overdue" : "border-border";
+
   return (
     <View className={cn("gap-1", containerClassName)}>
       {label ? (
@@ -26,16 +29,33 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           {required ? <View className="h-1 w-1 rounded-full bg-accent" /> : null}
         </View>
       ) : null}
-      <TextInput
-        ref={ref}
-        placeholderTextColor="#9CA3AF"
-        className={cn(
-          "h-11 rounded-button border bg-surface px-3 text-body text-foreground",
-          error ? "border-status-overdue" : "border-border",
-          className,
-        )}
-        {...rest}
-      />
+      {rightElement != null ? (
+        <View
+          className={cn(
+            "h-11 flex-row items-center rounded-button border bg-surface px-3",
+            borderClass,
+          )}
+        >
+          <TextInput
+            ref={ref}
+            placeholderTextColor="#9CA3AF"
+            className={cn("flex-1 text-body text-foreground", className)}
+            {...rest}
+          />
+          {rightElement}
+        </View>
+      ) : (
+        <TextInput
+          ref={ref}
+          placeholderTextColor="#9CA3AF"
+          className={cn(
+            "h-11 rounded-button border bg-surface px-3 text-body text-foreground",
+            borderClass,
+            className,
+          )}
+          {...rest}
+        />
+      )}
       {error ? (
         <Text className="text-caption text-status-overdue">{error}</Text>
       ) : null}

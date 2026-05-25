@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Image, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { Button, Input, useToast } from "@/components/ui";
 import { sendPasswordReset, signInWithEmail, signUpWithEmail } from "@/features/auth/email";
 import {
@@ -123,6 +123,7 @@ export function LoginScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [nameError, setNameError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -368,10 +369,24 @@ export function LoginScreen() {
               placeholder={mode === "sign-up" ? "At least 8 characters" : "Your password"}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
               error={passwordError}
+              rightElement={
+                <Pressable
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color="#9CA3AF"
+                  />
+                </Pressable>
+              }
             />
             {mode === "sign-in" ? (
               <Pressable
