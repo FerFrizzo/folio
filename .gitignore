@@ -59,3 +59,9 @@ CHANGELOG.md
 CLAUDE.md
 README.md
 .worktrees/
+
+# Superpowers plugin runtime files
+.superpowers/
+
+# Local credentials (never commit)
+credentials.json
