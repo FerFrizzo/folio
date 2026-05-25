@@ -8,6 +8,7 @@ import { CurrencyInput } from "@/src/components/ui/CurrencyInput";
 import { Input } from "@/src/components/ui/Input";
 import { NumberInput } from "@/src/components/ui/NumberInput";
 import { useToast } from "@/src/components/ui/Toast";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 import { formatMoney } from "@/src/lib/money";
 import {
   useCreateLibraryEntry,
@@ -20,6 +21,7 @@ export function LineItemLibraryCard() {
   const create = useCreateLibraryEntry();
   const remove = useDeleteLibraryEntry();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
 
   const [adding, setAdding] = useState(false);
   const [description, setDescription] = useState("");
@@ -45,7 +47,7 @@ export function LineItemLibraryCard() {
       setDescription("");
       setQty("1");
       setUnitPriceText("");
-      toast.show({ message: "Added to library.", variant: "success" });
+      triggerSuccess();
     } catch (err) {
       console.error(err);
       toast.show({
@@ -118,8 +120,9 @@ export function LineItemLibraryCard() {
             <View className="flex-row justify-end gap-2">
               <Button label="Cancel" variant="ghost" onPress={() => setAdding(false)} />
               <Button
-                label={create.isPending ? "Saving…" : "Add"}
-                disabled={create.isPending}
+                label={succeeded ? "✓ Added" : create.isPending ? "Adding…" : "Add"}
+                variant={succeeded ? "success" : "primary"}
+                disabled={create.isPending || succeeded}
                 onPress={add}
               />
             </View>
