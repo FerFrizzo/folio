@@ -25,6 +25,7 @@ import {
   useUpdateDraft,
 } from "@/src/features/invoices/queries";
 import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
+import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
 import { formatMoney } from "@/src/lib/money";
@@ -116,6 +117,7 @@ export function InvoiceEditor({ initial }: Props) {
   const [notes, setNotes] = useState<string>(initial?.notes ?? "");
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
   const [submitting, setSubmitting] = useState(false);
+  const { succeeded: sendSucceeded, triggerSuccess: triggerSendSuccess } = useSuccessButton();
 
   const exportMode = currency !== "AUD";
   // Switching currency mid-edit is locked once any non-empty line exists. The
@@ -240,7 +242,6 @@ export function InvoiceEditor({ initial }: Props) {
     setSubmitting(true);
     try {
       const id = await persistDraft();
-      toast.show({ message: "Draft saved.", variant: "success" });
       router.replace(`/invoices/${id}`);
     } catch (err) {
       console.error(err);
@@ -319,7 +320,7 @@ export function InvoiceEditor({ initial }: Props) {
         },
       });
       await shareInvoicePdf(pdf.uri, `${claimed}.pdf`);
-      toast.show({ message: `${claimed} sent.`, variant: "success" });
+      triggerSendSuccess();
       router.replace(`/invoices/${id}`);
     } catch (err) {
       toast.show({
@@ -470,8 +471,9 @@ export function InvoiceEditor({ initial }: Props) {
               onPress={handleSaveDraft}
             />
             <Button
-              label="Save & send"
-              disabled={submitting}
+              label={sendSucceeded ? "✓ Sent" : submitting ? "Marking…" : "Save & send"}
+              variant={sendSucceeded ? "success" : "primary"}
+              disabled={submitting || sendSucceeded}
               onPress={handleSaveAndSend}
             />
           </View>
