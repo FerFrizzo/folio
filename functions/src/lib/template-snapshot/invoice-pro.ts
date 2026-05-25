@@ -280,15 +280,40 @@ export function renderInvoiceHtml({
       letter-spacing: 0.01em;
       margin-bottom: 9px;
     }
-    .meta-row {
+    /* ── Date cards ── */
+    .date-cards {
       display: flex;
-      justify-content: flex-end;
       gap: 8px;
-      font-size: 8.5pt;
-      line-height: 1.85;
+      justify-content: flex-end;
+      margin-top: 6px;
     }
-    .meta-lbl { color: ${LIGHT_STONE}; }
-    .meta-val { color: ${NEAR_BLACK}; font-weight: 500; min-width: 80px; text-align: right; }
+    .date-card {
+      text-align: center;
+      padding: 7px 12px;
+      background: #FFFFFF;
+      border-radius: 7px;
+      border: 1pt solid ${BORDER_WARM};
+      min-width: 62pt;
+    }
+    .dc-lbl {
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: ${LIGHT_STONE};
+      margin-bottom: 2px;
+    }
+    .dc-val {
+      font-size: 9pt;
+      font-weight: 600;
+      color: ${NEAR_BLACK};
+    }
+    .date-card.due {
+      background: ${LIGHT_BLUE};
+      border-color: ${ACCENT};
+    }
+    .date-card.due .dc-lbl { color: ${ACCENT}; }
+    .date-card.due .dc-val { color: ${ACCENT}; }
 
     /* ── Bill to ── */
     .bill-to { margin-bottom: 22px; }
@@ -431,9 +456,15 @@ export function renderInvoiceHtml({
     <div class="doc">
       <div class="doc-title">Tax Invoice</div>
       <div class="doc-number">${escapeHtml(invoice.number)}</div>
-      <div class="doc-dates">
-        <div class="meta-row"><span class="meta-lbl">Issued</span><span class="meta-val">${fmtDate(invoice.issueDate)}</span></div>
-        <div class="meta-row"><span class="meta-lbl">Due</span><span class="meta-val">${fmtDate(invoice.dueDate)}</span></div>
+      <div class="date-cards">
+        <div class="date-card">
+          <div class="dc-lbl">Issued</div>
+          <div class="dc-val">${fmtDate(invoice.issueDate)}</div>
+        </div>
+        <div class="date-card due">
+          <div class="dc-lbl">Due</div>
+          <div class="dc-val">${fmtDate(invoice.dueDate)}</div>
+        </div>
       </div>
     </div>
   </header>
