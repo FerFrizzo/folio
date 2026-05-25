@@ -8,6 +8,7 @@ import { DateInput } from "@/src/components/ui/DateInput";
 import { Input } from "@/src/components/ui/Input";
 import { Select } from "@/src/components/ui/Select";
 import { useToast } from "@/src/components/ui/Toast";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 import { useRecordPayment } from "@/src/features/invoices/queries";
 import type { Invoice } from "@/src/types/schemas";
 import { formatMoney } from "@/src/lib/money";
@@ -42,6 +43,7 @@ function centsToDollars(cents: number): string {
 export function PaymentSheet({ invoice, onClose }: Props) {
   const recordPayment = useRecordPayment();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
   const [date, setDate] = useState(todayIso());
   const [amountText, setAmountText] = useState("");
   const [method, setMethod] = useState<string | null>("Bank transfer");
@@ -81,7 +83,7 @@ export function PaymentSheet({ invoice, onClose }: Props) {
           ...(note ? { note } : {}),
         },
       });
-      toast.show({ message: "Payment recorded.", variant: "success" });
+      triggerSuccess();
       onClose();
     } catch (err) {
       console.error(err);
@@ -121,8 +123,9 @@ export function PaymentSheet({ invoice, onClose }: Props) {
         <View className="flex-row justify-end gap-2">
           <Button label="Cancel" variant="ghost" onPress={onClose} />
           <Button
-            label={recordPayment.isPending ? "Saving…" : "Record"}
-            disabled={recordPayment.isPending}
+            label={succeeded ? "✓ Recorded" : recordPayment.isPending ? "Saving…" : "Record payment"}
+            variant={succeeded ? "success" : "primary"}
+            disabled={recordPayment.isPending || succeeded}
             onPress={submit}
           />
         </View>
