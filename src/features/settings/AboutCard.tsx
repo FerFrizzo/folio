@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
-import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { Card } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
@@ -12,7 +11,6 @@ const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "https://example.com/
 const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL ?? "https://example.com/terms";
 
 export function AboutCard() {
-  const router = useRouter();
   const auth = useAuth();
   const toast = useToast();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -39,7 +37,6 @@ export function AboutCard() {
     try {
       await signOut();
       toast.show({ message: "Signed out.", variant: "info" });
-      router.replace("/onboarding");
     } catch (err) {
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't sign out.",

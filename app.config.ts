@@ -3,7 +3,10 @@ import type { ExpoConfig } from "expo/config";
 const config: ExpoConfig = {
   name: "Folio",
   slug: "folio",
-  scheme: "folio",
+  scheme: [
+    "folio",
+    "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k",
+  ],
   version: "1.0.0",
   // OTA channel binds to the store version; bumping `version` cuts a fresh
   // runtime so old binaries don't pick up incompatible JS bundles.

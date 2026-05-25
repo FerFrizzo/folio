@@ -43,7 +43,7 @@ export function InvoiceDetail({ invoice }: Props) {
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfHtml, setPdfHtml] = useState<string | null>(null);
   const [generating, setGenerating] = useState(true);
-  const [webViewHeight, setWebViewHeight] = useState(520);
+  const PDF_HEIGHT = 520;
   const [sharing, setSharing] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
@@ -194,34 +194,33 @@ export function InvoiceDetail({ invoice }: Props) {
   return (
     <View className="flex-1 bg-background">
       <View
-        className="flex-row items-center justify-between border-b border-border bg-background px-4 pb-3"
+        className="border-b border-border bg-background px-4 pb-3"
         style={{ paddingTop: insets.top + 8 }}
       >
-        <View className="flex-row items-center gap-2">
-          <IconButton
-            icon={ArrowLeft}
-            accessibilityLabel="Back"
-            onPress={() => router.back()}
-          />
-          <View>
-            <Text className="text-h2 text-foreground">{invoice.number}</Text>
-            <Text className="text-caption text-muted">
-              {invoice.clientSnapshot.name}
-            </Text>
+        <View className="flex-row items-center">
+          <View className="flex-1 flex-row items-center gap-2">
+            <IconButton
+              icon={ArrowLeft}
+              accessibilityLabel="Back"
+              onPress={() => router.back()}
+            />
+            <View>
+              <Text className="text-h2 text-foreground">{invoice.number}</Text>
+              <Text className="text-caption text-muted">
+                {invoice.clientSnapshot.name}
+              </Text>
+            </View>
+          </View>
+          <StatusBadge status={display} />
+          <View className="flex-1 items-end">
+            <IconButton
+              icon={Share2}
+              accessibilityLabel="Share PDF"
+              onPress={share}
+              disabled={!pdfUri || sharing || generating}
+            />
           </View>
         </View>
-        <View
-          pointerEvents="none"
-          style={{ position: "absolute", left: 0, right: 0, alignItems: "center" }}
-        >
-          <StatusBadge status={display} />
-        </View>
-        <IconButton
-          icon={Share2}
-          accessibilityLabel="Share PDF"
-          onPress={share}
-          disabled={!pdfUri || sharing || generating}
-        />
       </View>
 
       <ScrollView
@@ -229,7 +228,7 @@ export function InvoiceDetail({ invoice }: Props) {
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
       >
         <Card className="p-0 overflow-hidden">
-          <View style={{ height: generating ? 520 : webViewHeight }}>
+          <View style={{ height: PDF_HEIGHT }}>
             {generating ? (
               <View className="flex-1 items-center justify-center bg-background">
                 <ActivityIndicator color="#1473FF" />
@@ -241,24 +240,15 @@ export function InvoiceDetail({ invoice }: Props) {
               pdfHtml ? (
                 <iframe
                   srcDoc={pdfHtml}
-                  style={{ width: "100%", height: webViewHeight, border: 0 }}
+                  style={{ width: "100%", height: PDF_HEIGHT, border: 0 }}
                   title={`${invoice.number} preview`}
-                  onLoad={(e) => {
-                    const h = (e.target as HTMLIFrameElement).contentWindow?.document.documentElement.scrollHeight;
-                    if (h) setWebViewHeight(h);
-                  }}
                 />
               ) : null
             ) : pdfHtml ? (
               <WebView
                 source={{ html: pdfHtml }}
                 style={{ flex: 1 }}
-                scrollEnabled={false}
-                injectedJavaScript="window.ReactNativeWebView.postMessage(String(document.documentElement.scrollHeight)); true;"
-                onMessage={(e) => {
-                  const h = Number(e.nativeEvent.data);
-                  if (h > 0) setWebViewHeight(h);
-                }}
+                scrollEnabled
               />
             ) : null}
           </View>
