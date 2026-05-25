@@ -46,11 +46,22 @@ export function useGoogleAuth() {
   // in Google Cloud Console. The scheme mirrors the intent filter in app.config.ts
   // (android.intentFilters). Without this, expo-auth-session auto-generates a URI
   // that may not match, causing "Error 400: invalid_request" on Android.
-  const redirectUri = makeRedirectUri({
-    scheme: "com.googleusercontent.apps.792742422119-lhbh2o8p7u7bbdvfn1f482u5cdq76u5k",
-    path: "oauth2redirect",
-  });
-  config.redirectUri = redirectUri;
+  config.redirectUri = makeRedirectUri(
+    Platform.OS === "android"
+      ? {
+          scheme:
+            "com.googleusercontent.apps.792742422119-lhbh2o8p7u7bbdvfn1f482u5cdq76u5k",
+          path: "oauth2redirect",
+        }
+      : {
+          // iOS uses its own reversed client ID so the OAuth callback can
+          // open the app. Matches the URL scheme registered in app.config.ts
+          // and the iOS URL scheme shown in Google Cloud Console.
+          scheme:
+            "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k",
+          path: "oauth2redirect",
+        },
+  );
 
   const [request, response, promptAsync] = Google.useAuthRequest(config);
 

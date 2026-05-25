@@ -24,6 +24,13 @@ const config: ExpoConfig = {
       NSCameraUsageDescription:
         "Folio doesn't use the camera. This entry exists in case you ever take a photo for a logo.",
       ITSAppUsesNonExemptEncryption: false,
+      CFBundleURLTypes: [
+        {
+          CFBundleURLSchemes: [
+            "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k",
+          ],
+        },
+      ],
     },
   },
   android: {
