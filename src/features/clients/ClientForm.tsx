@@ -5,7 +5,7 @@ import { View } from "react-native";
 import { z } from "zod";
 import { Card } from "@/src/components/ui/Card";
 import { Input } from "@/src/components/ui/Input";
-import { Button } from "@/src/components/ui/Button";
+import { Button, type ButtonVariant } from "@/src/components/ui/Button";
 import { ClientInputSchema, type Client, type ClientInput } from "@/src/types/schemas";
 import { isValidAbn } from "@/src/lib/abn";
 
@@ -23,10 +23,11 @@ type FormValues = z.infer<typeof FormSchema>;
 type Props = {
   initial?: Client;
   submitLabel: string;
+  submitVariant?: ButtonVariant;
   onSubmit: (values: ClientInput) => Promise<void>;
 };
 
-export function ClientForm({ initial, submitLabel, onSubmit }: Props) {
+export function ClientForm({ initial, submitLabel, submitVariant = "primary", onSubmit }: Props) {
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -123,7 +124,8 @@ export function ClientForm({ initial, submitLabel, onSubmit }: Props) {
         />
         <Button
           label={submitLabel}
-          disabled={!formState.isValid && formState.isSubmitted}
+          variant={submitVariant}
+          disabled={(!formState.isValid && formState.isSubmitted) || submitVariant === "success"}
           onPress={handleSubmit((v) => onSubmit(v as ClientInput))}
         />
       </View>

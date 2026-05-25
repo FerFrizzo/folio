@@ -6,6 +6,7 @@ import { Sheet } from "@/src/components/ui/Sheet";
 import { Button } from "@/src/components/ui/Button";
 import { Input } from "@/src/components/ui/Input";
 import { useToast } from "@/src/components/ui/Toast";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
 import {
   MAX_ATTACHMENTS,
@@ -47,6 +48,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
   const settings = useSettings();
   const entitlement = useEntitlement();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState("");
@@ -147,7 +149,8 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
         body,
         attachments,
       });
-      toast.show({ message: `${invoice.number || "Invoice"} sent.`, variant: "success" });
+      triggerSuccess();
+      await new Promise((r) => setTimeout(r, 800));
       onClose();
       onSent?.();
     } catch (err) {
@@ -228,8 +231,9 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
         <View className="flex-row justify-end gap-2">
           <Button label="Cancel" variant="ghost" onPress={onClose} />
           <Button
-            label={progress === "sending" ? "Sending…" : "Send"}
-            disabled={progress === "sending"}
+            label={succeeded ? "✓ Sent" : progress === "sending" ? "Sending…" : "Send invoice"}
+            variant={succeeded ? "success" : "primary"}
+            disabled={progress === "sending" || succeeded}
             onPress={submit}
           />
         </View>

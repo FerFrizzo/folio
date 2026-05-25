@@ -13,6 +13,7 @@ import {
   type Profile,
 } from "@/src/types/schemas";
 import { useProfile, useSetProfile } from "@/src/features/settings/queries";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 
 const BusinessSchema = ProfileSchema.extend({
   abn: z.string().refine((v) => v === "" || isValidAbn(v), {
@@ -40,6 +41,7 @@ export function BusinessProfileForm() {
   const profile = useProfile();
   const setProfile = useSetProfile();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
 
   const { control, handleSubmit, reset, formState } = useForm<BusinessForm>({
     resolver: zodResolver(BusinessSchema),
@@ -63,7 +65,7 @@ export function BusinessProfileForm() {
     try {
       const next: Profile = ProfileSchema.parse(values);
       await setProfile.mutateAsync(next);
-      toast.show({ message: "Business profile saved.", variant: "success" });
+      triggerSuccess();
     } catch (err) {
       console.error(err);
       toast.show({
@@ -156,8 +158,9 @@ export function BusinessProfileForm() {
           )}
         />
         <Button
-          label={setProfile.isPending ? "Saving…" : "Save profile"}
-          disabled={setProfile.isPending || !formState.isDirty}
+          label={succeeded ? "✓ Saved" : setProfile.isPending ? "Saving…" : "Save changes"}
+          variant={succeeded ? "success" : "primary"}
+          disabled={setProfile.isPending || succeeded || !formState.isDirty}
           onPress={handleSubmit(onSubmit)}
         />
       </View>

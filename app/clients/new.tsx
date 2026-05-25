@@ -6,6 +6,7 @@ import { IconButton } from "@/src/components/ui/IconButton";
 import { ClientForm } from "@/src/features/clients/ClientForm";
 import { useCreateClient } from "@/src/features/clients/queries";
 import { useToast } from "@/src/components/ui/Toast";
+import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import type { ClientInput } from "@/src/types/schemas";
 
 export default function NewClientScreen() {
@@ -13,11 +14,13 @@ export default function NewClientScreen() {
   const router = useRouter();
   const create = useCreateClient();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton(800);
 
   async function onSubmit(values: ClientInput) {
     try {
       await create.mutateAsync(values);
-      toast.show({ message: "Client added.", variant: "success" });
+      triggerSuccess();
+      await new Promise((r) => setTimeout(r, 800));
       router.back();
     } catch (err) {
       console.error(err);
@@ -51,7 +54,11 @@ export default function NewClientScreen() {
           <Text className="text-h1 text-foreground">New client</Text>
         </View>
         <View className="px-4">
-          <ClientForm submitLabel="Add client" onSubmit={onSubmit} />
+          <ClientForm
+            submitLabel={succeeded ? "✓ Added" : "Add client"}
+            submitVariant={succeeded ? "success" : "primary"}
+            onSubmit={onSubmit}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

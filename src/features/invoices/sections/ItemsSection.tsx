@@ -88,7 +88,6 @@ export function ItemsSection({
         unitPriceCents,
         gstRate: item.gstRate,
       });
-      toast.show({ message: "Saved to library.", variant: "success" });
     } catch (err) {
       console.error(err);
       toast.show({

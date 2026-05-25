@@ -10,6 +10,7 @@ import {
   useUpdateClient,
 } from "@/src/features/clients/queries";
 import { useToast } from "@/src/components/ui/Toast";
+import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import type { ClientInput } from "@/src/types/schemas";
 
 export default function EditClientScreen() {
@@ -19,12 +20,14 @@ export default function EditClientScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientQuery = useClient(id);
   const update = useUpdateClient();
+  const { succeeded, triggerSuccess } = useSuccessButton(800);
 
   async function onSubmit(values: ClientInput) {
     if (!id) return;
     try {
       await update.mutateAsync({ id, patch: values });
-      toast.show({ message: "Client saved.", variant: "success" });
+      triggerSuccess();
+      await new Promise((r) => setTimeout(r, 800));
       router.back();
     } catch (err) {
       console.error(err);
@@ -65,7 +68,8 @@ export default function EditClientScreen() {
           ) : (
             <ClientForm
               initial={clientQuery.data}
-              submitLabel="Save changes"
+              submitLabel={succeeded ? "✓ Saved" : "Save changes"}
+              submitVariant={succeeded ? "success" : "primary"}
               onSubmit={onSubmit}
             />
           )}

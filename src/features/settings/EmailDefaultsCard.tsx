@@ -10,11 +10,13 @@ import {
   useSetSettings,
 } from "@/src/features/settings/queries";
 import { SettingsSchema } from "@/src/types/schemas";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 
 export function EmailDefaultsCard() {
   const settings = useSettings();
   const setSettings = useSetSettings();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
 
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -40,7 +42,7 @@ export function EmailDefaultsCard() {
         emailDefaults: { subject, body },
       });
       await setSettings.mutateAsync(next);
-      toast.show({ message: "Email defaults saved.", variant: "success" });
+      triggerSuccess();
     } catch (err) {
       console.error(err);
       toast.show({
@@ -92,8 +94,9 @@ export function EmailDefaultsCard() {
           placeholder="Hi {{clientName}}, …"
         />
         <Button
-          label={setSettings.isPending ? "Saving…" : "Save defaults"}
-          disabled={setSettings.isPending}
+          label={succeeded ? "✓ Saved" : setSettings.isPending ? "Saving…" : "Save"}
+          variant={succeeded ? "success" : "primary"}
+          disabled={setSettings.isPending || succeeded}
           onPress={save}
         />
       </View>

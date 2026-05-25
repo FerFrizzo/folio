@@ -15,11 +15,13 @@ import {
   useSettings,
   useSetSettings,
 } from "@/src/features/settings/queries";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 
 export function PaymentDetailsForm() {
   const settings = useSettings();
   const setSettings = useSetSettings();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
 
   const { control, handleSubmit, reset, formState } = useForm<PaymentDetails>({
     resolver: zodResolver(PaymentDetailsSchema),
@@ -46,7 +48,7 @@ export function PaymentDetailsForm() {
     });
     try {
       await setSettings.mutateAsync(next);
-      toast.show({ message: "Payment details saved.", variant: "success" });
+      triggerSuccess();
     } catch (err) {
       console.error(err);
       toast.show({
@@ -124,8 +126,9 @@ export function PaymentDetailsForm() {
           )}
         />
         <Button
-          label={setSettings.isPending ? "Saving…" : "Save payment details"}
-          disabled={setSettings.isPending || !formState.isDirty}
+          label={succeeded ? "✓ Saved" : setSettings.isPending ? "Saving…" : "Save changes"}
+          variant={succeeded ? "success" : "primary"}
+          disabled={setSettings.isPending || succeeded || !formState.isDirty}
           onPress={handleSubmit(onSubmit)}
         />
       </View>

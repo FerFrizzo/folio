@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { Button, Input, useToast } from "@/components/ui";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 import { sendPasswordReset, signInWithEmail, signUpWithEmail } from "@/features/auth/email";
 import {
   googleConfigured,
@@ -116,6 +117,7 @@ function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChang
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton(1000);
 
   const [mode, setMode] = useState<Mode>("sign-in");
   const [busy, setBusy] = useState(false);
@@ -178,13 +180,13 @@ export function LoginScreen() {
     try {
       if (mode === "sign-in") {
         await signInWithEmail(email.trim(), password);
-        toast.show({ message: "Welcome back!", variant: "success" });
+        triggerSuccess();
       } else if (mode === "sign-up") {
         await signUpWithEmail(name.trim(), email.trim(), password);
-        toast.show({ message: "Account created. Welcome to Folio!", variant: "success" });
+        triggerSuccess();
       } else {
         await sendPasswordReset(email.trim());
-        toast.show({ message: "Reset email sent — check your inbox.", variant: "success" });
+        triggerSuccess();
         switchMode("sign-in");
       }
     } catch (err: unknown) {
@@ -411,12 +413,15 @@ export function LoginScreen() {
 
         <Button
           label={
-            busy
-              ? mode === "sign-in" ? "Signing in…" : "Creating account…"
-              : mode === "sign-in" ? "Continue" : "Create account"
+            succeeded
+              ? mode === "sign-in" ? "✓ Signed in" : mode === "sign-up" ? "✓ Account created" : "✓ Email sent"
+              : busy
+                ? mode === "sign-in" ? "Signing in…" : "Creating account…"
+                : mode === "sign-in" ? "Continue" : "Create account"
           }
           size="lg"
-          disabled={busy}
+          variant={succeeded ? "success" : "primary"}
+          disabled={busy || succeeded}
           onPress={() => void handleSubmit()}
         />
       </View>
