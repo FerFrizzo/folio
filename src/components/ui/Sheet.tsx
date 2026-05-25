@@ -46,6 +46,7 @@ export function Sheet({ visible, title, onClose, children, ...rest }: Props) {
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={{ flex: 1 }}
           >
             {!isWeb ? (
               <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
