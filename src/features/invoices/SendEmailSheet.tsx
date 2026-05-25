@@ -150,6 +150,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
         attachments,
       });
       triggerSuccess();
+      await new Promise((r) => setTimeout(r, 800));
       onClose();
       onSent?.();
     } catch (err) {

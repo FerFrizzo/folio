@@ -84,6 +84,7 @@ export function PaymentSheet({ invoice, onClose }: Props) {
         },
       });
       triggerSuccess();
+      await new Promise((r) => setTimeout(r, 800));
       onClose();
     } catch (err) {
       console.error(err);
