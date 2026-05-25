@@ -43,7 +43,7 @@ export function BusinessProfileForm() {
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton();
 
-  const { control, handleSubmit, reset, formState } = useForm<BusinessForm>({
+  const { control, handleSubmit, reset } = useForm<BusinessForm>({
     resolver: zodResolver(BusinessSchema),
     defaultValues: {
       businessName: "",

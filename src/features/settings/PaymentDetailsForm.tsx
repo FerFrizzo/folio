@@ -23,7 +23,7 @@ export function PaymentDetailsForm() {
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton();
 
-  const { control, handleSubmit, reset, formState } = useForm<PaymentDetails>({
+  const { control, handleSubmit, reset } = useForm<PaymentDetails>({
     resolver: zodResolver(PaymentDetailsSchema),
     defaultValues: {
       bsb: "",

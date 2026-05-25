@@ -239,7 +239,7 @@ export function LoginScreen() {
           <View className="gap-1">
             <Text className="text-h2 font-bold text-foreground">Reset password</Text>
             <Text className="text-caption text-muted">
-              Enter your email and we'll send you a reset link.
+              Enter your email and we&apos;ll send you a reset link.
             </Text>
           </View>
           <Input
