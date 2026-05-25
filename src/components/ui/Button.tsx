@@ -1,7 +1,7 @@
 import { Pressable, Text, type PressableProps } from "react-native";
 import { cn } from "@/src/lib/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
 export type ButtonSize = "sm" | "md" | "lg";
 
 type Props = {
@@ -40,6 +40,7 @@ export function Button({
     secondary: "bg-surface border border-border active:bg-background",
     ghost: "bg-transparent active:bg-background",
     danger: "bg-status-overdue active:opacity-90",
+    success: "bg-status-paid active:opacity-90",
   }[variant];
 
   const text = {
@@ -47,6 +48,7 @@ export function Button({
     secondary: "text-foreground",
     ghost: "text-accent",
     danger: "text-white",
+    success: "text-white",
   }[variant];
 
   return (
