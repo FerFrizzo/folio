@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -36,35 +36,41 @@ export default function EditClientScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentContainerStyle={{
-        paddingTop: insets.top + 8,
-        paddingBottom: 32,
-        gap: 16,
-      }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1 }}
     >
-      <View className="flex-row items-center gap-2 px-4">
-        <IconButton
-          icon={ArrowLeft}
-          accessibilityLabel="Back"
-          onPress={() => router.back()}
-        />
-        <Text className="text-h1 text-foreground">Edit client</Text>
-      </View>
-      <View className="px-4">
-        {clientQuery.isLoading ? (
-          <Skeleton height={300} />
-        ) : !clientQuery.data ? (
-          <Text className="text-body text-muted">Client not found.</Text>
-        ) : (
-          <ClientForm
-            initial={clientQuery.data}
-            submitLabel="Save changes"
-            onSubmit={onSubmit}
+      <ScrollView
+        className="flex-1 bg-background"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingTop: insets.top + 8,
+          paddingBottom: 32,
+          gap: 16,
+        }}
+      >
+        <View className="flex-row items-center gap-2 px-4">
+          <IconButton
+            icon={ArrowLeft}
+            accessibilityLabel="Back"
+            onPress={() => router.back()}
           />
-        )}
-      </View>
-    </ScrollView>
+          <Text className="text-h1 text-foreground">Edit client</Text>
+        </View>
+        <View className="px-4">
+          {clientQuery.isLoading ? (
+            <Skeleton height={300} />
+          ) : !clientQuery.data ? (
+            <Text className="text-body text-muted">Client not found.</Text>
+          ) : (
+            <ClientForm
+              initial={clientQuery.data}
+              submitLabel="Save changes"
+              onSubmit={onSubmit}
+            />
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

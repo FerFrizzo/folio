@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card } from "@/src/components/ui/Card";
 import { AboutCard } from "@/src/features/settings/AboutCard";
@@ -16,37 +16,43 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentContainerStyle={{
-        paddingTop: insets.top + 16,
-        paddingBottom: 48,
-        gap: 16,
-      }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1 }}
     >
-      <View className="px-4">
-        <Text className="text-h1 text-foreground">Settings</Text>
-      </View>
+      <ScrollView
+        className="flex-1 bg-background"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingTop: insets.top + 16,
+          paddingBottom: 48,
+          gap: 16,
+        }}
+      >
+        <View className="px-4">
+          <Text className="text-h1 text-foreground">Settings</Text>
+        </View>
 
-      <View className="gap-4 px-4">
-        <SubscriptionCard />
+        <View className="gap-4 px-4">
+          <SubscriptionCard />
 
-        <Card>
-          <Text className="text-h2 text-foreground">Logo</Text>
-          <View className="mt-3">
-            <LogoPicker />
-          </View>
-        </Card>
+          <Card>
+            <Text className="text-h2 text-foreground">Logo</Text>
+            <View className="mt-3">
+              <LogoPicker />
+            </View>
+          </Card>
 
-        <BusinessProfileForm />
-        <PaymentDetailsForm />
-        <NumberingCard />
-        <EmailDefaultsCard />
-        <LineItemLibraryCard />
-        <ThemeCard />
-        <DataCard />
-        <AboutCard />
-      </View>
-    </ScrollView>
+          <BusinessProfileForm />
+          <PaymentDetailsForm />
+          <NumberingCard />
+          <EmailDefaultsCard />
+          <LineItemLibraryCard />
+          <ThemeCard />
+          <DataCard />
+          <AboutCard />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

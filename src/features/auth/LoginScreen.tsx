@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
@@ -214,6 +214,73 @@ export function LoginScreen() {
 
   if (mode === "forgot-password") {
     return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          className="flex-1 bg-background"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            paddingTop: insets.top + 48,
+            paddingBottom: insets.bottom + 32,
+            paddingHorizontal: 24,
+            gap: 32,
+          }}
+        >
+          <View className="items-center">
+            <Image
+              source={require("@/assets/images/splash-icon-transparent.png")}
+              style={{ width: 200, height: 200 }}
+              resizeMode="contain"
+            />
+          </View>
+
+          <View
+            className="rounded-2xl bg-white p-6 gap-4"
+            style={cardShadow}
+          >
+            <View className="gap-1">
+              <Text className="text-h2 font-bold text-foreground">Reset password</Text>
+              <Text className="text-caption text-muted">
+                Enter your email and we&apos;ll send you a reset link.
+              </Text>
+            </View>
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect={false}
+              error={emailError}
+            />
+            <Button
+              label={busy ? "Sending…" : "Send reset email"}
+              size="lg"
+              disabled={busy}
+              onPress={() => void handleSubmit()}
+            />
+            <Pressable
+              accessibilityRole="button"
+              className="items-center py-1"
+              onPress={() => switchMode("sign-in")}
+            >
+              <Text className="text-caption text-accent">Back to sign in</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1 }}
+    >
       <ScrollView
         className="flex-1 bg-background"
         keyboardShouldPersistTaps="handled"
@@ -221,67 +288,9 @@ export function LoginScreen() {
           paddingTop: insets.top + 48,
           paddingBottom: insets.bottom + 32,
           paddingHorizontal: 24,
-          gap: 32,
+          gap: 20,
         }}
       >
-        <View className="items-center">
-          <Image
-            source={require("@/assets/images/splash-icon-transparent.png")}
-            style={{ width: 200, height: 200 }}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View
-          className="rounded-2xl bg-white p-6 gap-4"
-          style={cardShadow}
-        >
-          <View className="gap-1">
-            <Text className="text-h2 font-bold text-foreground">Reset password</Text>
-            <Text className="text-caption text-muted">
-              Enter your email and we'll send you a reset link.
-            </Text>
-          </View>
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            autoCorrect={false}
-            error={emailError}
-          />
-          <Button
-            label={busy ? "Sending…" : "Send reset email"}
-            size="lg"
-            disabled={busy}
-            onPress={() => void handleSubmit()}
-          />
-          <Pressable
-            accessibilityRole="button"
-            className="items-center py-1"
-            onPress={() => switchMode("sign-in")}
-          >
-            <Text className="text-caption text-accent">Back to sign in</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    );
-  }
-
-  return (
-    <ScrollView
-      className="flex-1 bg-background"
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{
-        paddingTop: insets.top + 48,
-        paddingBottom: insets.bottom + 32,
-        paddingHorizontal: 24,
-        gap: 20,
-      }}
-    >
       {/* Brand mark — full logo including wordmark */}
       <View className="items-center">
         <Image
@@ -443,6 +452,7 @@ export function LoginScreen() {
           </View>
         </>
       ) : null}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

@@ -1,4 +1,11 @@
-import { Modal, Platform, Pressable, Text, View, type ViewProps } from "react-native";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  View,
+  type ViewProps,
+} from "react-native";
 
 type Props = ViewProps & {
   visible: boolean;
