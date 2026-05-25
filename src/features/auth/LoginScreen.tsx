@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { AntDesign } from "@expo/vector-icons";
@@ -212,6 +212,10 @@ export function LoginScreen() {
 
   if (mode === "forgot-password") {
     return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         className="flex-1 bg-background"
         keyboardShouldPersistTaps="handled"
@@ -266,10 +270,15 @@ export function LoginScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1 }}
+    >
     <ScrollView
       className="flex-1 bg-background"
       keyboardShouldPersistTaps="handled"
@@ -428,5 +437,6 @@ export function LoginScreen() {
         </>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

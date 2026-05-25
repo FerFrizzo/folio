@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Platform, ScrollView, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
@@ -226,8 +226,13 @@ export function CreditNoteEditor({ invoiceId }: Props) {
         </View>
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         className="flex-1"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 96 }}
       >
         <Card>
@@ -311,6 +316,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
           </View>
         </Card>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <View
         className="border-t border-border bg-surface px-4 py-3"
