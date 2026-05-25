@@ -91,6 +91,7 @@ function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChang
     } catch (err: unknown) {
       const { message } = classifyLinkError(err);
       toast.show({ message, variant: "error" });
+    } finally {
       onBusyChange(false);
     }
   }
