@@ -12,11 +12,13 @@ import {
   useSetSettings,
 } from "@/src/features/settings/queries";
 import { SettingsSchema } from "@/src/types/schemas";
+import { useSuccessButton } from "@/lib/useSuccessButton";
 
 export function NumberingCard() {
   const settings = useSettings();
   const setSettings = useSetSettings();
   const toast = useToast();
+  const { succeeded, triggerSuccess } = useSuccessButton();
 
   const [prefix, setPrefix] = useState("INV-");
   const [minDigitsText, setMinDigitsText] = useState("4");
@@ -52,7 +54,7 @@ export function NumberingCard() {
         },
       });
       await setSettings.mutateAsync(next);
-      toast.show({ message: "Numbering saved.", variant: "success" });
+      triggerSuccess();
     } catch (err) {
       console.error(err);
       toast.show({
@@ -109,8 +111,9 @@ export function NumberingCard() {
         </Text>
         <View className="flex-row gap-2">
           <Button
-            label={setSettings.isPending ? "Saving…" : "Save numbering"}
-            disabled={setSettings.isPending}
+            label={succeeded ? "✓ Saved" : setSettings.isPending ? "Saving…" : "Save"}
+            variant={succeeded ? "success" : "primary"}
+            disabled={setSettings.isPending || succeeded}
             onPress={save}
           />
           <Button
