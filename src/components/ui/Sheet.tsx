@@ -1,4 +1,5 @@
 import {
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -20,6 +21,34 @@ type Props = ViewProps & {
 export function Sheet({ visible, title, onClose, children, ...rest }: Props) {
   const isWeb = Platform.OS === "web";
 
+  const content = (
+    <Pressable
+      onPress={onClose}
+      accessibilityRole="button"
+      accessibilityLabel="Dismiss sheet"
+      className="flex-1 bg-black/40"
+      style={{ justifyContent: isWeb ? "center" : "flex-end" }}
+    >
+      <Pressable
+        onPress={(e) => e.stopPropagation()}
+        className={
+          isWeb
+            ? "mx-auto w-full max-w-md rounded-card border border-border bg-surface p-6"
+            : "rounded-t-[16px] border-x border-t border-border bg-surface p-6"
+        }
+        {...rest}
+      >
+        {!isWeb ? (
+          <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
+        ) : null}
+        {title ? (
+          <Text className="mb-4 text-h2 text-foreground">{title}</Text>
+        ) : null}
+        {children}
+      </Pressable>
+    </Pressable>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -27,31 +56,13 @@ export function Sheet({ visible, title, onClose, children, ...rest }: Props) {
       animationType={isWeb ? "fade" : "slide"}
       onRequestClose={onClose}
     >
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Dismiss sheet"
-        className="flex-1 bg-black/40"
-        style={{ justifyContent: isWeb ? "center" : "flex-end" }}
-      >
-        <Pressable
-          onPress={(e) => e.stopPropagation()}
-          className={
-            isWeb
-              ? "mx-auto w-full max-w-md rounded-card border border-border bg-surface p-6"
-              : "rounded-t-[16px] border-x border-t border-border bg-surface p-6"
-          }
-          {...rest}
-        >
-          {!isWeb ? (
-            <View className="mb-4 self-center h-1 w-10 rounded-full bg-border" />
-          ) : null}
-          {title ? (
-            <Text className="mb-4 text-h2 text-foreground">{title}</Text>
-          ) : null}
-          {children}
-        </Pressable>
-      </Pressable>
+      {Platform.OS === "ios" ? (
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+          {content}
+        </KeyboardAvoidingView>
+      ) : (
+        content
+      )}
     </Modal>
   );
 }
