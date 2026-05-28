@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
@@ -131,6 +131,13 @@ export function LoginScreen() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardWillShow", () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener("keyboardWillHide", () => setKeyboardVisible(false));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
+
   function clearErrors() {
     setNameError(null);
     setEmailError(null);
@@ -230,13 +237,15 @@ export function LoginScreen() {
             gap: 32,
           }}
         >
-          <View className="items-center">
-            <Image
-              source={require("@/assets/images/splash-icon-transparent.png")}
-              style={{ width: 200, height: 200 }}
-              resizeMode="contain"
-            />
-          </View>
+          {!keyboardVisible ? (
+            <View className="items-center">
+              <Image
+                source={require("@/assets/images/splash-icon-transparent.png")}
+                style={{ width: 200, height: 200 }}
+                resizeMode="contain"
+              />
+            </View>
+          ) : null}
 
           <View
             className="rounded-2xl bg-white p-6 gap-4"
@@ -294,13 +303,15 @@ export function LoginScreen() {
         }}
       >
       {/* Brand mark — full logo including wordmark */}
-      <View className="items-center">
-        <Image
-          source={require("@/assets/images/splash-icon-transparent.png")}
-          style={{ width: 200, height: 200 }}
-          resizeMode="contain"
-        />
-      </View>
+      {!keyboardVisible ? (
+        <View className="items-center">
+          <Image
+            source={require("@/assets/images/splash-icon-transparent.png")}
+            style={{ width: 200, height: 200 }}
+            resizeMode="contain"
+          />
+        </View>
+      ) : null}
 
       {/* Auth card */}
       <View
