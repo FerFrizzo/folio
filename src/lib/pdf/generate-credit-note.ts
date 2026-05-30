@@ -13,7 +13,7 @@ export type GeneratedPdf = {
 
 export async function generateCreditNotePdf(args: RenderCreditNoteArgs): Promise<GeneratedPdf> {
   const html = renderCreditNoteHtml(args);
-  const result = await Print.printToFileAsync({ html, base64: false });
+  const result = await Print.printToFileAsync({ html, base64: false, width: 595, height: 842 });
   return { uri: result.uri, html };
 }
 

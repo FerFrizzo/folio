@@ -202,6 +202,7 @@ export function renderInvoiceHtml({
 <html lang="en-AU">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=595" />
   <title>${escapeHtml(invoice.number)} — Tax Invoice</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -209,7 +210,7 @@ export function renderInvoiceHtml({
   <style>
     @page { size: A4; margin: 18mm 16mm 20mm; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
+    html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body {
       font-family: "Plus Jakarta Sans", -apple-system, "Helvetica Neue", sans-serif;
       font-size: 10pt;

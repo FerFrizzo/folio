@@ -20,7 +20,7 @@ export type GenerateInvoicePdfArgs = RenderInvoiceArgs & {
 export async function generateInvoicePdf(args: GenerateInvoicePdfArgs): Promise<GeneratedPdf> {
   const renderFn = args.isPro ? renderPro : renderFree;
   const html = renderFn(args);
-  const result = await Print.printToFileAsync({ html, base64: false });
+  const result = await Print.printToFileAsync({ html, base64: false, width: 595, height: 842 });
   return { uri: result.uri, html };
 }
 
