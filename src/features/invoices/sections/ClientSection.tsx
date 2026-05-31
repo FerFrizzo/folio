@@ -107,7 +107,7 @@ export function ClientSection({ clientId, snapshot, onChange, error }: Props) {
               autoCapitalize="none"
             />
             <View className="flex-row gap-2">
-              <Button label="Add and pick" onPress={createAndPick} />
+              <Button label="Add client" onPress={createAndPick} />
               <Button
                 label="Cancel"
                 variant="ghost"

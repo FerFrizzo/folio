@@ -56,12 +56,15 @@ export function Sheet({ visible, title, onClose, children, ...rest }: Props) {
       animationType={isWeb ? "fade" : "slide"}
       onRequestClose={onClose}
     >
-      {Platform.OS === "ios" ? (
-        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      {isWeb ? (
+        content
+      ) : (
+        <KeyboardAvoidingView
+          behavior="padding"
+          style={{ flex: 1 }}
+        >
           {content}
         </KeyboardAvoidingView>
-      ) : (
-        content
       )}
     </Modal>
   );
