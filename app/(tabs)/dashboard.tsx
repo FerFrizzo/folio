@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { format, parseISO } from "date-fns";
 import { Card } from "@/src/components/ui/Card";
 import { Chip } from "@/src/components/ui/Chip";
 import { KPICard } from "@/src/components/ui/KPICard";
@@ -218,7 +219,7 @@ export default function DashboardScreen() {
                     primary={inv.number || "Draft"}
                     secondary={inv.clientSnapshot.name}
                     trailingAmount={formatMoney(inv.totalCents, inv.currency)}
-                    trailingMeta={`Due ${inv.dueDate}`}
+                    trailingMeta={`Due ${format(parseISO(inv.dueDate), "d MMM yyyy")}`}
                     status={display}
                     overdue={display === "overdue"}
                     onPress={() => router.push(`/invoices/${inv.id}`)}

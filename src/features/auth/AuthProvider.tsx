@@ -13,6 +13,7 @@ import {
 } from "react";
 import { Platform } from "react-native";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
+import { signOutGoogleNative } from "@/features/auth/linking/google";
 
 type AuthState =
   | { status: "loading"; user: null }
@@ -59,16 +60,9 @@ export function useAuth(): AuthState {
 }
 
 export async function signOut(): Promise<void> {
-  // Clear Google native SDK state so re-sign-in doesn't crash.
   if (Platform.OS !== "web") {
-    try {
-      const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
-      await GoogleSignin.signOut();
-    } catch {
-      // Google SDK may not be initialized if user never signed in with Google.
-    }
+    await signOutGoogleNative();
   }
-
   const auth = getFirebaseAuth();
   await fbSignOut(auth);
 }

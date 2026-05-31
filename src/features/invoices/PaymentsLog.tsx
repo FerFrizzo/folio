@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { format, parseISO } from "date-fns";
 import { Trash2 } from "lucide-react-native";
 import { Card } from "@/src/components/ui/Card";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
@@ -58,7 +59,7 @@ export function PaymentsLog({ invoice }: Props) {
                 {formatMoney(p.amountCents, invoice.currency)}
               </Text>
               <Text className="text-caption text-muted">
-                {p.date} · {p.method ?? "—"}
+                {format(parseISO(p.date), "d MMM yyyy")} · {p.method ?? "—"}
                 {p.note ? ` · ${p.note}` : ""}
               </Text>
             </View>

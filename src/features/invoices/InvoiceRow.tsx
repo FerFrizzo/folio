@@ -5,6 +5,7 @@ import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Check, Trash2, DollarSign } from "lucide-react-native";
+import { format, parseISO } from "date-fns";
 import type { Invoice, InvoiceDisplayStatus } from "@/src/types/schemas";
 import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import { formatMoney } from "@/src/lib/money";
@@ -30,7 +31,7 @@ function dueLabel(invoice: Invoice, today = new Date()): string {
 
 function paidLabel(invoice: Invoice): string {
   if (!invoice.paidAt) return "Paid";
-  return `Paid ${invoice.paidAt}`;
+  return `Paid ${format(parseISO(invoice.paidAt), "d MMM yyyy")}`;
 }
 
 function statusForBadge(display: InvoiceDisplayStatus) {

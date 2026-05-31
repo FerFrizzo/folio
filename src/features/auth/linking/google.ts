@@ -14,14 +14,22 @@ const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
-// Native sign-in via Google Identity Services SDK. Returns a Firebase User.
-export async function signInWithGoogleNative(): Promise<User> {
+async function getGoogleSignin() {
   const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
-
   GoogleSignin.configure({
     iosClientId: IOS_CLIENT_ID,
     webClientId: WEB_CLIENT_ID,
   });
+  return GoogleSignin;
+}
+
+// Native sign-in via Google Identity Services SDK. Returns a Firebase User.
+export async function signInWithGoogleNative(): Promise<User> {
+  const GoogleSignin = await getGoogleSignin();
+
+  // Ensure a clean slate — without this, re-signing in after a sign-out
+  // in the same app session crashes because the native SDK holds stale state.
+  try { await GoogleSignin.signOut(); } catch { /* ok if not signed in */ }
 
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
@@ -34,6 +42,16 @@ export async function signInWithGoogleNative(): Promise<User> {
   const credential = GoogleAuthProvider.credential(response.data.idToken);
   const result = await signInWithCredential(auth, credential);
   return result.user;
+}
+
+// Clear native SDK session state on app sign-out.
+export async function signOutGoogleNative(): Promise<void> {
+  try {
+    const GoogleSignin = await getGoogleSignin();
+    await GoogleSignin.signOut();
+  } catch {
+    // SDK not initialized or user never signed in with Google.
+  }
 }
 
 // Web sign-in via Firebase popup.
