@@ -39,7 +39,8 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           <TextInput
             ref={ref}
             placeholderTextColor="#9CA3AF"
-            className={cn("flex-1 text-body text-foreground", className)}
+            textAlignVertical="center"
+            className={cn("flex-1 py-0 text-body text-foreground", className)}
             {...rest}
           />
           {rightElement}
@@ -48,8 +49,9 @@ export const Input = forwardRef<TextInput, Props>(function Input(
         <TextInput
           ref={ref}
           placeholderTextColor="#9CA3AF"
+          textAlignVertical="center"
           className={cn(
-            "h-11 rounded-button border bg-surface px-3 text-body text-foreground",
+            "h-11 rounded-button border bg-surface px-3 py-0 text-body text-foreground",
             borderClass,
             className,
           )}

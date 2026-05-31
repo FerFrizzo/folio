@@ -53,7 +53,8 @@ export function CurrencyInput({
           keyboardType="decimal-pad"
           placeholder={placeholder}
           placeholderTextColor="#9CA3AF"
-          className="ml-1 flex-1 text-right text-body text-foreground [font-feature-settings:'tnum']"
+          textAlignVertical="center"
+          className="ml-1 flex-1 py-0 text-right text-body text-foreground [font-feature-settings:'tnum']"
         />
       </View>
       {error ? (

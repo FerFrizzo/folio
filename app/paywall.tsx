@@ -1,7 +1,10 @@
-import { Image, Pressable, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, Platform, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
+import Constants from "expo-constants";
+import Purchases from "react-native-purchases";
 import RevenueCatUI from "react-native-purchases-ui";
 import { X } from "lucide-react-native";
 import { useAuth } from "@/src/features/auth/AuthProvider";
@@ -11,6 +14,23 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const auth = useAuth();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const key =
+      Platform.OS === "ios"
+        ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? ""
+        : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "";
+    if (!key || Constants.executionEnvironment === "storeClient") return;
+
+    async function check() {
+      const configured = await Purchases.isConfigured();
+      if (!cancelled && configured) setReady(true);
+    }
+    void check();
+    return () => { cancelled = true; };
+  }, []);
 
   async function onPurchased() {
     if (auth.status === "ready") {
@@ -31,11 +51,13 @@ export default function PaywallScreen() {
           <X size={24} color="#111827" />
         </Pressable>
       </View>
-      <RevenueCatUI.OriginalTemplatePaywallFooterContainerView
-        onPurchaseCompleted={onPurchased}
-        onRestoreCompleted={onPurchased}
-        onDismiss={() => router.back()}
-      >
+      {ready ? (
+        <RevenueCatUI.Paywall
+          onPurchaseCompleted={onPurchased}
+          onRestoreCompleted={onPurchased}
+          onDismiss={() => router.back()}
+        />
+      ) : (
         <View className="flex-1 items-center justify-center gap-6 px-6">
           <Image
             source={require("../assets/images/icon.png")}
@@ -44,12 +66,10 @@ export default function PaywallScreen() {
           />
           <View className="items-center gap-2">
             <Text className="text-h1 font-bold text-foreground">Unlock Folio Pro</Text>
-            <Text className="text-center text-body text-muted">
-              Send invoices by email, download watermark-free PDFs.
-            </Text>
+            <ActivityIndicator className="mt-4" color="#1473FF" />
           </View>
         </View>
-      </RevenueCatUI.OriginalTemplatePaywallFooterContainerView>
+      )}
     </View>
   );
 }
