@@ -3,10 +3,7 @@ import type { ExpoConfig } from "expo/config";
 const config: ExpoConfig = {
   name: "Folio",
   slug: "folio",
-  scheme: [
-    "folio",
-    "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k",
-  ],
+  scheme: "folio",
   version: "1.0.0",
   // OTA channel binds to the store version; bumping `version` cuts a fresh
   // runtime so old binaries don't pick up incompatible JS bundles.
@@ -27,13 +24,6 @@ const config: ExpoConfig = {
       NSCameraUsageDescription:
         "Folio doesn't use the camera. This entry exists in case you ever take a photo for a logo.",
       ITSAppUsesNonExemptEncryption: false,
-      CFBundleURLTypes: [
-        {
-          CFBundleURLSchemes: [
-            "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k",
-          ],
-        },
-      ],
     },
   },
   android: {
@@ -45,19 +35,6 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
-    intentFilters: [
-      {
-        action: "VIEW",
-        autoVerify: true,
-        data: [
-          {
-            scheme:
-              "com.googleusercontent.apps.792742422119-lhbh2o8p7u7bbdvfn1f482u5cdq76u5k",
-          },
-        ],
-        category: ["BROWSABLE", "DEFAULT"],
-      },
-    ],
     permissions: [
       // expo-document-picker uses the SAF on modern Android — no broad
       // storage permission needed. expo-image-picker prompts for media
@@ -76,6 +53,7 @@ const config: ExpoConfig = {
     "expo-local-authentication",
     "expo-apple-authentication",
     "expo-web-browser",
+    "@react-native-google-signin/google-signin",
     [
       "expo-splash-screen",
       {

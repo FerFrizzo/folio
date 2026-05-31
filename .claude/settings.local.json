@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm --version)",
-      "Bash(npx --yes create-expo-app@latest . --template default --no-install)"
+      "Bash(npx --yes create-expo-app@latest . --template default --no-install)",
+      "Bash(md5 ios/Folio/Images.xcassets/SplashScreenLogo.imageset/image.png)",
+      "Bash(npm ls:*)"
     ]
   }
 }

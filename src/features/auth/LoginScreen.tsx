@@ -5,12 +5,12 @@ import Svg, { Path } from "react-native-svg";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { Button, Input, useToast } from "@/components/ui";
 import { useSuccessButton } from "@/lib/useSuccessButton";
+import { Accent } from "@/theme/colors";
 import { sendPasswordReset, signInWithEmail, signUpWithEmail } from "@/features/auth/email";
 import {
   googleConfigured,
-  signInWithGoogleIdToken,
+  signInWithGoogleNative,
   signInWithGoogleWeb,
-  useGoogleAuth,
 } from "@/features/auth/linking/google";
 import { appleAvailableOnPlatform, signInWithApple } from "@/features/auth/linking/apple";
 import { classifyLinkError } from "@/features/auth/linking/linkErrors";
@@ -18,7 +18,7 @@ import { classifyLinkError } from "@/features/auth/linking/linkErrors";
 type Mode = "sign-in" | "sign-up" | "forgot-password";
 
 const cardShadow = {
-  shadowColor: "#3B5BDB",
+  shadowColor: Accent.DEFAULT,
   shadowOffset: { width: 0, height: 6 },
   shadowOpacity: 0.12,
   shadowRadius: 20,
@@ -48,47 +48,18 @@ function GoogleLogo() {
   );
 }
 
-// Owns useGoogleAuth — must only be mounted when googleConfigured() returns
-// true so the hook never runs without the required platform client ID.
 function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChange: (v: boolean) => void }) {
   const toast = useToast();
-  const { promptAsync, response } = useGoogleAuth();
-
-  useEffect(() => {
-    if (!response || response.type !== "success") return;
-    const idToken = response.authentication?.idToken;
-    if (!idToken) return;
-    onBusyChange(true);
-    signInWithGoogleIdToken(idToken)
-      .then(() => {
-        toast.show({ message: "Signed in with Google.", variant: "success" });
-      })
-      .catch((err: unknown) => {
-        const { message } = classifyLinkError(err);
-        toast.show({ message, variant: "error" });
-      })
-      .finally(() => onBusyChange(false));
-  }, [response, toast, onBusyChange]);
 
   async function handlePress() {
-    if (Platform.OS === "web") {
-      onBusyChange(true);
-      try {
-        await signInWithGoogleWeb();
-        toast.show({ message: "Signed in with Google.", variant: "success" });
-      } catch (err: unknown) {
-        const { message } = classifyLinkError(err);
-        toast.show({ message, variant: "error" });
-      } finally {
-        onBusyChange(false);
-      }
-      return;
-    }
-
     onBusyChange(true);
     try {
-      await promptAsync();
-      // signInWithGoogleIdToken is handled in the response useEffect above.
+      if (Platform.OS === "web") {
+        await signInWithGoogleWeb();
+      } else {
+        await signInWithGoogleNative();
+      }
+      toast.show({ message: "Signed in with Google.", variant: "success" });
     } catch (err: unknown) {
       const { message } = classifyLinkError(err);
       toast.show({ message, variant: "error" });
@@ -153,14 +124,12 @@ export function LoginScreen() {
     let ok = true;
     clearErrors();
 
-    if (mode !== "forgot-password") {
-      if (!email.trim()) {
-        setEmailError("Email is required.");
-        ok = false;
-      } else if (!/\S+@\S+\.\S+/.test(email)) {
-        setEmailError("Enter a valid email address.");
-        ok = false;
-      }
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      ok = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      setEmailError("Enter a valid email address.");
+      ok = false;
     }
 
     if (mode === "sign-in" || mode === "sign-up") {
