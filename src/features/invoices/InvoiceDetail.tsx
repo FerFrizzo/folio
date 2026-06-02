@@ -197,29 +197,27 @@ export function InvoiceDetail({ invoice }: Props) {
         className="border-b border-border bg-background px-4 pb-3"
         style={{ paddingTop: insets.top + 8 }}
       >
-        <View className="flex-row items-center">
-          <View className="flex-1 flex-row items-center gap-2">
-            <IconButton
-              icon={ArrowLeft}
-              accessibilityLabel="Back"
-              onPress={() => router.back()}
-            />
-            <View>
-              <Text className="text-h2 text-foreground">{invoice.number}</Text>
-              <Text className="text-caption text-muted">
-                {invoice.clientSnapshot.name}
-              </Text>
-            </View>
+        <View className="flex-row items-center gap-2">
+          <IconButton
+            icon={ArrowLeft}
+            accessibilityLabel="Back"
+            onPress={() => router.back()}
+          />
+          <View>
+            <Text className="text-h2 text-foreground">{invoice.number}</Text>
+            <Text className="text-caption text-muted">
+              {invoice.clientSnapshot.name}
+            </Text>
           </View>
-          <StatusBadge status={display} />
-          <View className="flex-1 items-end">
-            <IconButton
-              icon={Share2}
-              accessibilityLabel="Share PDF"
-              onPress={share}
-              disabled={!pdfUri || sharing || generating}
-            />
+          <View className="flex-1 items-center">
+            <StatusBadge status={display} />
           </View>
+          <IconButton
+            icon={Share2}
+            accessibilityLabel="Share PDF"
+            onPress={share}
+            disabled={!pdfUri || sharing || generating}
+          />
         </View>
       </View>
 

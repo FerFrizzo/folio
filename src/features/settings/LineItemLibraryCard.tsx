@@ -107,7 +107,7 @@ export function LineItemLibraryCard() {
             />
             <View className="flex-row gap-3">
               <View className="flex-1">
-                <NumberInput label="Default qty" value={qty} onChangeText={setQty} />
+                <NumberInput label="Qty" value={qty} onChangeText={setQty} placeholder="1" />
               </View>
               <View className="flex-[2]">
                 <CurrencyInput

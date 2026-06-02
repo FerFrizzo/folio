@@ -104,8 +104,10 @@ export function LoginScreen() {
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardWillShow", () => setKeyboardVisible(true));
-    const hideSub = Keyboard.addListener("keyboardWillHide", () => setKeyboardVisible(false));
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
@@ -193,7 +195,7 @@ export function LoginScreen() {
   if (mode === "forgot-password") {
     return (
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView

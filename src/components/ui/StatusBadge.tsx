@@ -33,7 +33,7 @@ export function StatusBadge({ status, label }: Props) {
         paddingVertical: 4,
         paddingHorizontal: 8,
         borderRadius: 999,
-        alignSelf: "flex-start",
+        alignSelf: "center",
       }}
     >
       <Text style={{ color: tint, fontSize: 11, fontWeight: "600" }}>

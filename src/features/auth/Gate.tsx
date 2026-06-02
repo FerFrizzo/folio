@@ -1,10 +1,22 @@
 import { Text, View } from "react-native";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
+import { useRouter } from "expo-router";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { LoginScreen } from "@/features/auth/LoginScreen";
 
 export function Gate({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const router = useRouter();
+  const prevStatus = useRef(auth.status);
+
+  // When the user signs in, redirect to the dashboard so stale navigation
+  // state (e.g. /paywall from a previous session) doesn't resurface.
+  useEffect(() => {
+    if (prevStatus.current !== "ready" && auth.status === "ready") {
+      router.replace("/(tabs)/dashboard");
+    }
+    prevStatus.current = auth.status;
+  }, [auth.status, router]);
 
   if (auth.status === "loading") {
     return (
@@ -31,5 +43,5 @@ export function Gate({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <View style={{ flex: 1 }}>{children}</View>;
 }

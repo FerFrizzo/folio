@@ -346,13 +346,11 @@ export function InvoiceEditor({ initial }: Props) {
           />
           <View>
             <Text className="text-h2 text-foreground">{number}</Text>
-            <Text className="text-caption text-muted">
-              {savingState === "saving"
-                ? "Saving…"
-                : savingState === "saved"
-                  ? "Saved"
-                  : ""}
-            </Text>
+            {savingState !== "idle" && (
+              <Text className="text-caption text-muted">
+                {savingState === "saving" ? "Saving…" : "Saved"}
+              </Text>
+            )}
           </View>
         </View>
         <StatusBadge status="draft" />
