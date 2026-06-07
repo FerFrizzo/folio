@@ -55,6 +55,8 @@ secrets/*
 
 # Docs and project notes (local only)
 docs/
+!docs/legal/
+!.github/workflows/pages.yml
 CHANGELOG.md
 CLAUDE.md
 README.md
