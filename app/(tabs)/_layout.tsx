@@ -89,7 +89,7 @@ function MobileTabsLayout() {
           paddingBottom: insets.bottom + 6,
           height: 56 + insets.bottom,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "500" },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "500" },
       }}
     >
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -111,9 +111,11 @@ function MobileTabsLayout() {
 
 export default function TabsLayout() {
   const { width } = useWindowDimensions();
-  const isWeb = Platform.OS === "web";
+  const usesSidebar =
+    width >= 768 &&
+    (Platform.OS === "web" || (Platform as { isPad?: boolean }).isPad === true);
 
-  if (isWeb && width >= 768) {
+  if (usesSidebar) {
     return <WebSidebarLayout collapsed={width < 1024} />;
   }
   return <MobileTabsLayout />;

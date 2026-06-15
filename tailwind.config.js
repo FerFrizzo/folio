@@ -40,8 +40,8 @@ module.exports = {
         h1: ["24px", { lineHeight: "32px", fontWeight: "600" }],
         h2: ["18px", { lineHeight: "24px", fontWeight: "600" }],
         body: ["15px", { lineHeight: "22px", fontWeight: "400" }],
-        label: ["13px", { lineHeight: "18px", fontWeight: "500", letterSpacing: "0.2px" }],
-        caption: ["12px", { lineHeight: "16px", fontWeight: "400" }],
+        label: ["14px", { lineHeight: "20px", fontWeight: "500", letterSpacing: "0.2px" }],
+        caption: ["13px", { lineHeight: "18px", fontWeight: "400" }],
       },
       spacing: {
         // 4px base scale already covers 1–12; nothing to extend.

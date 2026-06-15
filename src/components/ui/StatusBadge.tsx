@@ -36,7 +36,7 @@ export function StatusBadge({ status, label }: Props) {
         alignSelf: "center",
       }}
     >
-      <Text style={{ color: tint, fontSize: 11, fontWeight: "600" }}>
+      <Text style={{ color: tint, fontSize: 13, fontWeight: "600" }}>
         {label ?? labels[status]}
       </Text>
     </View>

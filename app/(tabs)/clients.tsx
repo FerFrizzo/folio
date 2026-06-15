@@ -64,16 +64,16 @@ function ClientRow({ item, onPress, onLongPress }: ClientRowProps) {
     >
       <View
         style={{
-          width: 48,
-          height: 48,
-          borderRadius: 24,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
           backgroundColor: bgColor,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
         <Text
-          style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}
+          style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 18 }}
         >
           {initials}
         </Text>
