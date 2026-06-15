@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { httpsCallable } from "firebase/functions";
+import { getFirebaseFunctions } from "@/src/lib/firebase";
 import { Linking, Pressable, Text, View } from "react-native";
 import Constants from "expo-constants";
 import { Card } from "@/src/components/ui/Card";
@@ -14,6 +16,8 @@ export function AboutCard() {
   const auth = useAuth();
   const toast = useToast();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const version = Constants.expoConfig?.version ?? "—";
   const linked = auth.status === "ready" && !auth.user.isAnonymous;
@@ -29,6 +33,24 @@ export function AboutCard() {
         message: err instanceof Error ? err.message : "Couldn't open link.",
         variant: "error",
       });
+    }
+  }
+
+  async function performDeleteAccount() {
+    setConfirmDelete(false);
+    setDeleting(true);
+    try {
+      const fn = httpsCallable(getFirebaseFunctions(), "deleteAccount");
+      await fn();
+      await signOut();
+      toast.show({ message: "Account deleted.", variant: "info" });
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't delete account.",
+        variant: "error",
+      });
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -91,6 +113,27 @@ export function AboutCard() {
           </Text>
         )}
       </View>
+
+      {linked ? (
+        <View className="mt-2">
+          <Button
+            label={deleting ? "Deleting…" : "Delete account"}
+            variant="ghost"
+            onPress={() => setConfirmDelete(true)}
+            disabled={deleting}
+          />
+        </View>
+      ) : null}
+
+      <ConfirmDialog
+        visible={confirmDelete}
+        title="Delete account?"
+        description="This permanently deletes your account and all data — invoices, clients, and settings. This action cannot be undone."
+        confirmLabel="Delete account"
+        destructive
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={performDeleteAccount}
+      />
 
       <ConfirmDialog
         visible={confirmSignOut}
