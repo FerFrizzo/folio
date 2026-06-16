@@ -88,6 +88,7 @@ export function renderCreditNoteHtml({
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=595" />
   <title>${escapeHtml(creditNote.number)} — Credit Note</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -95,7 +96,7 @@ export function renderCreditNoteHtml({
   <style>
     @page { size: A4; margin: 20mm 15mm; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
+    html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body {
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 10.5pt;

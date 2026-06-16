@@ -16,8 +16,8 @@ export function renderInvoiceHtml(args: RenderInvoiceArgs): string {
   const html = renderProHtml(args);
 
   const withCss = html.replace(
-    "html, body { margin: 0; padding: 0; }",
-    `html, body { margin: 0; padding: 0; }
+    "html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }",
+    `html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { background-color: #F3F4F6; }`,
   ).replace(
     "</style>",
