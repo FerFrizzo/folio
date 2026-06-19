@@ -67,3 +67,14 @@ README.md
 
 # Local credentials (never commit)
 credentials.json
+
+# Claude Code
+.claude/
+.agents/
+skills-lock.json
+
+# Bug reports
+bugreport-*.zip
+
+# Plugins (local only)
+plugins/

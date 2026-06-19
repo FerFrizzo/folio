@@ -23,12 +23,5 @@ export const Light = {
   muted: "#4B5563",
 } as const;
 
-export const Dark = {
-  background: "#0E1116",
-  surface: "#171B22",
-  border: "#2A2F38",
-  foreground: "#F3F4F6",
-  muted: "#9CA3AF",
-} as const;
 
 export type StatusKey = keyof typeof Status;

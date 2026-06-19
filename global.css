@@ -12,12 +12,4 @@
     --color-muted: #4B5563;
   }
 
-  .dark {
-    /* Dark mode — spec §13 */
-    --color-background: #0E1116;
-    --color-surface: #171B22;
-    --color-border: #2A2F38;
-    --color-foreground: #F3F4F6;
-    --color-muted: #9CA3AF;
-  }
 }

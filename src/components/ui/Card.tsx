@@ -11,7 +11,7 @@ export function Card({ className, children, ...rest }: Props) {
       className={cn(
         "rounded-card border border-border bg-surface p-4",
         // Subtle shadow in light mode only — borders carry weight in dark mode.
-        "shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-none",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
         className,
       )}
       {...rest}

@@ -6,7 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { View, Platform } from "react-native";
-import { vars, useColorScheme } from "nativewind";
+import { vars } from "nativewind";
+import "@/src/features/settings/themeStore"; // forces light mode
 import { AuthProvider, useAuth } from "@/src/features/auth/AuthProvider";
 import { Gate } from "@/src/features/auth/Gate";
 import { ToastProvider } from "@/src/components/ui";
@@ -21,13 +22,6 @@ const lightVars = vars({
   "--color-muted": "#4B5563",
 });
 
-const darkVars = vars({
-  "--color-background": "#0E1116",
-  "--color-surface": "#171B22",
-  "--color-border": "#2A2F38",
-  "--color-foreground": "#F3F4F6",
-  "--color-muted": "#9CA3AF",
-});
 
 function RevenueCatInitializer() {
   const auth = useAuth();
@@ -62,7 +56,6 @@ function RevenueCatInitializer() {
 }
 
 export default function RootLayout() {
-  const { colorScheme } = useColorScheme();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -84,7 +77,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={colorScheme === "dark" ? darkVars : lightVars} className="flex-1">
+      <View style={lightVars} className="flex-1">
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>

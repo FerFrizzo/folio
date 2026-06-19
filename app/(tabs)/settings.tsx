@@ -10,7 +10,6 @@ import { LineItemLibraryCard } from "@/src/features/settings/LineItemLibraryCard
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
 import { NumberingCard } from "@/src/features/settings/NumberingCard";
 import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
-import { ThemeCard } from "@/src/features/settings/ThemeCard";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -48,7 +47,6 @@ export default function SettingsScreen() {
           <NumberingCard />
           <EmailDefaultsCard />
           <LineItemLibraryCard />
-          <ThemeCard />
           <DataCard />
           <AboutCard />
         </View>

@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   runtimeVersion: { policy: "appVersion" },
   orientation: "portrait",
   icon: "./assets/images/icon.png",
-  userInterfaceStyle: "automatic",
+  userInterfaceStyle: "light",
   newArchEnabled: true,
   ios: {
     bundleIdentifier: "com.frizzo.folio",
@@ -65,9 +65,6 @@ const config: ExpoConfig = {
         imageWidth: 200,
         resizeMode: "contain",
         backgroundColor: "#FAFAF7",
-        dark: {
-          backgroundColor: "#0E1116",
-        },
       },
     ],
   ],

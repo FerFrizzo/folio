@@ -58,7 +58,7 @@ export const SettingsSchema = z.object({
   defaultCurrency: CurrencyCodeSchema.default("AUD"),
   paymentDetails: PaymentDetailsSchema.default({}),
   emailDefaults: EmailDefaultsSchema.default({ subject: "", body: "" }),
-  themeMode: z.enum(["system", "light", "dark"]).default("system"),
+  themeMode: z.enum(["system", "light", "dark"]).default("light"),
   biometricEnabled: z.boolean().default(false),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
