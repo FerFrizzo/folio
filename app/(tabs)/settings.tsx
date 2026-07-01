@@ -6,6 +6,7 @@ import { SubscriptionCard } from "@/src/features/settings/SubscriptionCard";
 import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
 import { DataCard } from "@/src/features/settings/DataCard";
 import { EmailDefaultsCard } from "@/src/features/settings/EmailDefaultsCard";
+import { InvoiceDefaultsCard } from "@/src/features/settings/InvoiceDefaultsCard";
 import { LineItemLibraryCard } from "@/src/features/settings/LineItemLibraryCard";
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
 import { NumberingCard } from "@/src/features/settings/NumberingCard";
@@ -45,6 +46,7 @@ export default function SettingsScreen() {
           <BusinessProfileForm />
           <PaymentDetailsForm />
           <NumberingCard />
+          <InvoiceDefaultsCard />
           <EmailDefaultsCard />
           <LineItemLibraryCard />
           <DataCard />
