@@ -76,5 +76,5 @@ skills-lock.json
 # Bug reports
 bugreport-*.zip
 
-# Plugins (local only)
-plugins/
+# Expo config plugins are committed (EAS needs them)
+# plugins/
