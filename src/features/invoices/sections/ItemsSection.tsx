@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { Plus, Trash2, BookmarkPlus, Library } from "lucide-react-native";
 import { Input } from "@/src/components/ui/Input";
 import { NumberInput } from "@/src/components/ui/NumberInput";
@@ -32,6 +32,8 @@ type Props = {
   computedLineTotalsCents: number[];
   // Phase 3: when currency !== AUD all lines forced GST-free.
   exportMode: boolean;
+  // Default GST rate applied to newly-added lines (from user settings).
+  defaultGstRate: number;
 };
 
 function pctToBp(pct: string): number {
@@ -46,9 +48,13 @@ export function ItemsSection({
   currency,
   computedLineTotalsCents,
   exportMode,
+  defaultGstRate,
 }: Props) {
   const [taxFor, setTaxFor] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const { width } = useWindowDimensions();
+  // Tablets/wide screens fit all fields on one line; phones stay stacked.
+  const isWide = width >= 768;
   const library = useLineItemLibrary();
   const createLibraryEntry = useCreateLibraryEntry();
   const toast = useToast();
@@ -64,7 +70,7 @@ export function ItemsSection({
         description: "",
         qty: "1",
         unitPriceText: "",
-        gstRate: exportMode ? 0 : 0.1,
+        gstRate: exportMode ? 0 : defaultGstRate,
       },
     ]);
   }
@@ -125,43 +131,60 @@ export function ItemsSection({
 
       {items.map((item, index) => {
         const taxOpen = taxFor === index;
+        // Same fields in both layouts — only the wrappers differ (single row on
+        // tablets, two stacked rows on phones), so define them once here.
+        const descriptionInput = (
+          <Input
+            label="Description"
+            value={item.description}
+            onChangeText={(v) => update(index, { description: v })}
+            placeholder="What did you do?"
+          />
+        );
+        const qtyInput = (
+          <NumberInput
+            label="Qty"
+            value={item.qty}
+            onChangeText={(v) => update(index, { qty: v })}
+            placeholder="1"
+          />
+        );
+        const unitPriceInput = (
+          <CurrencyInput
+            label="Unit price"
+            value={item.unitPriceText}
+            onChangeText={(v) => update(index, { unitPriceText: v })}
+          />
+        );
+        const removeButton = (
+          <IconButton
+            icon={Trash2}
+            accessibilityLabel="Remove line"
+            tone="danger"
+            onPress={() => remove(index)}
+          />
+        );
         return (
           <View key={index} className="gap-3 rounded-card border border-border bg-background p-3">
-            <View className="flex-row items-start gap-2">
-              <View className="flex-1">
-                <Input
-                  label="Description"
-                  value={item.description}
-                  onChangeText={(v) => update(index, { description: v })}
-                  placeholder="What did you do?"
-                />
+            {isWide ? (
+              <View className="flex-row items-start gap-3">
+                <View className="flex-[3]">{descriptionInput}</View>
+                <View className="flex-1">{qtyInput}</View>
+                <View className="flex-[2]">{unitPriceInput}</View>
+                <View className="pt-6">{removeButton}</View>
               </View>
-              <View className="pt-6">
-                <IconButton
-                  icon={Trash2}
-                  accessibilityLabel="Remove line"
-                  tone="danger"
-                  onPress={() => remove(index)}
-                />
-              </View>
-            </View>
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <NumberInput
-                  label="Qty"
-                  value={item.qty}
-                  onChangeText={(v) => update(index, { qty: v })}
-                  placeholder="1"
-                />
-              </View>
-              <View className="flex-[2]">
-                <CurrencyInput
-                  label="Unit price"
-                  value={item.unitPriceText}
-                  onChangeText={(v) => update(index, { unitPriceText: v })}
-                />
-              </View>
-            </View>
+            ) : (
+              <>
+                <View className="flex-row items-start gap-2">
+                  <View className="flex-1">{descriptionInput}</View>
+                  <View className="pt-6">{removeButton}</View>
+                </View>
+                <View className="flex-row gap-3">
+                  <View className="flex-1">{qtyInput}</View>
+                  <View className="flex-[2]">{unitPriceInput}</View>
+                </View>
+              </>
+            )}
             <View className="flex-row items-center justify-between">
               <Pressable
                 onPress={() => setTaxFor(taxOpen ? null : index)}

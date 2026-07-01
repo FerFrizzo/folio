@@ -108,7 +108,12 @@ export function InvoiceEditor({ initial }: Props) {
   );
   const [items, setItems] = useState<LineItemInput[]>(
     initial ? lineInputsFrom(initial) : [
-      { description: "", qty: "1", unitPriceText: "", gstRate: 0.1 },
+      {
+        description: "",
+        qty: "1",
+        unitPriceText: "",
+        gstRate: settings.data?.defaultGstRate ?? 0.1,
+      },
     ],
   );
   const [invoiceDiscount, setInvoiceDiscount] = useState<Discount | undefined>(
@@ -148,6 +153,21 @@ export function InvoiceEditor({ initial }: Props) {
       d === "" || !d ? defaultDueIso(settings.data.defaultPaymentTermsDays) : d,
     );
   }, [isNew, settings.data]);
+
+  // Apply the user's default GST rate to a brand-new invoice's pristine first
+  // line once settings load. Only touches a single untouched empty line so a
+  // user's chosen tax is never overwritten. Export mode (handled above) wins.
+  useEffect(() => {
+    if (!isNew || !settings.data || exportMode) return;
+    const rate = settings.data.defaultGstRate;
+    setItems((curr) => {
+      const only = curr[0];
+      if (curr.length !== 1 || !only) return curr;
+      if (only.description.trim() || only.unitPriceText.trim()) return curr;
+      if (only.gstRate === rate) return curr;
+      return [{ ...only, gstRate: rate }];
+    });
+  }, [isNew, settings.data, exportMode]);
 
   const lineInputs: LineInput[] = useMemo(
     () =>
@@ -428,6 +448,7 @@ export function InvoiceEditor({ initial }: Props) {
             onChange={setItems}
             currency={currency}
             exportMode={exportMode}
+            defaultGstRate={settings.data?.defaultGstRate ?? 0.1}
             computedLineTotalsCents={computed.lines.map((l) => l.lineTotalCents)}
           />
         </CollapsibleCard>
