@@ -4,7 +4,7 @@ const config: ExpoConfig = {
   name: "Folio",
   slug: "folio",
   scheme: "folio",
-  version: "1.0.1",
+  version: "1.0.2",
   // OTA channel binds to the store version; bumping `version` cuts a fresh
   // runtime so old binaries don't pick up incompatible JS bundles.
   runtimeVersion: { policy: "appVersion" },
