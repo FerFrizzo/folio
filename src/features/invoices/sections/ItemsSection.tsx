@@ -94,6 +94,8 @@ export function ItemsSection({
         unitPriceCents,
         gstRate: item.gstRate,
       });
+      // Confirm the save — without it the icon tap looks like a no-op.
+      toast.show({ message: "Saved to library", variant: "success" });
     } catch (err) {
       console.error(err);
       toast.show({
@@ -164,6 +166,22 @@ export function ItemsSection({
             onPress={() => remove(index)}
           />
         );
+        // Always-visible per-line action so saving to the library doesn't
+        // depend on first expanding the (easily-missed) Tax options — the same
+        // on phones and tablets.
+        const saveButton = (
+          <IconButton
+            icon={BookmarkPlus}
+            accessibilityLabel="Save line to library"
+            onPress={() => saveToLibrary(index)}
+          />
+        );
+        const rowActions = (
+          <View className="flex-row pt-6">
+            {saveButton}
+            {removeButton}
+          </View>
+        );
         return (
           <View key={index} className="gap-3 rounded-card border border-border bg-background p-3">
             {isWide ? (
@@ -171,13 +189,13 @@ export function ItemsSection({
                 <View className="flex-[3]">{descriptionInput}</View>
                 <View className="flex-1">{qtyInput}</View>
                 <View className="flex-[2]">{unitPriceInput}</View>
-                <View className="pt-6">{removeButton}</View>
+                {rowActions}
               </View>
             ) : (
               <>
                 <View className="flex-row items-start gap-2">
                   <View className="flex-1">{descriptionInput}</View>
-                  <View className="pt-6">{removeButton}</View>
+                  {rowActions}
                 </View>
                 <View className="flex-row gap-3">
                   <View className="flex-1">{qtyInput}</View>
@@ -236,17 +254,6 @@ export function ItemsSection({
                     update(index, d ? { lineDiscount: d } : { lineDiscount: undefined })
                   }
                 />
-                <Pressable
-                  onPress={() => saveToLibrary(index)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Save line to library"
-                  className="flex-row items-center gap-2"
-                >
-                  <BookmarkPlus size={14} color="#1473FF" />
-                  <Text className="text-label font-semibold text-accent">
-                    Save to library
-                  </Text>
-                </Pressable>
               </View>
             ) : null}
           </View>
@@ -281,7 +288,7 @@ export function ItemsSection({
       >
         {(library.data ?? []).length === 0 ? (
           <Text className="text-body text-muted">
-            No saved lines yet. Save items to your library from the Tax options.
+            No saved lines yet. Tap the bookmark icon on a line item to save it here.
           </Text>
         ) : (
           <View className="max-h-80 overflow-hidden rounded-card border border-border bg-surface">
