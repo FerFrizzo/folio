@@ -1,10 +1,10 @@
 import { render, fireEvent } from "@testing-library/react-native";
-import useWindowDimensions from "react-native/Libraries/Utilities/useWindowDimensions";
+import { useWindowDimensions } from "react-native";
 import { ItemsSection, type LineItemInput } from "@/src/features/invoices/sections/ItemsSection";
 
 // Control the tablet-vs-phone breakpoint (ItemsSection treats width >= 768 as
 // wide). react-native's index re-exports this module, so mocking the path
-// affects the hook the component actually calls.
+// replaces what the public `useWindowDimensions` export resolves to.
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions");
 const mockUseWindowDimensions = useWindowDimensions as unknown as jest.Mock;
 
