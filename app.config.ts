@@ -57,6 +57,7 @@ const config: ExpoConfig = {
     "expo-local-authentication",
     "expo-apple-authentication",
     "expo-web-browser",
+    "expo-font",
     [
       "@react-native-google-signin/google-signin",
       { iosUrlScheme: "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k" },
