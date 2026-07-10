@@ -18,6 +18,34 @@ const outDir = path.join(repoRoot, "assets", "images");
 
 const ACCENT = "#1473FF";
 
+// Write `pngBuffer` to `outPath` only if the decoded pixels differ from what's
+// already there. sharp's PNG encoder is not byte-stable across versions, so a
+// plain `.toFile()` rewrites identical images with a few different bytes every
+// run — which dirties the git tree on every `npm run preflight` (and breaks
+// `npm run release`, whose `npm version` step demands a clean tree). Comparing
+// raw pixels makes regeneration a true no-op when the art hasn't changed.
+async function writePngIfChanged(pngBuffer, outPath) {
+  try {
+    const existing = await fs.readFile(outPath);
+    const [next, prev] = await Promise.all([
+      sharp(pngBuffer).raw().toBuffer({ resolveWithObject: true }),
+      sharp(existing).raw().toBuffer({ resolveWithObject: true }),
+    ]);
+    if (
+      next.info.width === prev.info.width &&
+      next.info.height === prev.info.height &&
+      next.info.channels === prev.info.channels &&
+      next.data.equals(prev.data)
+    ) {
+      return false; // pixel-identical — leave the committed bytes untouched
+    }
+  } catch {
+    // Missing or unreadable target → fall through and write it.
+  }
+  await fs.writeFile(outPath, pngBuffer);
+  return true;
+}
+
 // 1024×1024 placeholder: solid navy with a centered serif "F" via SVG.
 function placeholderSvg() {
   return `
@@ -53,13 +81,13 @@ async function generateAll() {
   await fs.mkdir(outDir, { recursive: true });
 
   const source = sharp(sourcePath);
+  const outputs = [];
 
   // Primary 1024×1024 icon (iOS + generic).
-  await source
-    .clone()
-    .resize(1024, 1024, { fit: "cover" })
-    .png()
-    .toFile(path.join(outDir, "icon.png"));
+  outputs.push([
+    "icon.png",
+    await source.clone().resize(1024, 1024, { fit: "cover" }).png().toBuffer(),
+  ]);
 
   // Adaptive icon — Android. Three layers per Material design.
   // Foreground: source icon scaled to ~66% of canvas (safe zone), centred on
@@ -83,34 +111,44 @@ async function generateAll() {
     .png()
     .toBuffer();
 
-  await sharp(foreground).toFile(path.join(outDir, "android-icon-foreground.png"));
-  await sharp(Buffer.from(adaptiveBackgroundSvg()))
-    .png()
-    .toFile(path.join(outDir, "android-icon-background.png"));
-  await sharp(foreground)
-    .greyscale()
-    .toFile(path.join(outDir, "android-icon-monochrome.png"));
+  outputs.push(["android-icon-foreground.png", foreground]);
+  outputs.push([
+    "android-icon-background.png",
+    await sharp(Buffer.from(adaptiveBackgroundSvg())).png().toBuffer(),
+  ]);
+  outputs.push([
+    "android-icon-monochrome.png",
+    await sharp(foreground).greyscale().png().toBuffer(),
+  ]);
 
   // Legacy square adaptive (some Expo configs still reference this name).
-  await sharp(foreground).toFile(path.join(outDir, "adaptive-icon.png"));
+  outputs.push(["adaptive-icon.png", foreground]);
 
   // Web favicon — small, padded.
-  await source
-    .clone()
-    .resize(64, 64, { fit: "cover" })
-    .png()
-    .toFile(path.join(outDir, "favicon.png"));
+  outputs.push([
+    "favicon.png",
+    await source.clone().resize(64, 64, { fit: "cover" }).png().toBuffer(),
+  ]);
 
   // Splash icon: source icon scaled to 200×200.
-  await source
-    .clone()
-    .resize(200, 200, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toFile(path.join(outDir, "splash-icon.png"));
+  outputs.push([
+    "splash-icon.png",
+    await source
+      .clone()
+      .resize(200, 200, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer(),
+  ]);
+
+  const results = await Promise.all(
+    outputs.map(([name, buf]) => writePngIfChanged(buf, path.join(outDir, name))),
+  );
+  const changed = results.filter(Boolean).length;
 
   console.log(
     `${generatedPlaceholder ? "[placeholder source generated] " : ""}` +
-      `icons written to ${path.relative(repoRoot, outDir)}/`,
+      `icons: ${changed} written, ${results.length - changed} unchanged ` +
+      `(${path.relative(repoRoot, outDir)}/)`,
   );
 }
 
