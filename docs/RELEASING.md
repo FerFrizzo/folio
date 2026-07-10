@@ -14,8 +14,9 @@ Each command runs, in order:
    build/tests. If anything fails, nothing is bumped or built.
 2. **`npm version <level>`** — bumps `version` in `package.json`, commits it, and
    creates a git tag `vX.Y.Z`.
-3. **`eas build --platform all --profile production --auto-submit`** — builds both
-   platforms and submits to App Store Connect and Google Play.
+3. **`eas build --platform ios --profile production --auto-submit`** — builds iOS
+   and submits to App Store Connect. (Android is intentionally excluded; run
+   `eas build --platform android --profile production` manually if you need it.)
 
 ## Why the bump is automatic
 

@@ -25,7 +25,7 @@
     "preflight": "node scripts/preflight.mjs",
     "functions:build": "npm --prefix functions run build",
     "functions:test": "npm --prefix functions test",
-    "eas:release": "eas build --platform all --profile production --auto-submit",
+    "eas:release": "eas build --platform ios --profile production --auto-submit",
     "release": "npm run preflight && npm version patch -m \"chore(release): v%s\" && npm run eas:release",
     "release:minor": "npm run preflight && npm version minor -m \"chore(release): v%s\" && npm run eas:release",
     "release:major": "npm run preflight && npm version major -m \"chore(release): v%s\" && npm run eas:release"
