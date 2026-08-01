@@ -1,4 +1,4 @@
-import { Keyboard, StyleSheet, Text, Pressable } from "react-native";
+import { Keyboard, Platform, StyleSheet, Text, Pressable } from "react-native";
 import { render, fireEvent, act } from "@testing-library/react-native";
 import { ToastProvider, useToast } from "@/src/components/ui/Toast";
 
@@ -9,6 +9,9 @@ const removeSpy = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Existing suite exercises the iOS behaviour (offset applied); the
+  // Android-specific cases below override this per test.
+  Platform.OS = "ios";
   for (const key of Object.keys(listeners)) delete listeners[key];
   // Cast through unknown: Keyboard.addListener's real signature is a union of
   // per-event overloads that a generic stub can't satisfy under strict tsc.
@@ -90,5 +93,48 @@ describe("Toast keyboard avoidance", () => {
     const { unmount } = renderToast();
     unmount();
     expect(removeSpy).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("Toast keyboard avoidance is iOS-only", () => {
+  // Android already resizes the window for the keyboard (Expo's default
+  // softwareKeyboardLayoutMode: "resize"), so applying the measured height on
+  // top of that would push the toast ~300dp too high. Confirm the offset is
+  // only ever applied on iOS, while every platform still keeps its listeners
+  // wired up (asserted below) so behaviour stays deterministic.
+  it("lifts the toast on iOS when the keyboard opens", () => {
+    Platform.OS = "ios";
+    const { getByLabelText, getByTestId } = renderToast();
+    fireEvent.press(getByLabelText("show"));
+    act(() => {
+      listeners.keyboardDidShow?.({ endCoordinates: { height: 300 } });
+    });
+    expect(bottomOf(getByTestId("toast"))).toBe(332);
+  });
+
+  it("leaves the toast at 32px on Android when the keyboard opens", () => {
+    Platform.OS = "android";
+    const { getByLabelText, getByTestId } = renderToast();
+    fireEvent.press(getByLabelText("show"));
+    act(() => {
+      listeners.keyboardDidShow?.({ endCoordinates: { height: 300 } });
+    });
+    expect(bottomOf(getByTestId("toast"))).toBe(32);
+  });
+
+  it("leaves the toast at 32px on web when the keyboard opens", () => {
+    Platform.OS = "web";
+    const { getByLabelText, getByTestId } = renderToast();
+    fireEvent.press(getByLabelText("show"));
+    act(() => {
+      listeners.keyboardDidShow?.({ endCoordinates: { height: 300 } });
+    });
+    expect(bottomOf(getByTestId("toast"))).toBe(32);
+  });
+
+  it("still registers all four keyboard listeners on Android", () => {
+    Platform.OS = "android";
+    renderToast();
+    expect(Keyboard.addListener).toHaveBeenCalledTimes(4);
   });
 });

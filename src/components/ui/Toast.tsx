@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Keyboard, Pressable, Text, View } from "react-native";
+import { Keyboard, Platform, Pressable, Text, View } from "react-native";
 import { cn } from "@/src/lib/cn";
 
 type Variant = "info" | "success" | "warning" | "error";
@@ -42,6 +42,17 @@ let nextId = 1;
 // focused — e.g. "Saved to library" — renders behind the keyboard and the tap
 // looks like a no-op. Subscribing to both the `will` and `did` variants covers
 // iOS (which fires `will` first) and Android with one code path.
+//
+// The measured height is only ever applied as an offset on iOS. On Android
+// this app uses Expo's default `softwareKeyboardLayoutMode: "resize"`
+// (adjustResize) — app.config.ts sets no override — so the OS already shrinks
+// the window when the keyboard opens, and a view pinned to `bottom: 32` is
+// already clear of it. Adding the keyboard height on top of that would push
+// the toast ~300dp too high, potentially behind the header. Web never shows a
+// software keyboard that overlaps the layout, so it stays at 0 too. We keep
+// subscribing to all four events on every platform anyway (rather than
+// skipping the subscriptions on non-iOS) so listener behaviour — and this
+// hook's tests — stay deterministic across platforms.
 function useKeyboardOffset(): number {
   const [height, setHeight] = useState(0);
 
@@ -58,7 +69,7 @@ function useKeyboardOffset(): number {
     return () => subs.forEach((s) => s.remove());
   }, []);
 
-  return height;
+  return Platform.OS === "ios" ? height : 0;
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
