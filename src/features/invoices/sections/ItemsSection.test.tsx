@@ -1,4 +1,4 @@
-import { render, fireEvent } from "@testing-library/react-native";
+import { render, fireEvent, act } from "@testing-library/react-native";
 import { useWindowDimensions } from "react-native";
 import { ItemsSection, type LineItemInput } from "@/src/features/invoices/sections/ItemsSection";
 
@@ -11,10 +11,16 @@ const mockUseWindowDimensions = useWindowDimensions as unknown as jest.Mock;
 // Library query + mutation hooks and the toast are the component's only
 // external dependencies; stub them so we can assert behaviour directly.
 const mockMutateAsync = jest.fn(async () => {});
+const mockDeleteMutateAsync = jest.fn(async () => {});
 const mockToastShow = jest.fn();
+const mockLibraryEntries = [
+  { id: "e1", description: "Hour of design work", defaultQty: 1, unitPriceCents: 12000, gstRate: 0.1 },
+  { id: "e2", description: "Callout fee", defaultQty: 1, unitPriceCents: 8000, gstRate: 0 },
+];
 jest.mock("@/src/features/settings/libraryQueries", () => ({
-  useLineItemLibrary: () => ({ data: [] }),
+  useLineItemLibrary: () => ({ data: mockLibraryEntries }),
   useCreateLibraryEntry: () => ({ mutateAsync: mockMutateAsync }),
+  useDeleteLibraryEntry: () => ({ mutateAsync: mockDeleteMutateAsync }),
 }));
 jest.mock("@/src/components/ui/Toast", () => ({
   useToast: () => ({ show: mockToastShow }),
@@ -136,6 +142,62 @@ describe("ItemsSection GST default on added lines", () => {
     expect(onChange).toHaveBeenCalledWith([
       baseItem,
       { description: "", qty: "1", unitPriceText: "", gstRate: 0 },
+    ]);
+  });
+});
+
+describe("ItemsSection library sheet deletion", () => {
+  function openSheet(utils: ReturnType<typeof renderSection>) {
+    fireEvent.press(utils.getByLabelText("Insert from library"));
+    return utils;
+  }
+
+  it("shows a remove affordance for every saved entry", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    expect(utils.getByLabelText("Remove Hour of design work")).toBeTruthy();
+    expect(utils.getByLabelText("Remove Callout fee")).toBeTruthy();
+  });
+
+  // A stray tap on the trash must not destroy a saved line outright.
+  it("asks for confirmation instead of deleting immediately", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+    expect(utils.getByLabelText("Confirm remove Hour of design work")).toBeTruthy();
+  });
+
+  it("deletes the entry by id once confirmed", async () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    await act(async () => {
+      fireEvent.press(utils.getByLabelText("Confirm remove Hour of design work"));
+    });
+    expect(mockDeleteMutateAsync).toHaveBeenCalledWith("e1");
+  });
+
+  it("restores the row and deletes nothing when cancelled", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    fireEvent.press(utils.getByLabelText("Cancel remove Hour of design work"));
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+    expect(utils.getByLabelText("Remove Hour of design work")).toBeTruthy();
+  });
+
+  // Confirming one row must not arm the other.
+  it("only puts the tapped row into confirm state", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    expect(utils.queryByLabelText("Confirm remove Callout fee")).toBeNull();
+    expect(utils.getByLabelText("Remove Callout fee")).toBeTruthy();
+  });
+
+  // Regression: adding the trash must not break the row's insert action.
+  it("still inserts the entry when the row body is tapped", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Hour of design work"));
+    expect(utils.onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "Hour of design work", qty: "1", unitPriceText: "120.00", gstRate: 0.1 },
     ]);
   });
 });
