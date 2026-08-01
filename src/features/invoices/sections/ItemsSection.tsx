@@ -57,6 +57,10 @@ export function ItemsSection({
   // ConfirmDialog because Sheet is already a Modal and nesting Modals is
   // unreliable on iOS.
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // Whether the armed row's delete attempt failed. Surfaced inline (see
+  // confirmDeleteEntry) rather than via toast, for the same reason as above:
+  // the toast renders in the root tree, behind this Modal's hierarchy.
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const { width } = useWindowDimensions();
   // Tablets/wide screens fit all fields on one line; phones stay stacked.
   const isWide = width >= 768;
@@ -133,20 +137,30 @@ export function ItemsSection({
     try {
       await deleteLibraryEntry.mutateAsync(id);
       setPendingDeleteId(null);
+      setDeleteFailed(false);
     } catch (err) {
       console.error(err);
-      // Leave the row armed so the failure is visible — the toast itself may sit
-      // behind the sheet's modal on iOS.
-      toast.show({
-        message: err instanceof Error ? err.message : "Couldn't remove.",
-        variant: "error",
-      });
+      // Show the failure inline and keep the row armed so the user can retry
+      // or cancel — a toast fired here renders in the root tree, behind this
+      // Sheet's own Modal hierarchy, so on iOS it would be invisible.
+      setDeleteFailed(true);
     }
+  }
+
+  function armDelete(id: string) {
+    setPendingDeleteId(id);
+    setDeleteFailed(false);
+  }
+
+  function cancelDelete() {
+    setPendingDeleteId(null);
+    setDeleteFailed(false);
   }
 
   function closeLibrary() {
     setLibraryOpen(false);
     setPendingDeleteId(null);
+    setDeleteFailed(false);
   }
 
   return (
@@ -322,11 +336,20 @@ export function ItemsSection({
               <View key={entry.id}>
                 {pendingDeleteId === entry.id ? (
                   <View className="flex-row items-center gap-3 bg-surface px-4 py-3">
-                    <Text className="flex-1 text-caption text-foreground" numberOfLines={2}>
-                      Remove &ldquo;{entry.description}&rdquo; from the library?
+                    <Text
+                      className={
+                        deleteFailed
+                          ? "flex-1 text-caption text-status-overdue"
+                          : "flex-1 text-caption text-foreground"
+                      }
+                      numberOfLines={2}
+                    >
+                      {deleteFailed
+                        ? "Couldn't remove — try again"
+                        : `Remove “${entry.description}” from the library?`}
                     </Text>
                     <Pressable
-                      onPress={() => setPendingDeleteId(null)}
+                      onPress={cancelDelete}
                       accessibilityRole="button"
                       accessibilityLabel={`Cancel remove ${entry.description}`}
                       hitSlop={8}
@@ -353,7 +376,7 @@ export function ItemsSection({
                       />
                     </View>
                     <Pressable
-                      onPress={() => setPendingDeleteId(entry.id)}
+                      onPress={() => armDelete(entry.id)}
                       accessibilityRole="button"
                       accessibilityLabel={`Remove ${entry.description}`}
                       hitSlop={8}
