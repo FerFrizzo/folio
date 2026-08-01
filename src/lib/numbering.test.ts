@@ -1,4 +1,4 @@
-import { formatAutoNumber } from "@/src/lib/numbering";
+import { formatAutoNumber, parseAutoNumber } from "@/src/lib/numbering";
 
 describe("formatAutoNumber", () => {
   it("zero-pads to 4 digits by default", () => {
@@ -25,5 +25,27 @@ describe("formatAutoNumber", () => {
     expect(() =>
       formatAutoNumber({ prefix: "INV-", counter: 0 }),
     ).toThrow();
+  });
+});
+
+describe("parseAutoNumber", () => {
+  it("returns the sequence for a matching prefix + digits", () => {
+    expect(parseAutoNumber("INV-0001", "INV-")).toBe(1);
+    expect(parseAutoNumber("INV-0042", "INV-")).toBe(42);
+    expect(parseAutoNumber("INV-12345", "INV-")).toBe(12345);
+  });
+
+  it("round-trips with formatAutoNumber", () => {
+    expect(parseAutoNumber(formatAutoNumber({ prefix: "INV-", counter: 7 }), "INV-")).toBe(7);
+  });
+
+  it("returns null when the prefix doesn't match", () => {
+    expect(parseAutoNumber("INV-0001", "CN-")).toBeNull();
+    expect(parseAutoNumber("2026-A/12", "INV-")).toBeNull();
+  });
+
+  it("returns null for a non-numeric or empty remainder", () => {
+    expect(parseAutoNumber("INV-", "INV-")).toBeNull();
+    expect(parseAutoNumber("INV-00A1", "INV-")).toBeNull();
   });
 });

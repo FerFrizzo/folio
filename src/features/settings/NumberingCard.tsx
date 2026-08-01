@@ -4,6 +4,7 @@ import { Card } from "@/src/components/ui/Card";
 import { Input } from "@/src/components/ui/Input";
 import { NumberInput } from "@/src/components/ui/NumberInput";
 import { Button } from "@/src/components/ui/Button";
+import { Switch } from "@/src/components/ui/Switch";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { useToast } from "@/src/components/ui/Toast";
 import { formatAutoNumber } from "@/src/lib/numbering";
@@ -23,6 +24,7 @@ export function NumberingCard() {
   const [prefix, setPrefix] = useState("INV-");
   const [minDigitsText, setMinDigitsText] = useState("4");
   const [counterText, setCounterText] = useState("0");
+  const [allowManualNumber, setAllowManualNumber] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export function NumberingCard() {
     setPrefix(settings.data.numbering.prefix);
     setMinDigitsText(String(settings.data.numbering.minDigits));
     setCounterText(String(settings.data.numbering.counter));
+    setAllowManualNumber(settings.data.numbering.allowManualNumber);
   }, [settings.data]);
 
   const minDigitsParsed = Math.max(3, Math.min(6, Number(minDigitsText) || 4));
@@ -51,6 +54,7 @@ export function NumberingCard() {
           prefix,
           minDigits: minDigitsParsed,
           counter: counterParsed,
+          allowManualNumber,
         },
       });
       await setSettings.mutateAsync(next);
@@ -109,6 +113,12 @@ export function NumberingCard() {
         <Text className="text-caption text-muted">
           Next number: {preview}
         </Text>
+        <Switch
+          label="Allow editing invoice numbers"
+          helperText="Type or correct an invoice's number instead of using the auto counter. Off keeps numbers read-only."
+          value={allowManualNumber}
+          onValueChange={setAllowManualNumber}
+        />
         <View className="flex-row gap-2">
           <Button
             label={succeeded ? "✓ Saved" : setSettings.isPending ? "Saving…" : "Save"}
