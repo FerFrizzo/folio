@@ -40,6 +40,9 @@ export const NumberingSchema = z.object({
   minDigits: z.number().int().min(3).max(6).default(4),
   counter: z.number().int().nonnegative().default(0),
   customFormat: z.string().optional(),
+  // When true, invoice numbers can be typed/corrected by hand in the editor
+  // and on sent invoices; otherwise the number is read-only and auto-assigned.
+  allowManualNumber: z.boolean().default(false),
 });
 export type Numbering = z.infer<typeof NumberingSchema>;
 
@@ -57,7 +60,10 @@ export const SettingsSchema = z.object({
     counter: 0,
   }),
   lineItemMode: z.enum(["basic", "units"]).default("basic"),
-  defaultGstRate: z.number().min(0).max(1).default(0.1),
+  // GST-free unless the user turns on "Apply GST to new items" in Settings.
+  // Line-item schemas below keep .default(0.1) on purpose: those only fire when
+  // parsing older stored docs, and flipping them would rewrite issued invoices.
+  defaultGstRate: z.number().min(0).max(1).default(0),
   defaultPaymentTermsDays: z.number().int().nonnegative().default(14),
   defaultCurrency: CurrencyCodeSchema.default("AUD"),
   paymentDetails: PaymentDetailsSchema.default({}),

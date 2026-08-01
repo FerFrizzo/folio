@@ -10,7 +10,9 @@ export function InvoiceDefaultsCard() {
   const setSettings = useSetSettings();
   const toast = useToast();
 
-  const applyGst = (settings.data?.defaultGstRate ?? 0.1) > 0;
+  // Fallback must match the schema default, or the switch renders "on" for a
+  // user whose settings haven't loaded (or don't exist) yet.
+  const applyGst = (settings.data?.defaultGstRate ?? 0) > 0;
 
   async function setApplyGst(next: boolean) {
     if (!settings.data) return;
@@ -35,7 +37,7 @@ export function InvoiceDefaultsCard() {
       <View className="mt-3">
         <Switch
           label="Apply GST to new items"
-          helperText="New line items start at 10% GST. Turn off to default them to GST-free."
+          helperText="New line items start GST-free. Turn on if you're registered for GST and want them to default to 10%."
           value={applyGst}
           onValueChange={setApplyGst}
           disabled={!settings.data || setSettings.isPending}

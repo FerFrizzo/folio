@@ -85,9 +85,9 @@ export function DataCard() {
           gstRegistered: true,
         },
         settings.data ?? {
-          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0 },
+          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
           lineItemMode: "basic",
-          defaultGstRate: 0.1,
+          defaultGstRate: 0,
           defaultPaymentTermsDays: 14,
           defaultCurrency: "AUD",
           paymentDetails: {},

@@ -15,11 +15,13 @@ import {
   useDeleteLibraryEntry,
   useLineItemLibrary,
 } from "@/src/features/settings/libraryQueries";
+import { useSettings } from "@/src/features/settings/queries";
 
 export function LineItemLibraryCard() {
   const library = useLineItemLibrary();
   const create = useCreateLibraryEntry();
   const remove = useDeleteLibraryEntry();
+  const settings = useSettings();
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton();
 
@@ -41,7 +43,7 @@ export function LineItemLibraryCard() {
         description: description.trim(),
         defaultQty,
         unitPriceCents,
-        gstRate: 0.1,
+        gstRate: settings.data?.defaultGstRate ?? 0,
       });
       setAdding(false);
       setDescription("");

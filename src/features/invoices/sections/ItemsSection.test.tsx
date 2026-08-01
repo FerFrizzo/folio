@@ -31,15 +31,18 @@ const baseItem: LineItemInput = {
   gstRate: 0.1,
 };
 
-function renderSection(items: LineItemInput[]) {
+function renderSection(
+  items: LineItemInput[],
+  overrides: { defaultGstRate?: number; exportMode?: boolean } = {},
+) {
   const onChange = jest.fn();
   const utils = render(
     <ItemsSection
       items={items}
       onChange={onChange}
       currency="AUD"
-      exportMode={false}
-      defaultGstRate={0.1}
+      exportMode={overrides.exportMode ?? false}
+      defaultGstRate={overrides.defaultGstRate ?? 0.1}
       computedLineTotalsCents={items.map(() => 0)}
     />,
   );
@@ -101,5 +104,38 @@ describe("ItemsSection save-to-library affordance", () => {
     expect(mockToastShow).toHaveBeenCalledWith(
       expect.objectContaining({ variant: "success" }),
     );
+  });
+});
+
+describe("ItemsSection GST default on added lines", () => {
+  it("adds a GST-free line when the user's default is 0", () => {
+    const { getByLabelText, onChange } = renderSection([baseItem], { defaultGstRate: 0 });
+    fireEvent.press(getByLabelText("Add line item"));
+    expect(onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "", qty: "1", unitPriceText: "", gstRate: 0 },
+    ]);
+  });
+
+  it("adds a 10% line when the user has opted into GST", () => {
+    const { getByLabelText, onChange } = renderSection([baseItem], { defaultGstRate: 0.1 });
+    fireEvent.press(getByLabelText("Add line item"));
+    expect(onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "", qty: "1", unitPriceText: "", gstRate: 0.1 },
+    ]);
+  });
+
+  // Non-AUD invoices are GST-free exports; the setting must not override that.
+  it("forces GST-free in export mode even when the default is 10%", () => {
+    const { getByLabelText, onChange } = renderSection([baseItem], {
+      defaultGstRate: 0.1,
+      exportMode: true,
+    });
+    fireEvent.press(getByLabelText("Add line item"));
+    expect(onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "", qty: "1", unitPriceText: "", gstRate: 0 },
+    ]);
   });
 });
