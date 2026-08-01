@@ -63,8 +63,20 @@ export function LineItemLibraryCard() {
     const id = pendingDelete;
     setPendingDelete(null);
     if (!id) return;
-    await remove.mutateAsync(id);
-    toast.show({ message: "Removed.", variant: "info" });
+    try {
+      await remove.mutateAsync(id);
+      toast.show({ message: "Removed.", variant: "info" });
+    } catch (err) {
+      // Unlike the editor's library sheet, this screen isn't inside a Modal,
+      // so a toast is actually visible here — and the ConfirmDialog is
+      // already dismissed by this point, so it's the only feedback the user
+      // gets.
+      console.error(err);
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't remove.",
+        variant: "error",
+      });
+    }
   }
 
   return (
@@ -122,9 +134,20 @@ export function LineItemLibraryCard() {
             <View className="flex-row justify-end gap-2">
               <Button label="Cancel" variant="ghost" onPress={() => setAdding(false)} />
               <Button
-                label={succeeded ? "✓ Added" : create.isPending ? "Adding…" : "Add"}
+                label={
+                  succeeded
+                    ? "✓ Added"
+                    : create.isPending
+                      ? "Adding…"
+                      : settings.isLoading
+                        ? "Loading…"
+                        : "Add"
+                }
                 variant={succeeded ? "success" : "primary"}
-                disabled={create.isPending || succeeded}
+                // Block the tap while settings are still loading: add() falls
+                // back to gstRate 0 until settings.data resolves, which would
+                // silently save a GST-free entry for a GST-registered user.
+                disabled={create.isPending || succeeded || settings.isLoading}
                 onPress={add}
               />
             </View>
