@@ -21,7 +21,11 @@ import {
 } from "@/src/types/schemas";
 import { fsPaths } from "@/src/lib/firestore/paths";
 import { computeInvoiceTotals } from "@/src/lib/invoice-totals";
-import { claimNextInvoiceNumberInTransaction } from "@/src/lib/firestore/counters";
+import {
+  claimNextInvoiceNumberInTransaction,
+  ensureInvoiceCounterAtLeastInTransaction,
+} from "@/src/lib/firestore/counters";
+import { parseAutoNumber } from "@/src/lib/numbering";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -181,10 +185,29 @@ export async function markSent(
     const minDigits: number =
       typeof numbering.minDigits === "number" ? numbering.minDigits : 4;
 
-    const { number } = await claimNextInvoiceNumberInTransaction(tx, uid, {
-      prefix,
-      minDigits,
-    });
+    // A draft with a manually-set number keeps it (the user edited it in the
+    // editor). Only fall back to the auto counter when it's still the "DRAFT"
+    // placeholder. Either way, keep the counter ahead of the issued number.
+    const manual: string | undefined =
+      typeof data.number === "string" &&
+      data.number !== "DRAFT" &&
+      data.number.trim() !== ""
+        ? data.number
+        : undefined;
+
+    let number: string;
+    if (manual) {
+      number = manual;
+      const parsed = parseAutoNumber(manual, prefix);
+      if (parsed !== null) {
+        await ensureInvoiceCounterAtLeastInTransaction(tx, uid, parsed);
+      }
+    } else {
+      ({ number } = await claimNextInvoiceNumberInTransaction(tx, uid, {
+        prefix,
+        minDigits,
+      }));
+    }
     const sentAt = nowIso();
     tx.update(invRef, {
       number,
@@ -194,6 +217,74 @@ export async function markSent(
     });
     return { number };
   });
+}
+
+// ---------- Manual invoice numbering (settings.numbering.allowManualNumber) ----------
+
+// Persist a hand-typed number onto a draft. The number stays as-is until send;
+// markSent then keeps it instead of claiming from the counter. Passing an empty
+// value reverts the draft to the "DRAFT" placeholder (auto numbering).
+export async function setDraftNumber(
+  uid: string,
+  id: string,
+  number: string,
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const ref = doc(db, fsPaths.invoice(uid, id));
+  const trimmed = number.trim();
+  await updateDoc(ref, {
+    number: trimmed === "" ? "DRAFT" : trimmed,
+    updatedAt: nowIso(),
+  });
+}
+
+// Change the number on an already-sent invoice (correcting a mistake). Keeps
+// the auto counter ahead of the new number. Status is unchanged.
+export async function updateInvoiceNumber(
+  uid: string,
+  id: string,
+  number: string,
+): Promise<void> {
+  const trimmed = number.trim();
+  if (trimmed === "") throw new Error("Invoice number can't be empty");
+  const db = getFirebaseFirestore();
+  const invRef = doc(db, fsPaths.invoice(uid, id));
+  const settingsRef = doc(db, fsPaths.settings(uid));
+
+  await runTransaction(db, async (tx) => {
+    const [invSnap, settingsSnap] = await Promise.all([
+      tx.get(invRef),
+      tx.get(settingsRef),
+    ]);
+    if (!invSnap.exists()) throw new Error(`Invoice ${id} not found`);
+    const numbering = settingsSnap.exists()
+      ? (settingsSnap.data().numbering ?? {})
+      : {};
+    const prefix: string =
+      typeof numbering.prefix === "string" ? numbering.prefix : "INV-";
+
+    tx.update(invRef, { number: trimmed, updatedAt: nowIso() });
+    const parsed = parseAutoNumber(trimmed, prefix);
+    if (parsed !== null) {
+      await ensureInvoiceCounterAtLeastInTransaction(tx, uid, parsed);
+    }
+  });
+}
+
+// True if another (non-deleted) invoice already uses this number. Used to warn
+// before committing a manual number. Excludes the invoice being edited.
+export async function numberExistsElsewhere(
+  uid: string,
+  number: string,
+  exceptId: string,
+): Promise<boolean> {
+  const db = getFirebaseFirestore();
+  const q = query(
+    collection(db, fsPaths.invoices(uid)),
+    where("number", "==", number),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.some((d) => d.id !== exceptId && !d.data().deletedAt);
 }
 
 // ---------- Phase 3 mutations ----------

@@ -1,7 +1,7 @@
 {
   "name": "folio",
   "main": "expo-router/entry",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "private": true,
   "engines": {
     "node": ">=22"
@@ -24,7 +24,11 @@
     "icons": "node scripts/icons.mjs",
     "preflight": "node scripts/preflight.mjs",
     "functions:build": "npm --prefix functions run build",
-    "functions:test": "npm --prefix functions test"
+    "functions:test": "npm --prefix functions test",
+    "eas:release": "eas build --platform ios --profile production --auto-submit",
+    "release": "npm run preflight && npm version patch -m \"chore(release): v%s\" && npm run eas:release",
+    "release:minor": "npm run preflight && npm version minor -m \"chore(release): v%s\" && npm run eas:release",
+    "release:major": "npm run preflight && npm version major -m \"chore(release): v%s\" && npm run eas:release"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -35,17 +39,18 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@tanstack/react-query": "^5.62.0",
+    "babel-preset-expo": "~54.0.10",
     "date-fns": "^4.1.0",
     "dinero.js": "^2.0.0",
-    "expo": "~54.0.33",
+    "expo": "~54.0.35",
     "expo-apple-authentication": "~8.0.8",
     "expo-asset": "~12.0.10",
     "expo-auth-session": "~7.0.11",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.7",
     "expo-document-picker": "~14.0.8",
-    "expo-file-system": "~19.0.16",
-    "expo-font": "~14.0.11",
+    "expo-file-system": "~19.0.23",
+    "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
     "expo-image-manipulator": "~14.0.8",
@@ -53,7 +58,7 @@
     "expo-linking": "~8.0.11",
     "expo-local-authentication": "~17.0.8",
     "expo-print": "~15.0.7",
-    "expo-router": "~6.0.23",
+    "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.7",
     "expo-sharing": "~14.0.7",
     "expo-splash-screen": "~31.0.13",
@@ -101,6 +106,17 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@/components/(.*)$": "<rootDir>/src/components/$1",
+      "^@/features/(.*)$": "<rootDir>/src/features/$1",
+      "^@/lib/(.*)$": "<rootDir>/src/lib/$1",
+      "^@/theme/(.*)$": "<rootDir>/src/theme/$1",
+      "^@/types/(.*)$": "<rootDir>/src/types/$1",
+      "^@/mocks/(.*)$": "<rootDir>/src/mocks/$1",
+      "^@/(.*)$": "<rootDir>/$1",
+      "^react-native-vector-icons$": "@expo/vector-icons",
+      "^react-native-vector-icons/(.*)": "@expo/vector-icons/$1"
+    },
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@dinero.js/.*|dinero.js|nativewind|react-native-css-interop))"
     ]

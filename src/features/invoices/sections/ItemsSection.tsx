@@ -12,6 +12,7 @@ import { formatMoney } from "@/src/lib/money";
 import type { CurrencyCode, Discount } from "@/src/types/schemas";
 import {
   useCreateLibraryEntry,
+  useDeleteLibraryEntry,
   useLineItemLibrary,
 } from "@/src/features/settings/libraryQueries";
 
@@ -52,11 +53,20 @@ export function ItemsSection({
 }: Props) {
   const [taxFor, setTaxFor] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  // Id of the library row currently asking "remove?". Inline rather than a
+  // ConfirmDialog because Sheet is already a Modal and nesting Modals is
+  // unreliable on iOS.
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // Whether the armed row's delete attempt failed. Surfaced inline (see
+  // confirmDeleteEntry) rather than via toast, for the same reason as above:
+  // the toast renders in the root tree, behind this Modal's hierarchy.
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const { width } = useWindowDimensions();
   // Tablets/wide screens fit all fields on one line; phones stay stacked.
   const isWide = width >= 768;
   const library = useLineItemLibrary();
   const createLibraryEntry = useCreateLibraryEntry();
+  const deleteLibraryEntry = useDeleteLibraryEntry();
   const toast = useToast();
 
   function update(index: number, patch: Partial<LineItemInput>) {
@@ -120,7 +130,37 @@ export function ItemsSection({
         gstRate: exportMode ? 0 : entry.gstRate,
       },
     ]);
+    closeLibrary();
+  }
+
+  async function confirmDeleteEntry(id: string) {
+    try {
+      await deleteLibraryEntry.mutateAsync(id);
+      setPendingDeleteId(null);
+      setDeleteFailed(false);
+    } catch (err) {
+      console.error(err);
+      // Show the failure inline and keep the row armed so the user can retry
+      // or cancel — a toast fired here renders in the root tree, behind this
+      // Sheet's own Modal hierarchy, so on iOS it would be invisible.
+      setDeleteFailed(true);
+    }
+  }
+
+  function armDelete(id: string) {
+    setPendingDeleteId(id);
+    setDeleteFailed(false);
+  }
+
+  function cancelDelete() {
+    setPendingDeleteId(null);
+    setDeleteFailed(false);
+  }
+
+  function closeLibrary() {
     setLibraryOpen(false);
+    setPendingDeleteId(null);
+    setDeleteFailed(false);
   }
 
   return (
@@ -283,7 +323,7 @@ export function ItemsSection({
 
       <Sheet
         visible={libraryOpen}
-        onClose={() => setLibraryOpen(false)}
+        onClose={closeLibrary}
         title="Insert from library"
       >
         {(library.data ?? []).length === 0 ? (
@@ -294,15 +334,59 @@ export function ItemsSection({
           <View className="max-h-80 overflow-hidden rounded-card border border-border bg-surface">
             {(library.data ?? []).map((entry, idx, arr) => (
               <View key={entry.id}>
-                <ListRow
-                  primary={entry.description}
-                  secondary={`${entry.defaultQty} × ${formatMoney(entry.unitPriceCents, currency)}`}
-                  trailingMeta={`${(entry.gstRate * 100).toFixed(0)}% GST`}
-                  onPress={() => insertFromLibrary(entry)}
-                />
-                {idx < arr.length - 1 ? (
-                  <View className="h-px bg-border" />
-                ) : null}
+                {pendingDeleteId === entry.id ? (
+                  <View className="flex-row items-center gap-3 bg-surface px-4 py-3">
+                    <Text
+                      className={
+                        deleteFailed
+                          ? "flex-1 text-caption text-status-overdue"
+                          : "flex-1 text-caption text-foreground"
+                      }
+                      numberOfLines={2}
+                    >
+                      {deleteFailed
+                        ? "Couldn't remove — try again"
+                        : `Remove “${entry.description}” from the library?`}
+                    </Text>
+                    <Pressable
+                      onPress={cancelDelete}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cancel remove ${entry.description}`}
+                      hitSlop={8}
+                    >
+                      <Text className="text-body font-semibold text-accent">Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => confirmDeleteEntry(entry.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Confirm remove ${entry.description}`}
+                      hitSlop={8}
+                    >
+                      <Text className="text-body font-semibold text-status-overdue">Remove</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View className="flex-row items-center bg-surface">
+                    <View className="flex-1">
+                      <ListRow
+                        primary={entry.description}
+                        secondary={`${entry.defaultQty} × ${formatMoney(entry.unitPriceCents, currency)}`}
+                        trailingMeta={`${(entry.gstRate * 100).toFixed(0)}% GST`}
+                        onPress={() => insertFromLibrary(entry)}
+                      />
+                    </View>
+                    <Pressable
+                      onPress={() => armDelete(entry.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${entry.description}`}
+                      hitSlop={8}
+                      className="px-4 py-3"
+                    >
+                      <Trash2 size={16} color="#C0392B" />
+                    </Pressable>
+                  </View>
+                )}
+                {idx < arr.length - 1 ? <View className="h-px bg-border" /> : null}
               </View>
             ))}
           </View>

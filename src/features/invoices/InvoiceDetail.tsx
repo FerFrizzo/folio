@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Share2 } from "lucide-react-native";
+import { ArrowLeft, Pencil, Share2 } from "lucide-react-native";
 import WebView from "react-native-webview";
 import { Button } from "@/src/components/ui/Button";
 import { Card } from "@/src/components/ui/Card";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { IconButton } from "@/src/components/ui/IconButton";
+import { Input } from "@/src/components/ui/Input";
+import { Sheet } from "@/src/components/ui/Sheet";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useToast } from "@/src/components/ui/Toast";
 import { formatMoney } from "@/src/lib/money";
@@ -15,8 +17,10 @@ import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import {
   useArchiveInvoice,
+  useCheckNumberExists,
   useCreateDraft,
   useRecordPayment,
+  useUpdateInvoiceNumber,
 } from "@/src/features/invoices/queries";
 import { useCreditNotesForInvoice } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
@@ -39,7 +43,10 @@ export function InvoiceDetail({ invoice }: Props) {
   const archive = useArchiveInvoice();
   const createDraft = useCreateDraft();
   const recordPayment = useRecordPayment();
+  const updateInvoiceNumber = useUpdateInvoiceNumber();
+  const checkNumberExists = useCheckNumberExists();
   const creditNotes = useCreditNotesForInvoice(invoice.id);
+  const allowManualNumber = settings.data?.numbering.allowManualNumber ?? false;
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfHtml, setPdfHtml] = useState<string | null>(null);
   const [generating, setGenerating] = useState(true);
@@ -48,6 +55,10 @@ export function InvoiceDetail({ invoice }: Props) {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
   const [emailInvoice, setEmailInvoice] = useState<Invoice | null>(null);
+  const [editNumberOpen, setEditNumberOpen] = useState(false);
+  const [numberDraft, setNumberDraft] = useState(invoice.number);
+  const [confirmDupNumber, setConfirmDupNumber] = useState(false);
+  const [savingNumber, setSavingNumber] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,9 +78,9 @@ export function InvoiceDetail({ invoice }: Props) {
             gstRegistered: true,
           },
           settings: settings.data ?? {
-            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0 },
+            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
             lineItemMode: "basic",
-            defaultGstRate: 0.1,
+            defaultGstRate: 0,
             defaultPaymentTermsDays: 14,
             defaultCurrency: "AUD",
             paymentDetails: {},
@@ -186,6 +197,44 @@ export function InvoiceDetail({ invoice }: Props) {
     });
   }
 
+  function openEditNumber() {
+    setNumberDraft(invoice.number);
+    setEditNumberOpen(true);
+  }
+
+  // Save from the edit-number sheet: warn (not block) on a duplicate, then
+  // commit. Committing keeps the auto counter ahead of the new number.
+  async function saveNumber() {
+    const trimmed = numberDraft.trim();
+    if (trimmed === "" || trimmed === invoice.number) {
+      setEditNumberOpen(false);
+      return;
+    }
+    if (await checkNumberExists(trimmed, invoice.id)) {
+      setConfirmDupNumber(true);
+      return;
+    }
+    await commitNumber(trimmed);
+  }
+
+  async function commitNumber(next: string) {
+    setSavingNumber(true);
+    try {
+      await updateInvoiceNumber.mutateAsync({ id: invoice.id, number: next });
+      setConfirmDupNumber(false);
+      setEditNumberOpen(false);
+      toast.show({ message: `Number changed to ${next}.`, variant: "success" });
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't update number.",
+        variant: "error",
+      });
+    } finally {
+      setSavingNumber(false);
+    }
+  }
+
   // Linked credit note totals → "Net balance" per spec §7.
   const cnList = creditNotes.data ?? [];
   const cnTotalCents = cnList.reduce((sum, c) => sum + c.totalCents, 0);
@@ -204,7 +253,16 @@ export function InvoiceDetail({ invoice }: Props) {
             onPress={() => router.back()}
           />
           <View>
-            <Text className="text-h2 text-foreground">{invoice.number}</Text>
+            <View className="flex-row items-center gap-1">
+              <Text className="text-h2 text-foreground">{invoice.number}</Text>
+              {allowManualNumber ? (
+                <IconButton
+                  icon={Pencil}
+                  accessibilityLabel="Edit invoice number"
+                  onPress={openEditNumber}
+                />
+              ) : null}
+            </View>
             <Text className="text-caption text-muted">
               {invoice.clientSnapshot.name}
             </Text>
@@ -352,6 +410,44 @@ export function InvoiceDetail({ invoice }: Props) {
         destructive
         onCancel={() => setConfirmArchive(false)}
         onConfirm={performArchive}
+      />
+
+      <Sheet
+        visible={editNumberOpen}
+        onClose={() => setEditNumberOpen(false)}
+        title="Edit invoice number"
+      >
+        <View className="gap-3">
+          <View className="rounded-card border border-amber-300 bg-amber-50 p-3">
+            <Text className="text-caption text-amber-800">
+              This invoice has already been sent. Changing its number won&apos;t
+              update any PDF or email you&apos;ve already shared, and could clash
+              with another invoice&apos;s number. Only do this to correct a
+              mistake.
+            </Text>
+          </View>
+          <Input
+            label="Invoice number"
+            value={numberDraft}
+            onChangeText={setNumberDraft}
+            autoCapitalize="characters"
+            accessibilityLabel="Invoice number"
+          />
+          <Button
+            label={savingNumber ? "Saving…" : "Save number"}
+            disabled={savingNumber || numberDraft.trim() === ""}
+            onPress={saveNumber}
+          />
+        </View>
+      </Sheet>
+
+      <ConfirmDialog
+        visible={confirmDupNumber}
+        title="Number already used"
+        description={`${numberDraft.trim()} is already used by another invoice. Use it anyway?`}
+        confirmLabel="Use anyway"
+        onCancel={() => setConfirmDupNumber(false)}
+        onConfirm={() => commitNumber(numberDraft.trim())}
       />
     </View>
   );

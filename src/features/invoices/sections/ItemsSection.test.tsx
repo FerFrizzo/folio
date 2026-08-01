@@ -1,20 +1,26 @@
-import { render, fireEvent } from "@testing-library/react-native";
-import useWindowDimensions from "react-native/Libraries/Utilities/useWindowDimensions";
+import { render, fireEvent, act } from "@testing-library/react-native";
+import { useWindowDimensions } from "react-native";
 import { ItemsSection, type LineItemInput } from "@/src/features/invoices/sections/ItemsSection";
 
 // Control the tablet-vs-phone breakpoint (ItemsSection treats width >= 768 as
 // wide). react-native's index re-exports this module, so mocking the path
-// affects the hook the component actually calls.
+// replaces what the public `useWindowDimensions` export resolves to.
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions");
 const mockUseWindowDimensions = useWindowDimensions as unknown as jest.Mock;
 
 // Library query + mutation hooks and the toast are the component's only
 // external dependencies; stub them so we can assert behaviour directly.
 const mockMutateAsync = jest.fn(async () => {});
+const mockDeleteMutateAsync = jest.fn(async () => {});
 const mockToastShow = jest.fn();
+const mockLibraryEntries = [
+  { id: "e1", description: "Hour of design work", defaultQty: 1, unitPriceCents: 12000, gstRate: 0.1 },
+  { id: "e2", description: "Callout fee", defaultQty: 1, unitPriceCents: 8000, gstRate: 0 },
+];
 jest.mock("@/src/features/settings/libraryQueries", () => ({
-  useLineItemLibrary: () => ({ data: [] }),
+  useLineItemLibrary: () => ({ data: mockLibraryEntries }),
   useCreateLibraryEntry: () => ({ mutateAsync: mockMutateAsync }),
+  useDeleteLibraryEntry: () => ({ mutateAsync: mockDeleteMutateAsync }),
 }));
 jest.mock("@/src/components/ui/Toast", () => ({
   useToast: () => ({ show: mockToastShow }),
@@ -31,15 +37,18 @@ const baseItem: LineItemInput = {
   gstRate: 0.1,
 };
 
-function renderSection(items: LineItemInput[]) {
+function renderSection(
+  items: LineItemInput[],
+  overrides: { defaultGstRate?: number; exportMode?: boolean } = {},
+) {
   const onChange = jest.fn();
   const utils = render(
     <ItemsSection
       items={items}
       onChange={onChange}
       currency="AUD"
-      exportMode={false}
-      defaultGstRate={0.1}
+      exportMode={overrides.exportMode ?? false}
+      defaultGstRate={overrides.defaultGstRate ?? 0.1}
       computedLineTotalsCents={items.map(() => 0)}
     />,
   );
@@ -101,5 +110,152 @@ describe("ItemsSection save-to-library affordance", () => {
     expect(mockToastShow).toHaveBeenCalledWith(
       expect.objectContaining({ variant: "success" }),
     );
+  });
+
+  // Regression: the catch block in saveToLibrary was previously untested.
+  it("shows an error toast when the save rejects", async () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+    mockMutateAsync.mockRejectedValueOnce(new Error("network down"));
+    const { getByLabelText } = renderSection([baseItem]);
+    await act(async () => {
+      fireEvent.press(getByLabelText("Save line to library"));
+    });
+    expect(mockToastShow).toHaveBeenCalledWith(
+      expect.objectContaining({ variant: "error", message: "network down" }),
+    );
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+});
+
+describe("ItemsSection GST default on added lines", () => {
+  it("adds a GST-free line when the user's default is 0", () => {
+    const { getByLabelText, onChange } = renderSection([baseItem], { defaultGstRate: 0 });
+    fireEvent.press(getByLabelText("Add line item"));
+    expect(onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "", qty: "1", unitPriceText: "", gstRate: 0 },
+    ]);
+  });
+
+  it("adds a 10% line when the user has opted into GST", () => {
+    const { getByLabelText, onChange } = renderSection([baseItem], { defaultGstRate: 0.1 });
+    fireEvent.press(getByLabelText("Add line item"));
+    expect(onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "", qty: "1", unitPriceText: "", gstRate: 0.1 },
+    ]);
+  });
+
+  // Non-AUD invoices are GST-free exports; the setting must not override that.
+  it("forces GST-free in export mode even when the default is 10%", () => {
+    const { getByLabelText, onChange } = renderSection([baseItem], {
+      defaultGstRate: 0.1,
+      exportMode: true,
+    });
+    fireEvent.press(getByLabelText("Add line item"));
+    expect(onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "", qty: "1", unitPriceText: "", gstRate: 0 },
+    ]);
+  });
+});
+
+describe("ItemsSection library sheet deletion", () => {
+  function openSheet(utils: ReturnType<typeof renderSection>) {
+    fireEvent.press(utils.getByLabelText("Insert from library"));
+    return utils;
+  }
+
+  it("shows a remove affordance for every saved entry", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    expect(utils.getByLabelText("Remove Hour of design work")).toBeTruthy();
+    expect(utils.getByLabelText("Remove Callout fee")).toBeTruthy();
+  });
+
+  // A stray tap on the trash must not destroy a saved line outright.
+  it("asks for confirmation instead of deleting immediately", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+    expect(utils.getByLabelText("Confirm remove Hour of design work")).toBeTruthy();
+  });
+
+  it("deletes the entry by id once confirmed", async () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    await act(async () => {
+      fireEvent.press(utils.getByLabelText("Confirm remove Hour of design work"));
+    });
+    expect(mockDeleteMutateAsync).toHaveBeenCalledWith("e1");
+  });
+
+  it("restores the row and deletes nothing when cancelled", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    fireEvent.press(utils.getByLabelText("Cancel remove Hour of design work"));
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+    expect(utils.getByLabelText("Remove Hour of design work")).toBeTruthy();
+  });
+
+  // Confirming one row must not arm the other.
+  it("only puts the tapped row into confirm state", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+    expect(utils.queryByLabelText("Confirm remove Callout fee")).toBeNull();
+    expect(utils.getByLabelText("Remove Callout fee")).toBeTruthy();
+  });
+
+  // Regression: adding the trash must not break the row's insert action.
+  it("still inserts the entry when the row body is tapped", () => {
+    const utils = openSheet(renderSection([baseItem]));
+    fireEvent.press(utils.getByLabelText("Hour of design work"));
+    expect(utils.onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "Hour of design work", qty: "1", unitPriceText: "120.00", gstRate: 0.1 },
+    ]);
+  });
+
+  // Non-AUD invoices are GST-free exports; inserting from the library must not
+  // resurrect the saved entry's own GST rate. The parallel add() path already
+  // has this coverage — this closes the gap on the library-insert path.
+  it("forces GST-free when inserting a GST-rated entry in export mode", () => {
+    const utils = openSheet(renderSection([baseItem], { exportMode: true }));
+    fireEvent.press(utils.getByLabelText("Hour of design work"));
+    expect(utils.onChange).toHaveBeenCalledWith([
+      baseItem,
+      { description: "Hour of design work", qty: "1", unitPriceText: "120.00", gstRate: 0 },
+    ]);
+  });
+
+  // Regression: confirmDeleteEntry's catch block was previously untested, and
+  // the toast it used to fire is invisible behind this Sheet's Modal on iOS.
+  describe("when the delete rejects", () => {
+    it("keeps the row armed and shows the failure inline instead of a toast", async () => {
+      const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+      mockDeleteMutateAsync.mockRejectedValueOnce(new Error("offline"));
+      const utils = openSheet(renderSection([baseItem]));
+      fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+      await act(async () => {
+        fireEvent.press(utils.getByLabelText("Confirm remove Hour of design work"));
+      });
+      expect(utils.getByLabelText("Confirm remove Hour of design work")).toBeTruthy();
+      expect(utils.getByText("Couldn't remove — try again")).toBeTruthy();
+      expect(mockToastShow).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it("clears the failure message and lets the user retry after cancelling", async () => {
+      mockDeleteMutateAsync.mockRejectedValueOnce(new Error("offline"));
+      const utils = openSheet(renderSection([baseItem]));
+      fireEvent.press(utils.getByLabelText("Remove Hour of design work"));
+      await act(async () => {
+        fireEvent.press(utils.getByLabelText("Confirm remove Hour of design work"));
+      });
+      fireEvent.press(utils.getByLabelText("Cancel remove Hour of design work"));
+      expect(utils.queryByText("Couldn't remove — try again")).toBeNull();
+      expect(utils.getByLabelText("Remove Hour of design work")).toBeTruthy();
+    });
   });
 });

@@ -1,10 +1,13 @@
 import type { ExpoConfig } from "expo/config";
+// Single source of truth for the marketing version: bump it in package.json
+// (typically via `npm run release`) and it flows into the native build here.
+import pkg from "./package.json";
 
 const config: ExpoConfig = {
   name: "Folio",
   slug: "folio",
   scheme: "folio",
-  version: "1.0.1",
+  version: pkg.version,
   // OTA channel binds to the store version; bumping `version` cuts a fresh
   // runtime so old binaries don't pick up incompatible JS bundles.
   runtimeVersion: { policy: "appVersion" },
@@ -54,6 +57,7 @@ const config: ExpoConfig = {
     "expo-local-authentication",
     "expo-apple-authentication",
     "expo-web-browser",
+    "expo-font",
     [
       "@react-native-google-signin/google-signin",
       { iosUrlScheme: "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k" },

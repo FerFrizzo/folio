@@ -8,6 +8,8 @@ import { Button } from "@/src/components/ui/Button";
 import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
 import { DateInput } from "@/src/components/ui/DateInput";
 import { IconButton } from "@/src/components/ui/IconButton";
+import { Input } from "@/src/components/ui/Input";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { Select } from "@/src/components/ui/Select";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useToast } from "@/src/components/ui/Toast";
@@ -20,8 +22,10 @@ import { PaymentSection } from "@/src/features/invoices/sections/PaymentSection"
 import { NotesSection } from "@/src/features/invoices/sections/NotesSection";
 import { InvoiceDiscountEditor } from "@/src/features/invoices/InvoiceDiscountEditor";
 import {
+  useCheckNumberExists,
   useCreateDraft,
   useMarkSent,
+  useSetDraftNumber,
   useUpdateDraft,
 } from "@/src/features/invoices/queries";
 import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
@@ -89,11 +93,19 @@ export function InvoiceEditor({ initial }: Props) {
   const createDraft = useCreateDraft();
   const updateDraft = useUpdateDraft();
   const markSent = useMarkSent();
+  const setDraftNumber = useSetDraftNumber();
+  const checkNumberExists = useCheckNumberExists();
 
   const isNew = !initial;
+  const allowManualNumber = settings.data?.numbering.allowManualNumber ?? false;
 
   const [draftId, setDraftId] = useState<string | null>(initial?.id ?? null);
   const [number, setNumber] = useState<string>(initial?.number ?? "DRAFT");
+  // Tracks whether the user hand-edited the number, so autosave/create don't
+  // clobber it with the "DRAFT" placeholder and we know to persist it.
+  const numberEditedRef = useRef(false);
+  // Set when a Save & Send is paused on a duplicate-number confirmation.
+  const [pendingSendId, setPendingSendId] = useState<string | null>(null);
   const [currency, setCurrency] = useState<CurrencyCode>(
     initial?.currency ?? "AUD",
   );
@@ -112,7 +124,7 @@ export function InvoiceEditor({ initial }: Props) {
         description: "",
         qty: "1",
         unitPriceText: "",
-        gstRate: settings.data?.defaultGstRate ?? 0.1,
+        gstRate: settings.data?.defaultGstRate ?? 0,
       },
     ],
   );
@@ -236,13 +248,27 @@ export function InvoiceEditor({ initial }: Props) {
       }
       const created = await createDraft.mutateAsync(buildDraftInput());
       setDraftId(created.id);
-      setNumber(created.number);
+      // Don't stomp a number the user is typing with the "DRAFT" placeholder.
+      if (!numberEditedRef.current) setNumber(created.number);
       setSavingState("saved");
       return created.id;
     } catch (err) {
       setSavingState("idle");
       throw err;
     }
+  }
+
+  function onChangeNumber(v: string) {
+    numberEditedRef.current = true;
+    setNumber(v);
+  }
+
+  // Persist a hand-typed number onto the draft so markSent keeps it. Empty
+  // reverts to auto ("DRAFT"). No-op unless the setting is on and the user
+  // actually edited the field.
+  async function persistManualNumberIfNeeded(id: string) {
+    if (!allowManualNumber || !numberEditedRef.current) return;
+    await setDraftNumber.mutateAsync({ id, number });
   }
 
   function validate(): string | null {
@@ -262,6 +288,7 @@ export function InvoiceEditor({ initial }: Props) {
     setSubmitting(true);
     try {
       const id = await persistDraft();
+      await persistManualNumberIfNeeded(id);
       router.replace(`/invoices/${id}`);
     } catch (err) {
       console.error(err);
@@ -287,7 +314,35 @@ export function InvoiceEditor({ initial }: Props) {
     setSubmitting(true);
     try {
       const id = await persistDraft();
+      await persistManualNumberIfNeeded(id);
+      // Warn (don't block) if a manual number clashes with another invoice.
+      const manual = number.trim();
+      if (
+        allowManualNumber &&
+        numberEditedRef.current &&
+        manual !== "" &&
+        manual !== "DRAFT" &&
+        (await checkNumberExists(manual, id))
+      ) {
+        setSubmitting(false);
+        setPendingSendId(id);
+        return;
+      }
+      await doSend(id);
+    } catch (err) {
+      setSubmitting(false);
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't send.",
+        variant: "error",
+      });
+    }
+  }
+
+  async function doSend(id: string) {
+    setSubmitting(true);
+    try {
       const { number: claimed } = await markSent.mutateAsync({ id });
+      setNumber(claimed);
       const sentInvoice: Invoice = {
         ...(initial ?? ({} as Invoice)),
         id,
@@ -328,9 +383,9 @@ export function InvoiceEditor({ initial }: Props) {
           gstRegistered: true,
         },
         settings: settings.data ?? {
-          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0 },
+          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
           lineItemMode: "basic",
-          defaultGstRate: 0.1,
+          defaultGstRate: 0,
           defaultPaymentTermsDays: 14,
           defaultCurrency: "AUD",
           paymentDetails: {},
@@ -364,8 +419,18 @@ export function InvoiceEditor({ initial }: Props) {
             accessibilityLabel="Close"
             onPress={() => router.back()}
           />
-          <View>
-            <Text className="text-h2 text-foreground">{number}</Text>
+          <View className={allowManualNumber ? "w-44" : undefined}>
+            {allowManualNumber ? (
+              <Input
+                value={number === "DRAFT" ? "" : number}
+                onChangeText={onChangeNumber}
+                placeholder="DRAFT"
+                autoCapitalize="characters"
+                accessibilityLabel="Invoice number"
+              />
+            ) : (
+              <Text className="text-h2 text-foreground">{number}</Text>
+            )}
             {savingState !== "idle" && (
               <Text className="text-caption text-muted">
                 {savingState === "saving" ? "Saving…" : "Saved"}
@@ -448,7 +513,7 @@ export function InvoiceEditor({ initial }: Props) {
             onChange={setItems}
             currency={currency}
             exportMode={exportMode}
-            defaultGstRate={settings.data?.defaultGstRate ?? 0.1}
+            defaultGstRate={settings.data?.defaultGstRate ?? 0}
             computedLineTotalsCents={computed.lines.map((l) => l.lineTotalCents)}
           />
         </CollapsibleCard>
@@ -504,6 +569,19 @@ export function InvoiceEditor({ initial }: Props) {
           </View>
         </View>
       </View>
+
+      <ConfirmDialog
+        visible={pendingSendId !== null}
+        title="Number already used"
+        description={`${number} is already used by another invoice. Send with this number anyway?`}
+        confirmLabel="Send anyway"
+        onCancel={() => setPendingSendId(null)}
+        onConfirm={() => {
+          const id = pendingSendId;
+          setPendingSendId(null);
+          if (id) void doSend(id);
+        }}
+      />
     </View>
   );
 }

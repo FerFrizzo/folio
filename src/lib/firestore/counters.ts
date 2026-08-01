@@ -56,6 +56,29 @@ export async function claimNextInvoiceNumberInTransaction(
   };
 }
 
+// Keep the auto counter ahead of a manually-set number so the next auto
+// invoice never goes backwards or collides. No-op if the counter is already
+// >= n. Compose inside markSent / updateInvoiceNumber transactions.
+export async function ensureInvoiceCounterAtLeastInTransaction(
+  tx: Transaction,
+  uid: string,
+  n: number,
+): Promise<void> {
+  if (!Number.isFinite(n) || n < 1) return;
+  const db = getFirebaseFirestore();
+  const ref = doc(db, fsPaths.counters(uid));
+  const snap = await tx.get(ref);
+  const current = snap.exists()
+    ? CounterDocSchema.parse(snap.data())
+    : CounterDocSchema.parse({});
+  if (current.invoiceCounter >= n) return;
+  if (snap.exists()) {
+    tx.update(ref, { invoiceCounter: n });
+  } else {
+    tx.set(ref, { ...current, invoiceCounter: n });
+  }
+}
+
 export async function claimNextCreditNoteNumberInTransaction(
   tx: Transaction,
   uid: string,

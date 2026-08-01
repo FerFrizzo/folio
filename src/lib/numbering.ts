@@ -18,3 +18,14 @@ export function formatAutoNumber({
   const padded = String(counter).padStart(minDigits, "0");
   return `${prefix}${padded}`;
 }
+
+// Inverse of formatAutoNumber: if `value` is `${prefix}${digits}` return the
+// integer sequence, else null (e.g. a manual number that doesn't match the
+// prefix/format — we then leave the auto counter untouched).
+export function parseAutoNumber(value: string, prefix: string): number | null {
+  if (!value.startsWith(prefix)) return null;
+  const rest = value.slice(prefix.length);
+  if (rest.length === 0 || !/^\d+$/.test(rest)) return null;
+  const n = Number(rest);
+  return Number.isSafeInteger(n) ? n : null;
+}

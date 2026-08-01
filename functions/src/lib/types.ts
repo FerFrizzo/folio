@@ -53,7 +53,7 @@ export const SettingsSchema = z.object({
     counter: 0,
   }),
   lineItemMode: z.enum(["basic", "units"]).default("basic"),
-  defaultGstRate: z.number().min(0).max(1).default(0.1),
+  defaultGstRate: z.number().min(0).max(1).default(0),
   defaultPaymentTermsDays: z.number().int().nonnegative().default(14),
   defaultCurrency: CurrencyCodeSchema.default("AUD"),
   paymentDetails: PaymentDetailsSchema.default({}),
