@@ -7,8 +7,10 @@ import { Button } from "@/src/components/ui/Button";
 import { Switch } from "@/src/components/ui/Switch";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { useToast } from "@/src/components/ui/Toast";
-import { formatAutoNumber } from "@/src/lib/numbering";
+import { suggestNextInvoiceNumber } from "@/src/lib/numbering";
 import {
+  useInvoiceCounter,
+  useSetInvoiceCounter,
   useSettings,
   useSetSettings,
 } from "@/src/features/settings/queries";
@@ -19,6 +21,10 @@ import { errorMessage } from "@/src/lib/zod-message";
 export function NumberingCard() {
   const settings = useSettings();
   const setSettings = useSetSettings();
+  // The live allocation counter. settings.numbering.counter is a legacy field
+  // that nothing in the allocation path reads — see counters.ts.
+  const invoiceCounter = useInvoiceCounter();
+  const setInvoiceCounter = useSetInvoiceCounter();
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton();
 
@@ -32,16 +38,20 @@ export function NumberingCard() {
     if (!settings.data) return;
     setPrefix(settings.data.numbering.prefix);
     setMinDigitsText(String(settings.data.numbering.minDigits));
-    setCounterText(String(settings.data.numbering.counter));
     setAllowManualNumber(settings.data.numbering.allowManualNumber);
   }, [settings.data]);
+
+  useEffect(() => {
+    if (invoiceCounter.data === undefined) return;
+    setCounterText(String(invoiceCounter.data));
+  }, [invoiceCounter.data]);
 
   const minDigitsParsed = Math.max(3, Math.min(6, Number(minDigitsText) || 4));
   const counterParsed = Math.max(0, Math.floor(Number(counterText) || 0));
 
-  const preview = formatAutoNumber({
+  const preview = suggestNextInvoiceNumber({
     prefix,
-    counter: counterParsed + 1,
+    counter: counterParsed,
     minDigits: minDigitsParsed,
   });
 
@@ -54,11 +64,11 @@ export function NumberingCard() {
           ...settings.data.numbering,
           prefix,
           minDigits: minDigitsParsed,
-          counter: counterParsed,
           allowManualNumber,
         },
       });
       await setSettings.mutateAsync(next);
+      await setInvoiceCounter.mutateAsync(counterParsed);
       triggerSuccess();
     } catch (err) {
       console.error(err);
@@ -71,17 +81,17 @@ export function NumberingCard() {
 
   async function performReset() {
     setConfirmReset(false);
-    if (!settings.data) return;
-    const next = SettingsSchema.parse({
-      ...settings.data,
-      numbering: {
-        ...settings.data.numbering,
-        counter: 0,
-      },
-    });
-    await setSettings.mutateAsync(next);
-    setCounterText("0");
-    toast.show({ message: "Counter reset.", variant: "info" });
+    try {
+      await setInvoiceCounter.mutateAsync(0);
+      setCounterText("0");
+      toast.show({ message: "Counter reset.", variant: "info" });
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't reset."),
+        variant: "error",
+      });
+    }
   }
 
   return (

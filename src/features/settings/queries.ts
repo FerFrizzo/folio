@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/src/features/auth/AuthProvider";
 import { getProfile, setProfile } from "@/src/lib/firestore/profile";
 import { getSettings, setSettings } from "@/src/lib/firestore/settings";
+import { getInvoiceCounter, setInvoiceCounter } from "@/src/lib/firestore/counters";
 import { getSubscription } from "@/src/lib/firestore/subscription";
 import { ProfileSchema, type Profile, type Settings, type Subscription } from "@/src/types/schemas";
 
@@ -11,6 +12,10 @@ const profileKeys = {
 
 const settingsKeys = {
   detail: (uid: string) => ["settings", uid] as const,
+};
+
+const counterKeys = {
+  invoice: (uid: string) => ["counters", "invoice", uid] as const,
 };
 
 export function useProfile() {
@@ -98,4 +103,34 @@ export function useProfileWithDefaults() {
     ...q,
     data: q.data ?? ProfileSchema.parse({}),
   };
+}
+
+// ---------- invoice counter ----------
+
+// The live allocation counter (counters/main). Read directly rather than through
+// settings.numbering.counter, which nothing in the allocation path reads.
+export function useInvoiceCounter() {
+  const auth = useAuth();
+  const uid = auth.status === "ready" ? auth.user.uid : null;
+  return useQuery<number>({
+    queryKey: counterKeys.invoice(uid ?? "anon"),
+    enabled: !!uid,
+    queryFn: () => getInvoiceCounter(uid as string),
+  });
+}
+
+export function useSetInvoiceCounter() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (value: number) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return setInvoiceCounter(auth.user.uid, value);
+    },
+    onSuccess: () => {
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: counterKeys.invoice(auth.user.uid) });
+      }
+    },
+  });
 }

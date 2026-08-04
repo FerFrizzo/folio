@@ -1,4 +1,10 @@
-import { doc, runTransaction, type Transaction } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  setDoc,
+  type Transaction,
+} from "firebase/firestore";
 import { getFirebaseFirestore } from "@/src/lib/firebase";
 import { fsPaths } from "@/src/lib/firestore/paths";
 import { formatAutoNumber } from "@/src/lib/numbering";
@@ -107,4 +113,30 @@ export async function claimNextCreditNoteNumberInTransaction(
       minDigits: opts.minDigits ?? 4,
     }),
   };
+}
+
+// ---------- plain reads/writes (settings UI, editor suggestion) ----------
+
+// The invoice counter as it stands right now. This is the value the allocation
+// transaction reads, unlike settings.numbering.counter, which nothing reads.
+// Advisory for callers: by the time an invoice is sent, markSent claims inside
+// a transaction, so a stale read here only makes a stale suggestion.
+export async function getInvoiceCounter(uid: string): Promise<number> {
+  const db = getFirebaseFirestore();
+  const snap = await getDoc(doc(db, fsPaths.counters(uid)));
+  if (!snap.exists()) return 0;
+  return CounterDocSchema.parse(snap.data()).invoiceCounter;
+}
+
+// Set the counter directly — used by the Settings numbering card, where the
+// user is deliberately choosing where the sequence resumes. Merges so the
+// credit-note counter in the same document is left alone.
+export async function setInvoiceCounter(uid: string, value: number): Promise<void> {
+  const db = getFirebaseFirestore();
+  const invoiceCounter = Math.max(0, Math.floor(value));
+  await setDoc(
+    doc(db, fsPaths.counters(uid)),
+    { invoiceCounter },
+    { merge: true },
+  );
 }
