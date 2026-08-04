@@ -65,8 +65,12 @@ export async function createLibraryEntry(
     ...input,
     createdAt: nowIso(),
   };
+  // Validate before writing — see createDraft. Both callers reject a blank
+  // description today, so this is latent rather than live, but the ordering is
+  // the same defect: a failed parse after setDoc leaves an unreadable document.
+  const entry = LineItemLibraryEntrySchema.parse({ id: ref.id, ...data });
   await setDoc(ref, data);
-  return LineItemLibraryEntrySchema.parse({ id: ref.id, ...data });
+  return entry;
 }
 
 export async function updateLibraryEntry(
