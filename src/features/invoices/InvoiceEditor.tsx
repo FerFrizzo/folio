@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
@@ -21,6 +29,7 @@ import {
 import { PaymentSection } from "@/src/features/invoices/sections/PaymentSection";
 import { NotesSection } from "@/src/features/invoices/sections/NotesSection";
 import { InvoiceDiscountEditor } from "@/src/features/invoices/InvoiceDiscountEditor";
+import { InvoicePreviewModal } from "@/src/features/invoices/InvoicePreviewModal";
 import {
   useCheckNumberExists,
   useCreateDraft,
@@ -28,10 +37,21 @@ import {
   useSetDraftNumber,
   useUpdateDraft,
 } from "@/src/features/invoices/queries";
-import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
+import {
+  useInvoiceCounter,
+  useProfile,
+  useSettings,
+  useEntitlement,
+} from "@/src/features/settings/queries";
+import {
+  displayInvoiceNumber,
+  shouldPersistNumber,
+  suggestNextInvoiceNumber,
+} from "@/src/lib/numbering";
 import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
+import { invoiceFromEditorState } from "@/src/lib/invoice-preview";
 import { draftBlocker, sendBlocker } from "@/src/lib/invoice-validation";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
@@ -42,6 +62,8 @@ import type {
   Invoice,
   InvoiceDraftInput,
   PaymentDetails,
+  Profile,
+  Settings,
 } from "@/src/types/schemas";
 
 type Props = {
@@ -55,6 +77,29 @@ const CURRENCY_OPTIONS: { value: CurrencyCode; label: string }[] = [
   { value: "GBP", label: "GBP — British pound" },
   { value: "NZD", label: "NZD — New Zealand dollar" },
 ];
+
+// Used only while profile/settings are still loading, so the preview and the
+// sent PDF degrade the same way instead of each inventing its own defaults.
+const EMPTY_PROFILE: Profile = {
+  businessName: "",
+  abn: "",
+  address: "",
+  email: "",
+  phone: "",
+  gstRegistered: true,
+};
+
+const EMPTY_SETTINGS: Settings = {
+  numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
+  lineItemMode: "basic",
+  defaultGstRate: 0,
+  defaultPaymentTermsDays: 14,
+  defaultCurrency: "AUD",
+  paymentDetails: {},
+  emailDefaults: { subject: "", body: "" },
+  themeMode: "system",
+  biometricEnabled: false,
+};
 
 function dollarsToCents(text: string): number {
   if (!text) return 0;
@@ -100,6 +145,17 @@ export function InvoiceEditor({ initial }: Props) {
 
   const isNew = !initial;
   const allowManualNumber = settings.data?.numbering.allowManualNumber ?? false;
+  // Read the live allocation counter so the header can show the number this
+  // invoice would actually be issued, instead of the "DRAFT" sentinel.
+  const invoiceCounter = useInvoiceCounter();
+  const suggestion =
+    settings.data && invoiceCounter.data !== undefined
+      ? suggestNextInvoiceNumber({
+          prefix: settings.data.numbering.prefix,
+          counter: invoiceCounter.data,
+          minDigits: settings.data.numbering.minDigits,
+        })
+      : null;
 
   const [draftId, setDraftId] = useState<string | null>(initial?.id ?? null);
   const [number, setNumber] = useState<string>(initial?.number ?? "DRAFT");
@@ -108,6 +164,7 @@ export function InvoiceEditor({ initial }: Props) {
   const numberEditedRef = useRef(false);
   // Set when a Save & Send is paused on a duplicate-number confirmation.
   const [pendingSendId, setPendingSendId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [currency, setCurrency] = useState<CurrencyCode>(
     initial?.currency ?? "AUD",
   );
@@ -265,12 +322,51 @@ export function InvoiceEditor({ initial }: Props) {
     setNumber(v);
   }
 
-  // Persist a hand-typed number onto the draft so markSent keeps it. Empty
-  // reverts to auto ("DRAFT"). No-op unless the setting is on and the user
-  // actually edited the field.
+  // Persist a hand-typed number onto the draft so markSent keeps it. Skipped
+  // when the value is just the suggestion the user accepted — see
+  // shouldPersistNumber: anything written here makes markSent take its manual
+  // branch and skip the atomic claim.
   async function persistManualNumberIfNeeded(id: string) {
-    if (!allowManualNumber || !numberEditedRef.current) return;
+    if (
+      !shouldPersistNumber({
+        allowManualNumber,
+        edited: numberEditedRef.current,
+        typed: number,
+        suggestion,
+      })
+    ) {
+      return;
+    }
     await setDraftNumber.mutateAsync({ id, number });
+  }
+
+  // One mapping from editor state to an Invoice, shared by Save & Send and the
+  // preview, so what the user previews is what actually gets rendered on send.
+  function buildInvoice(args: {
+    id: string;
+    number: string;
+    status: Invoice["status"];
+    now: string;
+    sentAt?: string;
+  }): Invoice {
+    return invoiceFromEditorState({
+      id: args.id,
+      number: args.number,
+      status: args.status,
+      currency,
+      clientId,
+      clientSnapshot,
+      issueDate,
+      dueDate,
+      lineItems: computed.lines,
+      invoiceDiscount,
+      totals: computed.totals,
+      notes,
+      paymentInstructionsSnapshot: (settings.data?.paymentDetails ?? {}) as PaymentDetails,
+      createdAt: initial?.createdAt ?? args.now,
+      updatedAt: args.now,
+      ...(args.sentAt ? { sentAt: args.sentAt } : {}),
+    });
   }
 
   function validate(): string | null {
@@ -356,56 +452,18 @@ export function InvoiceEditor({ initial }: Props) {
     try {
       const { number: claimed } = await markSent.mutateAsync({ id });
       setNumber(claimed);
+      const now = new Date().toISOString();
+      // Spread `initial` first so fields the editor doesn't own (pdfUrl, paidAt)
+      // survive; the built object supplies everything the editor does own.
       const sentInvoice: Invoice = {
         ...(initial ?? ({} as Invoice)),
-        id,
-        number: claimed,
-        status: "sent",
-        currency,
-        clientId,
-        clientSnapshot,
-        issueDate,
-        dueDate,
-        lineItems: computed.lines,
-        ...(invoiceDiscount ? { invoiceDiscount } : {}),
-        subtotalCents: computed.totals.subtotalCents,
-        lineDiscountTotalCents: computed.totals.lineDiscountTotalCents,
-        invoiceDiscountTotalCents: computed.totals.invoiceDiscountTotalCents,
-        discountTotalCents: computed.totals.discountTotalCents,
-        gstTotalCents: computed.totals.gstTotalCents,
-        totalCents: computed.totals.totalCents,
-        amountPaidCents: 0,
-        balanceCents: computed.totals.totalCents,
-        payments: [],
-        notes,
-        paymentInstructionsSnapshot: (settings.data?.paymentDetails ?? {}) as PaymentDetails,
-        creditNoteIds: [],
-        createdAt: initial?.createdAt ?? new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        sentAt: new Date().toISOString(),
+        ...buildInvoice({ id, number: claimed, status: "sent", now, sentAt: now }),
       };
       const pdf = await generateInvoicePdf({
         invoice: sentInvoice,
         isPro,
-        profile: profile.data ?? {
-          businessName: "",
-          abn: "",
-          address: "",
-          email: "",
-          phone: "",
-          gstRegistered: true,
-        },
-        settings: settings.data ?? {
-          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
-          lineItemMode: "basic",
-          defaultGstRate: 0,
-          defaultPaymentTermsDays: 14,
-          defaultCurrency: "AUD",
-          paymentDetails: {},
-          emailDefaults: { subject: "", body: "" },
-          themeMode: "system",
-          biometricEnabled: false,
-        },
+        profile: profile.data ?? EMPTY_PROFILE,
+        settings: settings.data ?? EMPTY_SETTINGS,
       });
       await shareInvoicePdf(pdf.uri, `${claimed}.pdf`);
       triggerSendSuccess();
@@ -419,6 +477,13 @@ export function InvoiceEditor({ initial }: Props) {
       setSubmitting(false);
     }
   }
+
+  const shownNumber = displayInvoiceNumber({
+    stored: number,
+    edited: numberEditedRef.current,
+    typed: number,
+    suggestion,
+  });
 
   return (
     <View className="flex-1 bg-background">
@@ -435,23 +500,33 @@ export function InvoiceEditor({ initial }: Props) {
           <View className={allowManualNumber ? "w-44" : undefined}>
             {allowManualNumber ? (
               <Input
-                value={number === "DRAFT" ? "" : number}
+                value={shownNumber}
                 onChangeText={onChangeNumber}
                 placeholder="DRAFT"
                 autoCapitalize="characters"
                 accessibilityLabel="Invoice number"
               />
             ) : (
-              <Text className="text-h2 text-foreground">{number}</Text>
+              <Text className="text-h2 text-foreground">{shownNumber}</Text>
             )}
-            {savingState !== "idle" && (
+            {savingState !== "idle" ? (
               <Text className="text-caption text-muted">
                 {savingState === "saving" ? "Saving…" : "Saved"}
               </Text>
-            )}
+            ) : null}
           </View>
         </View>
-        <StatusBadge status="draft" />
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={() => setPreviewOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Preview invoice"
+            className="rounded-chip border border-border bg-surface px-3 py-1 active:bg-background"
+          >
+            <Text className="text-label font-semibold text-foreground">Preview</Text>
+          </Pressable>
+          <StatusBadge status="draft" />
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -582,6 +657,24 @@ export function InvoiceEditor({ initial }: Props) {
           </View>
         </View>
       </View>
+
+      {/* Built only while open — otherwise every keystroke in the editor would
+          re-assemble the invoice and re-render the template for nothing. */}
+      {previewOpen ? (
+        <InvoicePreviewModal
+          visible
+          onClose={() => setPreviewOpen(false)}
+          invoice={buildInvoice({
+            id: draftId ?? "preview",
+            number: shownNumber || "DRAFT",
+            status: "draft",
+            now: new Date().toISOString(),
+          })}
+          profile={profile.data ?? EMPTY_PROFILE}
+          settings={settings.data ?? EMPTY_SETTINGS}
+          isPro={isPro}
+        />
+      ) : null}
 
       <ConfirmDialog
         visible={pendingSendId !== null}

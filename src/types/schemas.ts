@@ -38,6 +38,8 @@ export const NumberingSchema = z.object({
   prefix: z.string().default("INV-"),
   // Pad width for auto numbering: "INV-0001" → 4. Min 3, max 6.
   minDigits: z.number().int().min(3).max(6).default(4),
+  // Legacy. The allocation counter lives in counters/main (see counters.ts);
+  // nothing reads this any more. Kept so stored settings documents still parse.
   counter: z.number().int().nonnegative().default(0),
   customFormat: z.string().optional(),
   // When true, invoice numbers can be typed/corrected by hand in the editor
