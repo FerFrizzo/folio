@@ -11,6 +11,7 @@ import {
 } from "@/src/features/settings/queries";
 import { SettingsSchema } from "@/src/types/schemas";
 import { useSuccessButton } from "@/lib/useSuccessButton";
+import { errorMessage } from "@/src/lib/zod-message";
 
 export function EmailDefaultsCard() {
   const settings = useSettings();
@@ -46,7 +47,7 @@ export function EmailDefaultsCard() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save.",
+        message: errorMessage(err, "Couldn't save."),
         variant: "error",
       });
     }

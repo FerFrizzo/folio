@@ -8,6 +8,8 @@ import { IconButton } from "@/src/components/ui/IconButton";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { useToast } from "@/src/components/ui/Toast";
+import { readLibraryEntryInput } from "@/src/lib/library-entry";
+import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import type { CurrencyCode, Discount } from "@/src/types/schemas";
 import {
@@ -91,17 +93,19 @@ export function ItemsSection({
 
   async function saveToLibrary(index: number) {
     const item = items[index];
-    if (!item || !item.description.trim()) {
-      toast.show({ message: "Add a description first.", variant: "error" });
+    if (!item) return;
+    const parsed = readLibraryEntryInput({
+      description: item.description,
+      qty: item.qty,
+      unitPriceText: item.unitPriceText,
+    });
+    if (!parsed.ok) {
+      toast.show({ message: parsed.message, variant: "error" });
       return;
     }
-    const unitPriceCents = Math.round(Number(item.unitPriceText) * 100) || 0;
-    const qty = Number(item.qty) || 1;
     try {
       await createLibraryEntry.mutateAsync({
-        description: item.description.trim(),
-        defaultQty: qty,
-        unitPriceCents,
+        ...parsed.entry,
         gstRate: item.gstRate,
       });
       // Confirm the save — without it the icon tap looks like a no-op.
@@ -109,7 +113,7 @@ export function ItemsSection({
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save.",
+        message: errorMessage(err, "Couldn't save."),
         variant: "error",
       });
     }

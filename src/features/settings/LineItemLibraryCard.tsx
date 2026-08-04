@@ -9,6 +9,8 @@ import { Input } from "@/src/components/ui/Input";
 import { NumberInput } from "@/src/components/ui/NumberInput";
 import { useToast } from "@/src/components/ui/Toast";
 import { useSuccessButton } from "@/lib/useSuccessButton";
+import { readLibraryEntryInput } from "@/src/lib/library-entry";
+import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import {
   useCreateLibraryEntry,
@@ -32,17 +34,14 @@ export function LineItemLibraryCard() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   async function add() {
-    if (!description.trim()) {
-      toast.show({ message: "Add a description first.", variant: "error" });
+    const parsed = readLibraryEntryInput({ description, qty, unitPriceText });
+    if (!parsed.ok) {
+      toast.show({ message: parsed.message, variant: "error" });
       return;
     }
-    const unitPriceCents = Math.round(Number(unitPriceText) * 100) || 0;
-    const defaultQty = Number(qty) || 1;
     try {
       await create.mutateAsync({
-        description: description.trim(),
-        defaultQty,
-        unitPriceCents,
+        ...parsed.entry,
         gstRate: settings.data?.defaultGstRate ?? 0,
       });
       setAdding(false);
@@ -53,7 +52,7 @@ export function LineItemLibraryCard() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save.",
+        message: errorMessage(err, "Couldn't save."),
         variant: "error",
       });
     }
@@ -73,7 +72,7 @@ export function LineItemLibraryCard() {
       // gets.
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't remove.",
+        message: errorMessage(err, "Couldn't remove."),
         variant: "error",
       });
     }

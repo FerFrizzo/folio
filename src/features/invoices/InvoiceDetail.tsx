@@ -28,6 +28,7 @@ import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
 import { PaymentsLog } from "@/src/features/invoices/PaymentsLog";
 import { SendEmailSheet } from "@/src/features/invoices/SendEmailSheet";
 import type { Invoice } from "@/src/types/schemas";
+import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   invoice: Invoice;
@@ -96,7 +97,7 @@ export function InvoiceDetail({ invoice }: Props) {
         if (!cancelled) {
           console.error(err);
           toast.show({
-            message: err instanceof Error ? err.message : "PDF failed.",
+            message: errorMessage(err, "PDF failed."),
             variant: "error",
           });
         }
@@ -123,7 +124,7 @@ export function InvoiceDetail({ invoice }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't share.",
+        message: errorMessage(err, "Couldn't share."),
         variant: "error",
       });
     } finally {
@@ -148,7 +149,7 @@ export function InvoiceDetail({ invoice }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't duplicate.",
+        message: errorMessage(err, "Couldn't duplicate."),
         variant: "error",
       });
     }
@@ -163,7 +164,7 @@ export function InvoiceDetail({ invoice }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't archive.",
+        message: errorMessage(err, "Couldn't archive."),
         variant: "error",
       });
     }
@@ -184,7 +185,7 @@ export function InvoiceDetail({ invoice }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't mark paid.",
+        message: errorMessage(err, "Couldn't mark paid."),
         variant: "error",
       });
     }
@@ -227,7 +228,7 @@ export function InvoiceDetail({ invoice }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't update number.",
+        message: errorMessage(err, "Couldn't update number."),
         variant: "error",
       });
     } finally {

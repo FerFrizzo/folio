@@ -12,6 +12,7 @@ import { useSuccessButton } from "@/lib/useSuccessButton";
 import { useRecordPayment } from "@/src/features/invoices/queries";
 import type { Invoice } from "@/src/types/schemas";
 import { formatMoney } from "@/src/lib/money";
+import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   invoice: Invoice | null;
@@ -89,7 +90,7 @@ export function PaymentSheet({ invoice, onClose }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't record.",
+        message: errorMessage(err, "Couldn't record."),
         variant: "error",
       });
     }

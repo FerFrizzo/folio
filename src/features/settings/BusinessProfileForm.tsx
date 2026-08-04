@@ -14,6 +14,7 @@ import {
 } from "@/src/types/schemas";
 import { useProfile, useSetProfile } from "@/src/features/settings/queries";
 import { useSuccessButton } from "@/lib/useSuccessButton";
+import { errorMessage } from "@/src/lib/zod-message";
 
 const BusinessSchema = ProfileSchema.extend({
   abn: z.string().refine((v) => v === "" || isValidAbn(v), {
@@ -69,7 +70,7 @@ export function BusinessProfileForm() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save profile.",
+        message: errorMessage(err, "Couldn't save profile."),
         variant: "error",
       });
     }
