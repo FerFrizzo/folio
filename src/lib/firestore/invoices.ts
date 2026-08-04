@@ -119,8 +119,13 @@ export async function createDraft(
     createdAt,
     updatedAt: createdAt,
   };
+  // Validate before writing, the way createClient does. Parsing after the write
+  // meant an invalid draft was persisted and *then* threw, leaving a document
+  // that no read path can parse — toInvoice safeParses and returns null, so the
+  // invoice was invisible in the list forever.
+  const invoice = InvoiceSchema.parse({ id: ref.id, ...data });
   await setDoc(ref, data);
-  return InvoiceSchema.parse({ id: ref.id, ...data });
+  return invoice;
 }
 
 export async function updateDraft(

@@ -8,6 +8,7 @@ import { useToast } from "@/src/components/ui/Toast";
 import { formatMoney } from "@/src/lib/money";
 import { useRemovePayment } from "@/src/features/invoices/queries";
 import type { Invoice } from "@/src/types/schemas";
+import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   invoice: Invoice;
@@ -39,7 +40,7 @@ export function PaymentsLog({ invoice }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't remove.",
+        message: errorMessage(err, "Couldn't remove."),
         variant: "error",
       });
     }

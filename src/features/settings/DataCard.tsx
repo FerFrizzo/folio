@@ -10,6 +10,7 @@ import { exportCsvZip, exportPdfZip } from "@/src/lib/exports/runExports";
 import { callExportPdfsZip } from "@/src/features/invoices/sendEmail";
 import { useRouter } from "expo-router";
 import { useInvoiceListStore } from "@/src/features/invoices/store";
+import { errorMessage } from "@/src/lib/zod-message";
 
 const SERVER_EXPORT_THRESHOLD = 50;
 
@@ -42,7 +43,7 @@ export function DataCard() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Export failed.",
+        message: errorMessage(err, "Export failed."),
         variant: "error",
       });
     } finally {
@@ -100,7 +101,7 @@ export function DataCard() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Export failed.",
+        message: errorMessage(err, "Export failed."),
         variant: "error",
       });
     } finally {

@@ -33,6 +33,7 @@ import {
   useRestoreInvoice,
 } from "@/src/features/invoices/queries";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
+import { errorMessage } from "@/src/lib/zod-message";
 
 const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -120,7 +121,7 @@ export default function InvoicesScreen() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't delete.",
+        message: errorMessage(err, "Couldn't delete."),
         variant: "error",
       });
     }

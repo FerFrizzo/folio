@@ -16,6 +16,7 @@ import { useInvoice } from "@/src/features/invoices/queries";
 import { useCreateCreditNote } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import { generateCreditNotePdf, shareCreditNotePdf } from "@/src/lib/pdf/generate-credit-note";
+import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import type {
   CreditNoteLineItem,
@@ -178,7 +179,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't issue.",
+        message: errorMessage(err, "Couldn't issue."),
         variant: "error",
       });
     } finally {

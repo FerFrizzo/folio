@@ -17,6 +17,7 @@ import {
 import { substituteEmailVars } from "@/src/lib/templating";
 import { formatMoney } from "@/src/lib/money";
 import type { Invoice } from "@/src/types/schemas";
+import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   invoice: Invoice | null;
@@ -156,7 +157,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Send failed.",
+        message: errorMessage(err, "Send failed."),
         variant: "error",
       });
     } finally {

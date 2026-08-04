@@ -16,6 +16,7 @@ import {
   useSetSettings,
 } from "@/src/features/settings/queries";
 import { useSuccessButton } from "@/lib/useSuccessButton";
+import { errorMessage } from "@/src/lib/zod-message";
 
 export function PaymentDetailsForm() {
   const settings = useSettings();
@@ -52,7 +53,7 @@ export function PaymentDetailsForm() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save.",
+        message: errorMessage(err, "Couldn't save."),
         variant: "error",
       });
     }

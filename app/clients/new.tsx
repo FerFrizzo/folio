@@ -8,6 +8,7 @@ import { useCreateClient } from "@/src/features/clients/queries";
 import { useToast } from "@/src/components/ui/Toast";
 import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import type { ClientInput } from "@/src/types/schemas";
+import { errorMessage } from "@/src/lib/zod-message";
 
 export default function NewClientScreen() {
   const insets = useSafeAreaInsets();
@@ -25,7 +26,7 @@ export default function NewClientScreen() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't add client.",
+        message: errorMessage(err, "Couldn't add client."),
         variant: "error",
       });
     }

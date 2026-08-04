@@ -8,6 +8,7 @@ import { Button } from "@/src/components/ui/Button";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { useToast } from "@/src/components/ui/Toast";
 import { useAuth, signOut } from "@/src/features/auth/AuthProvider";
+import { errorMessage } from "@/src/lib/zod-message";
 
 const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "https://example.com/privacy";
 const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL ?? "https://example.com/terms";
@@ -30,7 +31,7 @@ export function AboutCard() {
       await Linking.openURL(url);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't open link.",
+        message: errorMessage(err, "Couldn't open link."),
         variant: "error",
       });
     }
@@ -46,7 +47,7 @@ export function AboutCard() {
       toast.show({ message: "Account deleted.", variant: "info" });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't delete account.",
+        message: errorMessage(err, "Couldn't delete account."),
         variant: "error",
       });
     } finally {
@@ -61,7 +62,7 @@ export function AboutCard() {
       toast.show({ message: "Signed out.", variant: "info" });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't sign out.",
+        message: errorMessage(err, "Couldn't sign out."),
         variant: "error",
       });
     }

@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/src/components/ui/Toast";
 import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import type { ClientInput } from "@/src/types/schemas";
+import { errorMessage } from "@/src/lib/zod-message";
 
 export default function EditClientScreen() {
   const insets = useSafeAreaInsets();
@@ -38,7 +39,7 @@ export default function EditClientScreen() {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't save client.",
+        message: errorMessage(err, "Couldn't save client."),
         variant: "error",
       });
     }
