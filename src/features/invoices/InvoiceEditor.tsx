@@ -32,6 +32,8 @@ import { useProfile, useSettings, useEntitlement } from "@/src/features/settings
 import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
+import { draftBlocker, sendBlocker } from "@/src/lib/invoice-validation";
+import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import type {
   ClientSnapshot,
@@ -272,19 +274,34 @@ export function InvoiceEditor({ initial }: Props) {
   }
 
   function validate(): string | null {
-    if (!clientSnapshot.name) return "Pick a client first.";
-    if (items.length === 0) return "Add at least one line item.";
-    if (!issueDate || !dueDate) return "Issue and due dates are required.";
-    if (computed.totals.totalCents <= 0) {
-      return "Total must be greater than zero.";
+    return sendBlocker({
+      clientSnapshot,
+      lineCount: items.length,
+      issueDate,
+      dueDate,
+      totalCents: computed.totals.totalCents,
+      discountTotalCents: computed.totals.discountTotalCents,
+      grossSubtotalCents: computed.totals.grossSubtotalCents,
+    });
+  }
+
+  function showBlocker(title: string, message: string) {
+    if (Platform.OS === "web") {
+      toast.show({ message, variant: "error" });
+    } else {
+      Alert.alert(title, message);
     }
-    if (computed.totals.discountTotalCents > computed.totals.grossSubtotalCents) {
-      return "Total discount can't exceed the subtotal.";
-    }
-    return null;
   }
 
   async function handleSaveDraft() {
+    // Check before persisting: the draft's client name is NON_EMPTY in the
+    // schema, so saving without one used to reach Firestore and come back as a
+    // raw ZodError.
+    const blocked = draftBlocker({ clientSnapshot });
+    if (blocked) {
+      showBlocker("Can't save yet", blocked);
+      return;
+    }
     setSubmitting(true);
     try {
       const id = await persistDraft();
@@ -293,7 +310,7 @@ export function InvoiceEditor({ initial }: Props) {
     } catch (err) {
       console.error(err);
       toast.show({
-        message: err instanceof Error ? err.message : "Save failed.",
+        message: errorMessage(err, "Save failed."),
         variant: "error",
       });
     } finally {
@@ -304,11 +321,7 @@ export function InvoiceEditor({ initial }: Props) {
   async function handleSaveAndSend() {
     const error = validate();
     if (error) {
-      if (Platform.OS === "web") {
-        toast.show({ message: error, variant: "error" });
-      } else {
-        Alert.alert("Can't send yet", error);
-      }
+      showBlocker("Can't send yet", error);
       return;
     }
     setSubmitting(true);
@@ -332,7 +345,7 @@ export function InvoiceEditor({ initial }: Props) {
     } catch (err) {
       setSubmitting(false);
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't send.",
+        message: errorMessage(err, "Couldn't send."),
         variant: "error",
       });
     }
@@ -399,7 +412,7 @@ export function InvoiceEditor({ initial }: Props) {
       router.replace(`/invoices/${id}`);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : "Couldn't send.",
+        message: errorMessage(err, "Couldn't send."),
         variant: "error",
       });
     } finally {
