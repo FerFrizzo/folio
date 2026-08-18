@@ -5,7 +5,9 @@ import { Input } from "@/src/components/ui/Input";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { Button } from "@/src/components/ui/Button";
 import { ListRow } from "@/src/components/ui/ListRow";
+import { useToast } from "@/src/components/ui/Toast";
 import { useClients, useCreateClient } from "@/src/features/clients/queries";
+import { errorMessage } from "@/src/lib/zod-message";
 import type { Client, ClientSnapshot } from "@/src/types/schemas";
 
 type Props = {
@@ -23,6 +25,7 @@ export function ClientSection({ clientId, snapshot, onChange, error }: Props) {
 
   const clients = useClients();
   const createClient = useCreateClient();
+  const toast = useToast();
 
   function pickExisting(client: Client) {
     onChange(client.id, {
@@ -35,15 +38,26 @@ export function ClientSection({ clientId, snapshot, onChange, error }: Props) {
   }
 
   async function createAndPick() {
-    if (!newName.trim()) return;
-    const created = await createClient.mutateAsync({
-      name: newName.trim(),
-      ...(newEmail.trim() ? { email: newEmail.trim() } : {}),
-    });
-    pickExisting(created);
-    setNewName("");
-    setNewEmail("");
-    setCreatingNew(false);
+    const name = newName.trim();
+    if (!name) {
+      toast.show({ message: "Client name is required.", variant: "error" });
+      return;
+    }
+    try {
+      const created = await createClient.mutateAsync({
+        name,
+        ...(newEmail.trim() ? { email: newEmail.trim() } : {}),
+      });
+      pickExisting(created);
+      setNewName("");
+      setNewEmail("");
+      setCreatingNew(false);
+    } catch (err) {
+      toast.show({
+        message: errorMessage(err, "Couldn't add client."),
+        variant: "error",
+      });
+    }
   }
 
   return (
@@ -95,12 +109,14 @@ export function ClientSection({ clientId, snapshot, onChange, error }: Props) {
             <Input
               label="Name"
               required
+              accessibilityLabel="Client name"
               value={newName}
               onChangeText={setNewName}
               placeholder="Acme Pty Ltd"
             />
             <Input
               label="Email"
+              accessibilityLabel="Client email"
               value={newEmail}
               onChangeText={setNewEmail}
               keyboardType="email-address"
