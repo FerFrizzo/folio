@@ -305,12 +305,6 @@ export function renderInvoiceHtml({
       font-weight: 600;
       color: ${NEAR_BLACK};
     }
-    .date-card.due {
-      background: ${LIGHT_BLUE};
-      border-color: ${ACCENT};
-    }
-    .date-card.due .dc-lbl { color: ${ACCENT}; }
-    .date-card.due .dc-val { color: ${ACCENT}; }
 
     /* ── Bill to ── */
     .bill-to { margin-bottom: 22px; }
@@ -457,10 +451,6 @@ export function renderInvoiceHtml({
         <div class="date-card">
           <div class="dc-lbl">Issued</div>
           <div class="dc-val">${fmtDate(invoice.issueDate)}</div>
-        </div>
-        <div class="date-card due">
-          <div class="dc-lbl">Due</div>
-          <div class="dc-val">${fmtDate(invoice.dueDate)}</div>
         </div>
       </div>
     </div>

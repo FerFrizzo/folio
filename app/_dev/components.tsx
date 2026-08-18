@@ -102,7 +102,7 @@ export default function ComponentsPreview() {
           <Input label="With error" value="" error="ABN must be 11 digits" onChangeText={() => undefined} />
           <NumberInput label="Quantity" value={num} onChangeText={setNum} placeholder="1" />
           <CurrencyInput label="Unit price" value={money} onChangeText={setMoney} required />
-          <DateInput label="Due date" value={date} onChange={setDate} required />
+          <DateInput label="Issue date" value={date} onChange={setDate} required />
           <Select
             label="Currency"
             required
@@ -141,7 +141,6 @@ export default function ComponentsPreview() {
           <View className="flex-row flex-wrap gap-2">
             <StatusBadge status="paid" />
             <StatusBadge status="sent" />
-            <StatusBadge status="overdue" />
             <StatusBadge status="partial" />
             <StatusBadge status="draft" />
           </View>
@@ -171,7 +170,6 @@ export default function ComponentsPreview() {
               primary="INV-0042"
               secondary="Acme Pty Ltd"
               trailingAmount="$1,320.00"
-              trailingMeta="Due in 3 days"
               status="sent"
             />
             <View className="h-px bg-border" />
@@ -179,9 +177,7 @@ export default function ComponentsPreview() {
               primary="INV-0040"
               secondary="Lumiere & Co"
               trailingAmount="$2,420.00"
-              trailingMeta="8 days overdue"
-              status="overdue"
-              overdue
+              status="partial"
             />
             <View className="h-px bg-border" />
             <ListRow
@@ -202,9 +198,6 @@ export default function ComponentsPreview() {
             </View>
           </View>
           <View className="flex-row gap-3">
-            <View className="flex-1">
-              <KPICard label="Overdue" amount="$2,420.00" tone="overdue" />
-            </View>
             <View className="flex-1">
               <KPICard label="Paid this month" amount="$5,260.00" tone="paid" />
             </View>

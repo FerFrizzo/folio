@@ -10,7 +10,6 @@ export const Accent = {
 export const Status = {
   paid: "#0F8A5F",
   sent: "#C77A0A",
-  overdue: "#C0392B",
   partial: "#1F6FB2",
   draft: "#6B7280",
 } as const;

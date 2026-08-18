@@ -86,6 +86,13 @@ describe("buildInvoicesCsv", () => {
     const csv = buildInvoicesCsv([baseInvoice], []);
     expect(csv).toContain('"Acme, Pty Ltd"');
   });
+
+  // Due Date was removed from the invoice entirely — the export must not
+  // carry a dead column for it.
+  it("omits the dueDate column", () => {
+    const csv = buildInvoicesCsv([baseInvoice], [baseCn]);
+    expect(csv.split("\n")[0]).not.toContain("dueDate");
+  });
 });
 
 describe("buildLineItemsCsv", () => {

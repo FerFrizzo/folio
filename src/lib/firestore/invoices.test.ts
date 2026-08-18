@@ -27,7 +27,6 @@ const validInput: InvoiceDraftInput = {
   clientId: null,
   clientSnapshot: { name: "Acme Pty Ltd" },
   issueDate: "2026-08-04",
-  dueDate: "2026-08-18",
   currency: "AUD",
   lineItems: [],
   notes: "",
@@ -63,5 +62,13 @@ describe("createDraft", () => {
       createDraft("uid1", { ...validInput, issueDate: "" }),
     ).rejects.toThrow();
     expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  // Due Date was removed from the editor entirely, so a draft with none must
+  // still write cleanly and never invent a dueDate field.
+  it("writes no dueDate field when the input has none", async () => {
+    await createDraft("uid1", validInput);
+    const [, written] = mockSetDoc.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    expect("dueDate" in written).toBe(false);
   });
 });

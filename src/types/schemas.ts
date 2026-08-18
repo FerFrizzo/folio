@@ -158,7 +158,7 @@ export const InvoiceSchema = z.object({
   clientId: z.string().nullable(),
   clientSnapshot: ClientSnapshotSchema,
   issueDate: ISO_DATE,
-  dueDate: ISO_DATE,
+  dueDate: ISO_DATE.optional(),
   lineItems: z.array(LineItemSchema),
   invoiceDiscount: DiscountSchema.optional(),
   subtotalCents: z.number().int().nonnegative(),
@@ -185,13 +185,13 @@ export const InvoiceSchema = z.object({
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;
 
-// Display-only enrichment derived at render time. Overdue is not persisted.
+// Display-only enrichment derived at render time. Mirrors InvoiceStatusSchema —
+// kept separate since it used to carry a derived "overdue" bucket.
 export const InvoiceDisplayStatusSchema = z.enum([
   "draft",
   "sent",
   "partial",
   "paid",
-  "overdue",
 ]);
 export type InvoiceDisplayStatus = z.infer<typeof InvoiceDisplayStatusSchema>;
 
@@ -303,7 +303,7 @@ export const InvoiceDraftInputSchema = z.object({
   clientId: z.string().nullable(),
   clientSnapshot: ClientSnapshotSchema,
   issueDate: ISO_DATE,
-  dueDate: ISO_DATE,
+  dueDate: ISO_DATE.optional(),
   currency: CurrencyCodeSchema,
   lineItems: z.array(LineItemSchema),
   invoiceDiscount: DiscountSchema.optional(),

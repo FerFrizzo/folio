@@ -146,7 +146,6 @@ export const sendInvoiceEmail = onCall(
         businessName: profile.businessName || "Your business",
         clientName: workingInvoice.clientSnapshot.name,
         total: formatMoney(workingInvoice.totalCents, workingInvoice.currency),
-        dueDate: workingInvoice.dueDate,
         body: data.body,
         pdfUrl: upload.url,
       },

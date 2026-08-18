@@ -5,7 +5,6 @@ import { Status } from "@/src/theme/colors";
 const labels: Record<StatusKey, string> = {
   paid: "Paid",
   sent: "Sent",
-  overdue: "Overdue",
   partial: "Partial",
   draft: "Draft",
 };
