@@ -197,14 +197,15 @@ describe("renderInvoiceHtml", () => {
     expect(html).toContain("−$50.00");
   });
 
-  it("renders both dates inside date-cards structure", () => {
+  // Due Date was removed from the invoice entirely — only the issue date
+  // renders, and there is no more "due" date-card variant.
+  it("renders only the issue date inside date-cards structure", () => {
     const html = renderInvoiceHtml({ invoice, profile, settings });
     expect(html).toContain('class="date-cards"');
     expect(html).toContain('class="date-card"');
-    expect(html).toContain('class="date-card due"');
-    // formatted dates appear in dc-val divs
+    expect(html).not.toContain('class="date-card due"');
+    expect(html).not.toContain(">Due<");
     expect(html).toContain("01 May 2026");
-    expect(html).toContain("15 May 2026");
   });
 
   it("does not use the old meta-row structure for dates", () => {

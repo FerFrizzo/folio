@@ -21,16 +21,13 @@ export function sendBlocker(input: {
   clientSnapshot: ClientSnapshot;
   lineCount: number;
   issueDate: string;
-  dueDate: string;
   totalCents: number;
   discountTotalCents: number;
   grossSubtotalCents: number;
 }): string | null {
   if (!hasClient(input.clientSnapshot)) return NO_CLIENT;
   if (input.lineCount === 0) return "Add at least one line item.";
-  if (!input.issueDate || !input.dueDate) {
-    return "Issue and due dates are required.";
-  }
+  if (!input.issueDate) return "Issue date is required.";
   if (input.totalCents <= 0) return "Total must be greater than zero.";
   if (input.discountTotalCents > input.grossSubtotalCents) {
     return "Total discount can't exceed the subtotal.";

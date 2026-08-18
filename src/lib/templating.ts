@@ -2,9 +2,9 @@
 // plan: missing variables are left as literal {{var}} so the user notices and
 // fixes the template rather than sending an email with a silent blank.
 //
-// Variables shipped in Phase 4: number, total, dueDate, businessName,
-// clientName. The function accepts any record so future additions don't
-// require a parser change.
+// Variables shipped in Phase 4: number, total, businessName, clientName. The
+// function accepts any record so future additions don't require a parser
+// change.
 
 export function substituteEmailVars(
   template: string,
@@ -22,7 +22,6 @@ export function substituteEmailVars(
 export const EMAIL_VARS = [
   "number",
   "total",
-  "dueDate",
   "businessName",
   "clientName",
 ] as const;

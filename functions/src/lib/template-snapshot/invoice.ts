@@ -339,7 +339,6 @@ export function renderInvoiceHtml({
       <div class="doc-meta">
         <div><strong>${escapeHtml(invoice.number)}</strong></div>
         <div>Issued ${fmtDate(invoice.issueDate)}</div>
-        <div>Due ${fmtDate(invoice.dueDate)}</div>
       </div>
     </div>
   </header>

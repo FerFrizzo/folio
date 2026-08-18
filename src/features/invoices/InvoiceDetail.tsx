@@ -139,7 +139,6 @@ export function InvoiceDetail({ invoice }: Props) {
         clientSnapshot: invoice.clientSnapshot,
         currency: invoice.currency,
         issueDate: invoice.issueDate,
-        dueDate: invoice.dueDate,
         lineItems: invoice.lineItems,
         notes: invoice.notes,
         paymentInstructionsSnapshot: invoice.paymentInstructionsSnapshot,

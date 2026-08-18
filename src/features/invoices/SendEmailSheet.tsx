@@ -62,7 +62,6 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
     const vars: Record<string, string> = {
       number: invoice.number || "DRAFT",
       total: formatMoney(invoice.totalCents, invoice.currency),
-      dueDate: invoice.dueDate,
       businessName: profile.data?.businessName || "Your business",
       clientName: invoice.clientSnapshot.name,
     };
@@ -78,7 +77,7 @@ export function SendEmailSheet({ invoice, onClose, onSent }: Props) {
     setBody(
       substituteEmailVars(
         settings.data?.emailDefaults.body ||
-          "Hi {{clientName}},\n\nPlease find {{number}} attached. Total {{total}} due {{dueDate}}.\n\nThanks,\n{{businessName}}",
+          "Hi {{clientName}},\n\nPlease find {{number}} attached. Total {{total}}.\n\nThanks,\n{{businessName}}",
         vars,
       ),
     );

@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { format, parseISO } from "date-fns";
 import { Card } from "@/src/components/ui/Card";
 import { Chip } from "@/src/components/ui/Chip";
 import { KPICard } from "@/src/components/ui/KPICard";
@@ -55,16 +54,14 @@ export default function DashboardScreen() {
 
   const stats = useMemo(() => {
     let outstandingCents = 0;
-    let overdueCents = 0;
     let paidThisPeriodCents = 0;
     for (const inv of all) {
       if (inv.deletedAt) continue;
       const display = deriveDisplayStatus(inv, today);
       const balance = inv.totalCents - inv.amountPaidCents;
-      if (display === "sent" || display === "partial" || display === "overdue") {
+      if (display === "sent" || display === "partial") {
         outstandingCents += balance;
       }
-      if (display === "overdue") overdueCents += balance;
       if (
         inv.paidAt &&
         new Date(inv.paidAt) >= range.start &&
@@ -73,25 +70,8 @@ export default function DashboardScreen() {
         paidThisPeriodCents += inv.totalCents;
       }
     }
-    return { outstandingCents, overdueCents, paidThisPeriodCents };
+    return { outstandingCents, paidThisPeriodCents };
   }, [all, range, today]);
-
-  const needsAttention = useMemo(() => {
-    const sevenDaysFromNow = new Date(today);
-    sevenDaysFromNow.setDate(today.getDate() + 7);
-    return all
-      .filter((inv) => !inv.deletedAt)
-      .filter((inv) => {
-        const display = deriveDisplayStatus(inv, today);
-        if (display === "overdue") return true;
-        if (display === "sent" || display === "partial") {
-          const due = new Date(inv.dueDate);
-          return due <= sevenDaysFromNow;
-        }
-        return false;
-      })
-      .slice(0, 5);
-  }, [all, today]);
 
   const recent = useMemo(
     () =>
@@ -155,22 +135,11 @@ export default function DashboardScreen() {
           amount={formatMoney(stats.outstandingCents, "AUD")}
           emphasis="large"
         />
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <KPICard
-              label="Overdue"
-              amount={formatMoney(stats.overdueCents, "AUD")}
-              tone={stats.overdueCents > 0 ? "overdue" : undefined}
-            />
-          </View>
-          <View className="flex-1">
-            <KPICard
-              label="Paid this period"
-              amount={formatMoney(stats.paidThisPeriodCents, "AUD")}
-              tone={stats.paidThisPeriodCents > 0 ? "paid" : undefined}
-            />
-          </View>
-        </View>
+        <KPICard
+          label="Paid this period"
+          amount={formatMoney(stats.paidThisPeriodCents, "AUD")}
+          tone={stats.paidThisPeriodCents > 0 ? "paid" : undefined}
+        />
       </View>
 
       <View className="gap-3 px-4">
@@ -197,39 +166,6 @@ export default function DashboardScreen() {
                 ) : null}
               </View>
             ))}
-          </View>
-        )}
-      </View>
-
-      <View className="gap-3 px-4">
-        <Text className="text-h2 text-foreground">Needs attention</Text>
-        {invoicesQuery.isLoading ? (
-          <View><ListRowSkeleton /><ListRowSkeleton /></View>
-        ) : needsAttention.length === 0 ? (
-          <Card>
-            <Text className="text-body text-muted">Nothing urgent.</Text>
-          </Card>
-        ) : (
-          <View className="overflow-hidden rounded-card border border-border bg-surface">
-            {needsAttention.map((inv, idx) => {
-              const display = deriveDisplayStatus(inv, today);
-              return (
-                <View key={inv.id}>
-                  <ListRow
-                    primary={inv.number || "Draft"}
-                    secondary={inv.clientSnapshot.name}
-                    trailingAmount={formatMoney(inv.totalCents, inv.currency)}
-                    trailingMeta={`Due ${format(parseISO(inv.dueDate), "d MMM yyyy")}`}
-                    status={display}
-                    overdue={display === "overdue"}
-                    onPress={() => router.push(`/invoices/${inv.id}`)}
-                  />
-                  {idx < needsAttention.length - 1 ? (
-                    <View className="h-px bg-border" />
-                  ) : null}
-                </View>
-              );
-            })}
           </View>
         )}
       </View>

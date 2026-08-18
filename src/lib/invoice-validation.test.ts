@@ -8,7 +8,6 @@ function sendable(overrides: Partial<Parameters<typeof sendBlocker>[0]> = {}) {
     clientSnapshot: client,
     lineCount: 1,
     issueDate: "2026-08-04",
-    dueDate: "2026-08-18",
     totalCents: 11000,
     discountTotalCents: 0,
     grossSubtotalCents: 10000,
@@ -63,14 +62,14 @@ describe("sendBlocker", () => {
 
   it("blocks a missing issue date", () => {
     expect(sendBlocker(sendable({ issueDate: "" }))).toBe(
-      "Issue and due dates are required.",
+      "Issue date is required.",
     );
   });
 
-  it("blocks a missing due date", () => {
-    expect(sendBlocker(sendable({ dueDate: "" }))).toBe(
-      "Issue and due dates are required.",
-    );
+  // Due Date was removed from the invoice entirely, so an invoice with no
+  // due date at all must still be sendable.
+  it("allows an invoice with no due date", () => {
+    expect(sendBlocker(sendable())).toBeNull();
   });
 
   it("blocks a zero total", () => {

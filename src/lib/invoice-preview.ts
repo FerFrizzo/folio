@@ -19,7 +19,7 @@ export type EditorInvoiceInput = {
   clientId: string | null;
   clientSnapshot: ClientSnapshot;
   issueDate: string;
-  dueDate: string;
+  dueDate?: string | undefined;
   lineItems: LineItem[];
   invoiceDiscount?: Discount | undefined;
   totals: {
@@ -48,7 +48,7 @@ export function invoiceFromEditorState(input: EditorInvoiceInput): Invoice {
     clientId: input.clientId,
     clientSnapshot: input.clientSnapshot,
     issueDate: input.issueDate,
-    dueDate: input.dueDate,
+    ...(input.dueDate ? { dueDate: input.dueDate } : {}),
     lineItems: input.lineItems,
     ...(input.invoiceDiscount ? { invoiceDiscount: input.invoiceDiscount } : {}),
     subtotalCents: input.totals.subtotalCents,

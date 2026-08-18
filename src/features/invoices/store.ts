@@ -9,7 +9,6 @@ export type InvoiceStatusFilter =
   | "draft"
   | "sent"
   | "partial"
-  | "overdue"
   | "paid"
   | "archived";
 

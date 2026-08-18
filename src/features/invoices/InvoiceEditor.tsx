@@ -11,10 +11,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { Button } from "@/src/components/ui/Button";
 import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
-import { DateInput } from "@/src/components/ui/DateInput";
 import { IconButton } from "@/src/components/ui/IconButton";
 import { Input } from "@/src/components/ui/Input";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
@@ -126,10 +125,6 @@ function todayIso(): string {
   return format(new Date(), "yyyy-MM-dd");
 }
 
-function defaultDueIso(termsDays: number): string {
-  return format(addDays(new Date(), termsDays), "yyyy-MM-dd");
-}
-
 export function InvoiceEditor({ initial }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -172,11 +167,7 @@ export function InvoiceEditor({ initial }: Props) {
   const [clientSnapshot, setClientSnapshot] = useState<ClientSnapshot>(
     initial?.clientSnapshot ?? { name: "" },
   );
-  const [issueDate, setIssueDate] = useState<string>(initial?.issueDate ?? todayIso());
-  const [dueDate, setDueDate] = useState<string>(
-    initial?.dueDate ??
-      defaultDueIso(settings.data?.defaultPaymentTermsDays ?? 14),
-  );
+  const [issueDate] = useState<string>(initial?.issueDate ?? todayIso());
   const [items, setItems] = useState<LineItemInput[]>(
     initial ? lineInputsFrom(initial) : [
       {
@@ -218,13 +209,6 @@ export function InvoiceEditor({ initial }: Props) {
     });
   }, [exportMode]);
 
-  useEffect(() => {
-    if (!isNew || !settings.data) return;
-    setDueDate((d) =>
-      d === "" || !d ? defaultDueIso(settings.data.defaultPaymentTermsDays) : d,
-    );
-  }, [isNew, settings.data]);
-
   // Apply the user's default GST rate to a brand-new invoice's pristine first
   // line once settings load. Only touches a single untouched empty line so a
   // user's chosen tax is never overwritten. Export mode (handled above) wins.
@@ -265,7 +249,6 @@ export function InvoiceEditor({ initial }: Props) {
       clientId,
       clientSnapshot,
       issueDate,
-      dueDate,
       items,
       invoiceDiscount,
       notes,
@@ -280,14 +263,13 @@ export function InvoiceEditor({ initial }: Props) {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId, currency, clientId, clientSnapshot, issueDate, dueDate, items, invoiceDiscount, notes]);
+  }, [draftId, currency, clientId, clientSnapshot, issueDate, items, invoiceDiscount, notes]);
 
   function buildDraftInput(): InvoiceDraftInput {
     return {
       clientId,
       clientSnapshot,
       issueDate,
-      dueDate,
       currency,
       lineItems: computed.lines,
       ...(invoiceDiscount ? { invoiceDiscount } : {}),
@@ -357,7 +339,6 @@ export function InvoiceEditor({ initial }: Props) {
       clientId,
       clientSnapshot,
       issueDate,
-      dueDate,
       lineItems: computed.lines,
       invoiceDiscount,
       totals: computed.totals,
@@ -374,7 +355,6 @@ export function InvoiceEditor({ initial }: Props) {
       clientSnapshot,
       lineCount: items.length,
       issueDate,
-      dueDate,
       totalCents: computed.totals.totalCents,
       discountTotalCents: computed.totals.discountTotalCents,
       grossSubtotalCents: computed.totals.grossSubtotalCents,
@@ -561,28 +541,6 @@ export function InvoiceEditor({ initial }: Props) {
             </Text>
           </View>
         ) : null}
-
-        <View className="gap-1">
-          <Text className="text-caption text-muted">Dates</Text>
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <DateInput
-                label="Issue date"
-                required
-                value={issueDate}
-                onChange={setIssueDate}
-              />
-            </View>
-            <View className="flex-1">
-              <DateInput
-                label="Due date"
-                required
-                value={dueDate}
-                onChange={setDueDate}
-              />
-            </View>
-          </View>
-        </View>
 
         <CollapsibleCard title="Client" defaultExpanded={isNew || !clientId}>
           <ClientSection

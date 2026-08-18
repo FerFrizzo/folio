@@ -63,34 +63,31 @@ describe("isMutable", () => {
 describe("deriveDisplayStatus", () => {
   const today = new Date("2026-05-15T12:00:00Z");
 
-  it("returns draft for drafts regardless of due date", () => {
-    const inv = makeInvoice({ status: "draft", dueDate: "2026-04-01" });
+  it("returns draft for drafts", () => {
+    const inv = makeInvoice({ status: "draft" });
     expect(deriveDisplayStatus(inv, today)).toBe("draft");
   });
 
-  it("returns paid for paid regardless of due date", () => {
-    const inv = makeInvoice({ status: "paid", dueDate: "2026-04-01" });
+  it("returns paid for paid", () => {
+    const inv = makeInvoice({ status: "paid" });
     expect(deriveDisplayStatus(inv, today)).toBe("paid");
   });
 
-  it("returns overdue when sent and due is past", () => {
-    const inv = makeInvoice({ status: "sent", dueDate: "2026-05-14" });
-    expect(deriveDisplayStatus(inv, today)).toBe("overdue");
-  });
-
-  it("returns sent when sent and due is today", () => {
-    const inv = makeInvoice({ status: "sent", dueDate: "2026-05-15" });
+  // Due Date was removed, so display status is just the invoice's real status —
+  // there is no more date-derived "overdue" bucket.
+  it("returns sent for sent regardless of dueDate", () => {
+    const inv = makeInvoice({ status: "sent", dueDate: "2026-04-01" });
     expect(deriveDisplayStatus(inv, today)).toBe("sent");
   });
 
-  it("returns sent when sent and due is future", () => {
-    const inv = makeInvoice({ status: "sent", dueDate: "2026-06-01" });
+  it("returns sent for sent when dueDate is absent", () => {
+    const inv = makeInvoice({ status: "sent", dueDate: undefined });
     expect(deriveDisplayStatus(inv, today)).toBe("sent");
   });
 
-  it("returns overdue when partial and due is past", () => {
-    const inv = makeInvoice({ status: "partial", dueDate: "2026-05-14" });
-    expect(deriveDisplayStatus(inv, today)).toBe("overdue");
+  it("returns partial for partial regardless of dueDate", () => {
+    const inv = makeInvoice({ status: "partial", dueDate: "2026-04-01" });
+    expect(deriveDisplayStatus(inv, today)).toBe("partial");
   });
 });
 
@@ -106,10 +103,9 @@ describe("summarizeStatuses", () => {
     ];
     expect(summarizeStatuses(invoices, today)).toEqual({
       draft: 1,
-      sent: 1,
+      sent: 2,
       partial: 0,
       paid: 1,
-      overdue: 1,
     });
   });
 });

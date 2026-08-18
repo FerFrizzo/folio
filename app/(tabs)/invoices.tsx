@@ -40,7 +40,6 @@ const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "draft", label: "Draft" },
   { value: "sent", label: "Sent" },
   { value: "partial", label: "Partial" },
-  { value: "overdue", label: "Overdue" },
   { value: "paid", label: "Paid" },
   { value: "archived", label: "Archived" },
 ];
@@ -50,7 +49,6 @@ const FILTERED_EMPTY_LABELS: Record<InvoiceStatusFilter, string> = {
   draft: "No draft invoices.",
   sent: "No sent invoices.",
   partial: "No partially paid invoices.",
-  overdue: "No overdue invoices.",
   paid: "No paid invoices.",
   archived: "Nothing archived.",
 };

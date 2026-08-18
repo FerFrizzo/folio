@@ -110,7 +110,7 @@ export const InvoiceSchema = z.object({
   clientId: z.string().nullable(),
   clientSnapshot: ClientSnapshotSchema,
   issueDate: ISO_DATE,
-  dueDate: ISO_DATE,
+  dueDate: ISO_DATE.optional(),
   lineItems: z.array(LineItemSchema),
   invoiceDiscount: DiscountSchema.optional(),
   subtotalCents: z.number().int().nonnegative(),

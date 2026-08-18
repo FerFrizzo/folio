@@ -20,15 +20,6 @@ type Props = {
   onRecordPayment?: (invoice: Invoice) => void;
 };
 
-function dueLabel(invoice: Invoice, today = new Date()): string {
-  const due = new Date(invoice.dueDate);
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.round((due.getTime() - todayMid.getTime()) / 86400000);
-  if (diffDays === 0) return "Due today";
-  if (diffDays > 0) return `Due in ${diffDays} day${diffDays === 1 ? "" : "s"}`;
-  return `${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"} overdue`;
-}
-
 function paidLabel(invoice: Invoice): string {
   if (!invoice.paidAt) return "Paid";
   return `Paid ${format(parseISO(invoice.paidAt), "d MMM yyyy")}`;
@@ -52,10 +43,8 @@ export function InvoiceRow({
 }: Props) {
   const swipeableRef = useRef<SwipeableMethods | null>(null);
   const display = deriveDisplayStatus(invoice);
-  const overdue = display === "overdue";
 
-  const trailingMeta =
-    display === "paid" ? paidLabel(invoice) : dueLabel(invoice);
+  const trailingMeta = display === "paid" ? paidLabel(invoice) : undefined;
 
   const canRecord =
     invoice.status === "sent" || invoice.status === "partial";
@@ -86,7 +75,6 @@ export function InvoiceRow({
       trailingAmount={formatMoney(invoice.totalCents, invoice.currency)}
       trailingMeta={trailingMeta}
       status={statusForBadge(display)}
-      overdue={overdue}
       onPress={() => onPress?.(invoice)}
       onLongPress={() => onLongPress?.(invoice)}
       accessibilityLabel={`Invoice ${invoice.number} for ${invoice.clientSnapshot.name}`}

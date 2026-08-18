@@ -31,22 +31,13 @@ export function isMutable(invoice: Invoice): boolean {
   return invoice.status === "draft";
 }
 
-// Overdue is derived, never persisted. An invoice is overdue when its due date
-// is strictly before today (midnight) AND its status is sent or partial.
+// Display status is just the invoice's real status — there is no due-date-
+// derived "overdue" bucket now that Due Date has been removed.
 export function deriveDisplayStatus(
   invoice: Invoice,
-  today: Date = new Date(),
+  _today: Date = new Date(),
 ): InvoiceDisplayStatus {
-  if (invoice.status === "paid" || invoice.status === "draft") {
-    return invoice.status;
-  }
-  const due = new Date(invoice.dueDate);
-  const todayMid = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  return due < todayMid ? "overdue" : invoice.status;
+  return invoice.status;
 }
 
 // Status counts derived from a list — for KPI cards and badges.
@@ -55,7 +46,6 @@ export function summarizeStatuses(invoices: Invoice[], today: Date = new Date())
   let sent = 0;
   let partial = 0;
   let paid = 0;
-  let overdue = 0;
   for (const inv of invoices) {
     if (inv.deletedAt) continue;
     const display = deriveDisplayStatus(inv, today);
@@ -64,8 +54,7 @@ export function summarizeStatuses(invoices: Invoice[], today: Date = new Date())
       case "sent": sent++; break;
       case "partial": partial++; break;
       case "paid": paid++; break;
-      case "overdue": overdue++; break;
     }
   }
-  return { draft, sent, partial, paid, overdue };
+  return { draft, sent, partial, paid };
 }

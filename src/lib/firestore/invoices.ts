@@ -101,7 +101,7 @@ export async function createDraft(
     clientId: input.clientId,
     clientSnapshot: input.clientSnapshot,
     issueDate: input.issueDate,
-    dueDate: input.dueDate,
+    ...(input.dueDate ? { dueDate: input.dueDate } : {}),
     lineItems: input.lineItems,
     ...(input.invoiceDiscount ? { invoiceDiscount: input.invoiceDiscount } : {}),
     subtotalCents: totals.subtotalCents,
