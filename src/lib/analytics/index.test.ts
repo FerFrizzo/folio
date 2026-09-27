@@ -6,6 +6,7 @@ const mockIdentify = jest.fn();
 const mockReset = jest.fn();
 const mockOptOut = jest.fn(async () => {});
 const mockOptIn = jest.fn(async () => {});
+const mockFlush = jest.fn(async () => {});
 const mockCtor = jest.fn();
 
 jest.mock("posthog-react-native", () => ({
@@ -18,6 +19,7 @@ jest.mock("posthog-react-native", () => ({
       reset: mockReset,
       optOut: mockOptOut,
       optIn: mockOptIn,
+      flush: mockFlush,
     };
   }),
 }));
@@ -112,6 +114,7 @@ describe("initAnalytics", () => {
     mockCtor.mockImplementationOnce(() => {
       throw new Error("native module missing");
     });
+    jest.spyOn(console, "warn").mockImplementationOnce(() => {});
     await expect(initAnalytics(enabled)).resolves.toBeUndefined();
     expect(() => track("invoice_drafted")).not.toThrow();
     expect(mockCapture).not.toHaveBeenCalled();
@@ -137,6 +140,75 @@ describe("track", () => {
       throw new Error("boom");
     });
     expect(() => track("invoice_drafted")).not.toThrow();
+  });
+});
+
+// The route effect fires track("screen_viewed") before the async init has
+// created the client; those early events must not be lost.
+describe("events before init", () => {
+  it("delivers an event tracked before init once init completes", async () => {
+    track("screen_viewed", { route: "/(tabs)/dashboard" });
+    expect(mockCapture).not.toHaveBeenCalled();
+    await initAnalytics(enabled);
+    expect(mockCapture).toHaveBeenCalledWith("screen_viewed", { route: "/(tabs)/dashboard" });
+  });
+
+  it("delivers queued events in order, before later events", async () => {
+    track("screen_viewed", { route: "/login" });
+    track("invoice_drafted");
+    await initAnalytics(enabled);
+    track("client_created");
+    expect(mockCapture.mock.calls.map((c) => c[0])).toEqual([
+      "screen_viewed",
+      "invoice_drafted",
+      "client_created",
+    ]);
+  });
+
+  it("delivers events tracked while init is in flight", async () => {
+    const pending = initAnalytics(enabled);
+    track("invoice_drafted");
+    await pending;
+    expect(mockCapture).toHaveBeenCalledWith("invoice_drafted", {});
+  });
+
+  it("drops queued events when analytics is disabled", async () => {
+    track("invoice_drafted");
+    await initAnalytics({ ...enabled, apiKey: "" });
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
+  it("drops queued events when the user has opted out", async () => {
+    mockStore.set("folio.analytics.optOut", "1");
+    track("invoice_drafted");
+    await initAnalytics(enabled);
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
+  it("drops queued events when the client fails to start", async () => {
+    mockCtor.mockImplementationOnce(() => {
+      throw new Error("native module missing");
+    });
+    jest.spyOn(console, "warn").mockImplementationOnce(() => {});
+    track("invoice_drafted");
+    await initAnalytics(enabled);
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
+  it("bounds the queue at 50 events, keeping the earliest", async () => {
+    for (let i = 0; i < 60; i++) track("screen_viewed", { route: `/r${i}` });
+    await initAnalytics(enabled);
+    expect(mockCapture).toHaveBeenCalledTimes(50);
+    expect(mockCapture).toHaveBeenNthCalledWith(1, "screen_viewed", { route: "/r0" });
+    expect(mockCapture).toHaveBeenLastCalledWith("screen_viewed", { route: "/r49" });
+  });
+
+  it("does not queue once a disabled init has completed", async () => {
+    await initAnalytics({ ...enabled, apiKey: "" });
+    track("invoice_drafted");
+    __resetAnalyticsForTests();
+    await initAnalytics(enabled);
+    expect(mockCapture).not.toHaveBeenCalled();
   });
 });
 
@@ -170,12 +242,25 @@ describe("opt-out", () => {
     await setOptOut(true);
     expect(mockCapture).toHaveBeenCalledWith("analytics_opted_out", {});
     expect(mockOptOut).toHaveBeenCalledTimes(1);
+    expect(mockFlush).toHaveBeenCalledTimes(1);
+    // capture -> flush -> optOut, so the opt-out event actually leaves the device.
     expect(mockCapture.mock.invocationCallOrder[0]).toBeLessThan(
+      mockFlush.mock.invocationCallOrder[0] as number,
+    );
+    expect(mockFlush.mock.invocationCallOrder[0]).toBeLessThan(
       mockOptOut.mock.invocationCallOrder[0] as number,
     );
     expect(await isOptedOut()).toBe(true);
     track("invoice_drafted");
     expect(mockCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it("still opts out and persists when the flush fails", async () => {
+    await initAnalytics(enabled);
+    mockFlush.mockRejectedValueOnce(new Error("network"));
+    await setOptOut(true);
+    expect(mockOptOut).toHaveBeenCalledTimes(1);
+    expect(await isOptedOut()).toBe(true);
   });
 
   it("applies a persisted opt-out on init", async () => {

@@ -46,6 +46,12 @@ export function shouldEnable(config: AnalyticsConfig): boolean {
 
 let client: PostHog | null = null;
 let initStarted = false;
+// Events tracked before init has finished (e.g. the first screen_viewed, which
+// fires while init is still reading deviceStorage). Flushed once the client
+// exists; dropped if analytics ends up disabled or opted out.
+const MAX_PENDING = 50;
+let initDone = false;
+let pending: { event: AnalyticsEventName; props: Record<string, string | boolean> }[] = [];
 let optedOut = false;
 // Remembered so an identify() that lands before init completes still applies.
 let currentUid: string | null = null;
@@ -67,6 +73,19 @@ export async function initAnalytics(config: AnalyticsConfig = readConfig()): Pro
   } catch (err) {
     client = null;
     console.warn("[analytics] init failed", err);
+  } finally {
+    initDone = true;
+    const queued = pending;
+    pending = [];
+    if (client && !optedOut) queued.forEach((e) => capture(e.event, e.props));
+  }
+}
+
+function capture(event: AnalyticsEventName, props: Record<string, string | boolean>): void {
+  try {
+    client?.capture(event, props);
+  } catch {
+    // Analytics must never break the caller.
   }
 }
 
@@ -94,12 +113,13 @@ type PropsArg<E extends AnalyticsEventName> =
   EventProps[E] extends Record<string, never> ? [] : [EventProps[E]];
 
 export function track<E extends AnalyticsEventName>(event: E, ...args: PropsArg<E>): void {
-  if (!client || optedOut) return;
-  try {
-    client.capture(event, (args[0] ?? {}) as Record<string, string | boolean>);
-  } catch {
-    // Analytics must never break the caller.
+  const props = (args[0] ?? {}) as Record<string, string | boolean>;
+  if (!initDone) {
+    if (pending.length < MAX_PENDING) pending.push({ event, props });
+    return;
   }
+  if (!client || optedOut) return;
+  capture(event, props);
 }
 
 export async function setOptOut(next: boolean): Promise<void> {
@@ -108,6 +128,9 @@ export async function setOptOut(next: boolean): Promise<void> {
       track("analytics_opted_out");
       optedOut = true;
       await deviceStorage.setItem(OPT_OUT_KEY, "1");
+      // Send the opt-out event before the SDK stops. A failed flush (e.g.
+      // offline) must not stop the opt-out itself.
+      await client?.flush().catch(() => {});
       await client?.optOut();
     } else {
       optedOut = false;
@@ -130,6 +153,8 @@ export async function isOptedOut(): Promise<boolean> {
 export function __resetAnalyticsForTests(): void {
   client = null;
   initStarted = false;
+  initDone = false;
+  pending = [];
   optedOut = false;
   currentUid = null;
 }
