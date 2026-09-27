@@ -67,6 +67,9 @@ export async function initAnalytics(config: AnalyticsConfig = readConfig()): Pro
       host: config.host,
       captureAppLifecycleEvents: true,
       enableSessionReplay: false,
+      // Project-level "Discard client IP data" still runs GeoIP first; this
+      // tags every event with $geoip_disable so no location is derived.
+      disableGeoip: true,
     });
     if (optedOut) await client.optOut();
     if (currentUid) client.identify(currentUid);

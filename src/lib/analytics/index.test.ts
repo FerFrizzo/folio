@@ -87,6 +87,17 @@ describe("initAnalytics", () => {
     );
   });
 
+  // Regression: "Discard client IP data" in PostHog still ran GeoIP before
+  // dropping the IP, so events carried city and lat/long — contradicting the
+  // privacy policy and App Store label. The SDK must opt every event out.
+  it("disables GeoIP enrichment", async () => {
+    await initAnalytics(enabled);
+    expect(mockCtor).toHaveBeenCalledWith(
+      "phc_test",
+      expect.objectContaining({ disableGeoip: true }),
+    );
+  });
+
   it("does nothing when disabled, and track is then a no-op", async () => {
     await initAnalytics({ ...enabled, apiKey: "" });
     track("invoice_drafted");
