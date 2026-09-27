@@ -6,7 +6,7 @@ layout: default
 
 # Privacy policy
 
-*Last updated: 2026-05-02*
+*Last updated: 2026-09-27*
 
 This Privacy Policy explains how Fernando Frizzo ("we", "us", or "our"),
 the developer of **Folio**, collects, uses, and protects your personal
@@ -32,6 +32,12 @@ Contact: [fernandofrizzo@gmail.com](mailto:fernandofrizzo@gmail.com)
   and payment history you create in the app.
 - **Purchase data** — subscription status managed by RevenueCat. We do
   not store your payment card details.
+- **Usage analytics** — which app screens and features you use (for
+  example "invoice sent" or "paywall viewed"), your app version, device
+  model and OS, linked to a pseudonymous account ID. We never send
+  invoice contents, amounts, client details, or your email address. You
+  can turn this off at any time in **Settings → Privacy → Share anonymous
+  usage data**.
 - **Device identifier** — an anonymous device ID used for crash
   reporting.
 
@@ -41,6 +47,8 @@ Contact: [fernandofrizzo@gmail.com](mailto:fernandofrizzo@gmail.com)
 - To process your premium subscription via RevenueCat.
 - To send invoices on your behalf via SendGrid when you tap Send.
 - To improve the app through anonymous crash reports.
+- To understand how the app is used so we can improve it (usage
+  analytics, which you can switch off in Settings).
 - To respond to support requests or legal obligations.
 
 ## 4. Third-party services
@@ -52,6 +60,8 @@ own privacy policies:
   [firebase.google.com/support/privacy](https://firebase.google.com/support/privacy)
 - **RevenueCat** (subscription management) —
   [revenuecat.com/privacy](https://www.revenuecat.com/privacy)
+- **PostHog** (product analytics, data stored in the EU) —
+  [posthog.com/privacy](https://posthog.com/privacy)
 - **SendGrid** (email delivery, Pro tier only) —
   [twilio.com/legal/privacy](https://www.twilio.com/legal/privacy)
 
