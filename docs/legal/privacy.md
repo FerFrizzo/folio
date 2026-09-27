@@ -75,6 +75,11 @@ profile, invoices, clients, and settings) is permanently deleted within
 **7 days**. See our [account deletion page](./delete-account) for
 details.
 
+Usage-analytics events are linked only to a pseudonymous account ID and
+are not removed by in-app account deletion. We delete them on request —
+email us at the address in [Contact](#11-contact) — and otherwise they
+are retained for PostHog's data-retention period.
+
 ## 6. Your rights
 
 Under the Australian Privacy Act, you have the right to:
@@ -100,10 +105,10 @@ promptly.
 
 ## 8. International data transfers
 
-Some of our third-party processors (Firebase, RevenueCat, SendGrid) may
-process data outside Australia. Where this occurs, we take reasonable
-steps to ensure your data is protected to a standard comparable to the
-Australian Privacy Principles.
+Some of our third-party processors (Firebase, RevenueCat, PostHog (EU),
+SendGrid) may process data outside Australia. Where this occurs, we take
+reasonable steps to ensure your data is protected to a standard
+comparable to the Australian Privacy Principles.
 
 ## 9. Security
 
