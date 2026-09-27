@@ -1,20 +1,12 @@
-const mockStore = new Map<string, string>();
-jest.mock("@/src/lib/deviceStorage", () => ({
-  deviceStorage: {
-    getItem: jest.fn(async (k: string) => mockStore.get(k) ?? null),
-    setItem: jest.fn(async (k: string, v: string) => {
-      mockStore.set(k, v);
-    }),
-    removeItem: jest.fn(),
-  },
-}));
+jest.mock("@/src/lib/deviceStorage", () => jest.requireActual("@/src/test-utils/deviceStorageMock"));
 
+import { mockDeviceStore } from "@/src/test-utils/deviceStorageMock";
 import { loadReviewState, saveReviewState } from "@/src/features/review/store";
 import { initialReviewState } from "@/src/features/review/rules";
 
 const KEY = "folio.review.state";
 
-beforeEach(() => mockStore.clear());
+beforeEach(() => mockDeviceStore.clear());
 
 describe("loadReviewState", () => {
   it("returns the initial state when nothing is stored", async () => {
@@ -29,12 +21,12 @@ describe("loadReviewState", () => {
 
   // Review Focus #3: corrupt or old-shape data must never throw.
   it("falls back to the initial state on corrupt JSON", async () => {
-    mockStore.set(KEY, "{not json");
+    mockDeviceStore.set(KEY, "{not json");
     expect(await loadReviewState()).toEqual(initialReviewState);
   });
 
   it("fills in missing or wrong-typed fields", async () => {
-    mockStore.set(KEY, JSON.stringify({ sentCount: "3", firedTriggers: ["bogus", "third_sent"] }));
+    mockDeviceStore.set(KEY, JSON.stringify({ sentCount: "3", firedTriggers: ["bogus", "third_sent"] }));
     expect(await loadReviewState()).toEqual({
       sentCount: 0,
       firedTriggers: ["third_sent"],

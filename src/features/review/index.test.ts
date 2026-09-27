@@ -12,17 +12,9 @@ jest.mock("@/src/lib/analytics", () => ({
   track: (...args: unknown[]) => mockTrack(...args),
 }));
 
-const mockStore = new Map<string, string>();
-jest.mock("@/src/lib/deviceStorage", () => ({
-  deviceStorage: {
-    getItem: jest.fn(async (k: string) => mockStore.get(k) ?? null),
-    setItem: jest.fn(async (k: string, v: string) => {
-      mockStore.set(k, v);
-    }),
-    removeItem: jest.fn(),
-  },
-}));
+jest.mock("@/src/lib/deviceStorage", () => jest.requireActual("@/src/test-utils/deviceStorageMock"));
 
+import { mockDeviceStore } from "@/src/test-utils/deviceStorageMock";
 import { recordInvoicePaid, recordInvoiceSent, type ReviewDeps } from "@/src/features/review";
 import { loadReviewState } from "@/src/features/review/store";
 
@@ -31,7 +23,7 @@ const deps: ReviewDeps = { now: () => NOW, sleep: async () => {}, platform: "ios
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockStore.clear();
+  mockDeviceStore.clear();
   mockIsAvailable.mockResolvedValue(true);
   mockHasAction.mockResolvedValue(true);
 });

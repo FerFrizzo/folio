@@ -24,19 +24,9 @@ jest.mock("posthog-react-native", () => ({
   }),
 }));
 
-const mockStore = new Map<string, string>();
-jest.mock("@/src/lib/deviceStorage", () => ({
-  deviceStorage: {
-    getItem: jest.fn(async (k: string) => mockStore.get(k) ?? null),
-    setItem: jest.fn(async (k: string, v: string) => {
-      mockStore.set(k, v);
-    }),
-    removeItem: jest.fn(async (k: string) => {
-      mockStore.delete(k);
-    }),
-  },
-}));
+jest.mock("@/src/lib/deviceStorage", () => jest.requireActual("@/src/test-utils/deviceStorageMock"));
 
+import { mockDeviceStore } from "@/src/test-utils/deviceStorageMock";
 import {
   DEFAULT_HOST,
   __resetAnalyticsForTests,
@@ -61,7 +51,7 @@ const enabled: AnalyticsConfig = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockStore.clear();
+  mockDeviceStore.clear();
   __resetAnalyticsForTests();
 });
 
@@ -179,7 +169,7 @@ describe("events before init", () => {
   });
 
   it("drops queued events when the user has opted out", async () => {
-    mockStore.set("folio.analytics.optOut", "1");
+    mockDeviceStore.set("folio.analytics.optOut", "1");
     track("invoice_drafted");
     await initAnalytics(enabled);
     expect(mockCapture).not.toHaveBeenCalled();
@@ -264,7 +254,7 @@ describe("opt-out", () => {
   });
 
   it("applies a persisted opt-out on init", async () => {
-    mockStore.set("folio.analytics.optOut", "1");
+    mockDeviceStore.set("folio.analytics.optOut", "1");
     await initAnalytics(enabled);
     expect(mockOptOut).toHaveBeenCalledTimes(1);
     track("invoice_drafted");
