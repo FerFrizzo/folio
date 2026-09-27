@@ -9,6 +9,7 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
+import { trackAuthResult } from "@/src/features/auth/trackAuth";
 
 // Apple sign-in + linkWithCredential. Spec §8: preserve the existing
 // anonymous UID and all data when linking.
@@ -101,6 +102,7 @@ export async function signInWithApple(): Promise<User> {
     provider.addScope("email");
     const { signInWithPopup } = await import("firebase/auth");
     const result = await signInWithPopup(auth, provider);
+    trackAuthResult(result, "apple");
     return result.user;
   }
 
@@ -124,6 +126,7 @@ export async function signInWithApple(): Promise<User> {
     rawNonce: raw,
   });
   const result = await signInWithCredential(auth, oauthCredential);
+  trackAuthResult(result, "apple");
   return result.user;
 }
 
