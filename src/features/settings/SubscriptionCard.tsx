@@ -49,7 +49,7 @@ export function SubscriptionCard() {
         ) : (
           <Button
             label="Upgrade to Folio Pro"
-            onPress={() => router.push("/paywall")}
+            onPress={() => router.push({ pathname: "/paywall", params: { source: "settings" } })}
           />
         )}
       </View>

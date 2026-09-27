@@ -345,7 +345,7 @@ export function InvoiceDetail({ invoice }: Props) {
             label="Send email"
             onPress={() => {
               if (!isPro) {
-                router.push("/paywall");
+                router.push({ pathname: "/paywall", params: { source: "invoice_send" } });
                 return;
               }
               setEmailInvoice(invoice);
@@ -371,7 +371,7 @@ export function InvoiceDetail({ invoice }: Props) {
             <Button
               label="Download without watermark"
               variant="ghost"
-              onPress={() => router.push("/paywall")}
+              onPress={() => router.push({ pathname: "/paywall", params: { source: "watermark" } })}
             />
           ) : null}
           {invoice.status !== "draft" ? (

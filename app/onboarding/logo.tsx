@@ -4,6 +4,7 @@ import { Button } from "@/src/components/ui/Button";
 import { Card } from "@/src/components/ui/Card";
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
 import { OnboardingShell } from "@/src/features/onboarding/OnboardingShell";
+import { track } from "@/src/lib/analytics";
 
 export default function OnboardingLogo() {
   const router = useRouter();
@@ -20,11 +21,17 @@ export default function OnboardingLogo() {
         <Button
           label="Skip"
           variant="ghost"
-          onPress={() => router.push("/onboarding/payment")}
+          onPress={() => {
+            track("onboarding_step_completed", { step: "logo", skipped: true });
+            router.push("/onboarding/payment");
+          }}
         />
         <Button
           label="Next: Payment"
-          onPress={() => router.push("/onboarding/payment")}
+          onPress={() => {
+            track("onboarding_step_completed", { step: "logo", skipped: false });
+            router.push("/onboarding/payment");
+          }}
         />
       </View>
     </OnboardingShell>

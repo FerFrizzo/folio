@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { Button } from "@/src/components/ui/Button";
 import { OnboardingShell } from "@/src/features/onboarding/OnboardingShell";
 import { BusinessProfileForm } from "@/src/features/settings/BusinessProfileForm";
+import { track } from "@/src/lib/analytics";
 
 export default function OnboardingProfile() {
   const router = useRouter();
@@ -17,11 +18,17 @@ export default function OnboardingProfile() {
         <Button
           label="Skip"
           variant="ghost"
-          onPress={() => router.push("/onboarding/logo")}
+          onPress={() => {
+            track("onboarding_step_completed", { step: "profile", skipped: true });
+            router.push("/onboarding/logo");
+          }}
         />
         <Button
           label="Next: Logo"
-          onPress={() => router.push("/onboarding/logo")}
+          onPress={() => {
+            track("onboarding_step_completed", { step: "profile", skipped: false });
+            router.push("/onboarding/logo");
+          }}
         />
       </View>
     </OnboardingShell>

@@ -38,7 +38,10 @@ export function SubscriptionBanner() {
         </Pressable>
       </View>
       <View className="mt-3">
-        <Button label="Start free trial" onPress={() => router.push("/paywall")} />
+        <Button
+          label="Start free trial"
+          onPress={() => router.push({ pathname: "/paywall", params: { source: "dashboard_banner" } })}
+        />
       </View>
     </Card>
   );
