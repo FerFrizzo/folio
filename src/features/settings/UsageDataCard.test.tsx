@@ -13,21 +13,21 @@ beforeEach(() => jest.clearAllMocks());
 
 it("shows sharing on by default", async () => {
   const { getByLabelText } = render(<UsageDataCard />);
-  await waitFor(() => expect(getByLabelText("Share anonymous usage data").props.value).toBe(true));
+  await waitFor(() => expect(getByLabelText("Share usage data").props.value).toBe(true));
 });
 
 it("reflects a stored opt-out", async () => {
   mockIsOptedOut.mockResolvedValueOnce(true);
   const { getByLabelText } = render(<UsageDataCard />);
-  await waitFor(() => expect(getByLabelText("Share anonymous usage data").props.value).toBe(false));
+  await waitFor(() => expect(getByLabelText("Share usage data").props.value).toBe(false));
 });
 
 it("turning sharing off opts out", async () => {
   const { getByLabelText } = render(<UsageDataCard />);
-  const toggle = getByLabelText("Share anonymous usage data");
+  const toggle = getByLabelText("Share usage data");
   await act(async () => {
     fireEvent(toggle, "valueChange", false);
   });
   expect(mockSetOptOut).toHaveBeenCalledWith(true);
-  expect(getByLabelText("Share anonymous usage data").props.value).toBe(false);
+  expect(getByLabelText("Share usage data").props.value).toBe(false);
 });

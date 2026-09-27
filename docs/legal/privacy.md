@@ -36,8 +36,8 @@ Contact: [fernandofrizzo@gmail.com](mailto:fernandofrizzo@gmail.com)
   example "invoice sent" or "paywall viewed"), your app version, device
   model and OS, linked to a pseudonymous account ID. We never send
   invoice contents, amounts, client details, or your email address. You
-  can turn this off at any time in **Settings → Privacy → Share anonymous
-  usage data**.
+  can turn this off at any time in **Settings → Privacy → Share usage
+  data**.
 - **Device identifier** — an anonymous device ID used for crash
   reporting.
 

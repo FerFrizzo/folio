@@ -30,7 +30,7 @@ export function UsageDataCard() {
       <Text className="text-h2 text-foreground">Privacy</Text>
       <View className="mt-3">
         <Switch
-          label="Share anonymous usage data"
+          label="Share usage data"
           helperText="Helps improve Folio. Never includes invoice, client, or payment details."
           value={sharing}
           onValueChange={(v) => void onChange(v)}
