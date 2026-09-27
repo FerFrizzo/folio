@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "@/src/features/auth/AuthProvider";
 import { track } from "@/src/lib/analytics";
-import { recordInvoicePaid, recordInvoiceSent } from "@/src/features/review";
+import { recordInvoicePaid } from "@/src/features/review";
 import {
   createDraft,
   deleteDraft,
@@ -106,8 +106,8 @@ export function useMarkSent() {
       return markSent(auth.user.uid, id);
     },
     onSuccess: (_, vars) => {
+      // The review prompt is counted by completeManualSend after the share.
       track("invoice_sent", { channel: "manual" });
-      void recordInvoiceSent();
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
         qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });

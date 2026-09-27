@@ -58,12 +58,14 @@ describe("invoice mutation events", () => {
     expect(mockTrack).toHaveBeenCalledWith("invoice_drafted");
   });
 
-  it("tracks a manual invoice_sent and counts it for the review prompt", async () => {
+  // The review prompt is counted by completeManualSend once the share sheet
+  // closes, not here — prompting under the share sheet would burn third_sent.
+  it("tracks a manual invoice_sent without counting it for the review prompt", async () => {
     mockMarkSent.mockResolvedValueOnce({ number: "INV-0001" });
     const { result } = renderHook(() => useMarkSent(), { wrapper });
     await act(() => result.current.mutateAsync({ id: "inv-1" }));
     expect(mockTrack).toHaveBeenCalledWith("invoice_sent", { channel: "manual" });
-    expect(mockRecordSent).toHaveBeenCalledTimes(1);
+    expect(mockRecordSent).not.toHaveBeenCalled();
   });
 
   it("tracks a partial payment without the paid trigger", async () => {
@@ -80,6 +82,18 @@ describe("invoice mutation events", () => {
     await act(() => result.current.mutateAsync({ id: "inv-1", payment: {} as never }));
     expect(mockTrack).toHaveBeenCalledWith("payment_recorded", { fully_paid: true });
     expect(mockRecordPaid).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits nothing when the payment write fails", async () => {
+    mockRecordPayment.mockRejectedValueOnce(new Error("offline"));
+    const { result } = renderHook(() => useRecordPayment(), { wrapper });
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ id: "inv-1", payment: {} as never }),
+      ).rejects.toThrow("offline");
+    });
+    expect(mockTrack).not.toHaveBeenCalled();
+    expect(mockRecordPaid).not.toHaveBeenCalled();
   });
 
   // Review Focus #4
