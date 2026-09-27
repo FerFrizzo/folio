@@ -5,6 +5,8 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query";
 import { useAuth } from "@/src/features/auth/AuthProvider";
+import { track } from "@/src/lib/analytics";
+import { recordInvoicePaid, recordInvoiceSent } from "@/src/features/review";
 import {
   createDraft,
   deleteDraft,
@@ -64,6 +66,7 @@ export function useCreateDraft(): UseMutationResult<Invoice, Error, InvoiceDraft
       return createDraft(auth.user.uid, input);
     },
     onSuccess: () => {
+      track("invoice_drafted");
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
       }
@@ -103,6 +106,8 @@ export function useMarkSent() {
       return markSent(auth.user.uid, id);
     },
     onSuccess: (_, vars) => {
+      track("invoice_sent", { channel: "manual" });
+      void recordInvoiceSent();
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
         qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
@@ -217,7 +222,10 @@ export function useRecordPayment() {
       if (auth.status !== "ready") throw new Error("Not signed in");
       return recordPayment(auth.user.uid, id, payment);
     },
-    onSuccess: (_, vars) => {
+    onSuccess: (result, vars) => {
+      const fullyPaid = result.status === "paid";
+      track("payment_recorded", { fully_paid: fullyPaid });
+      if (fullyPaid) void recordInvoicePaid();
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
         qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });

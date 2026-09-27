@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/src/features/auth/AuthProvider";
+import { track } from "@/src/lib/analytics";
 import {
   createCreditNote,
   getCreditNote,
@@ -57,6 +58,7 @@ export function useCreateCreditNote() {
       return createCreditNote(auth.user.uid, input);
     },
     onSuccess: (cn) => {
+      track("credit_note_created");
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: creditNoteKeys.all(auth.user.uid) });
         qc.invalidateQueries({
