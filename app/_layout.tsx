@@ -11,6 +11,7 @@ import "@/src/features/settings/themeStore"; // forces light mode
 import { AuthProvider, useAuth } from "@/src/features/auth/AuthProvider";
 import { Gate } from "@/src/features/auth/Gate";
 import { ToastProvider } from "@/src/components/ui";
+import { AnalyticsInitializer } from "@/src/lib/analytics/AnalyticsInitializer";
 import Purchases, { LOG_LEVEL } from "react-native-purchases";
 import Constants from "expo-constants";
 
@@ -82,6 +83,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <ToastProvider>
+              <AnalyticsInitializer />
               <Gate>
                 <RevenueCatInitializer />
                 <StatusBar style="auto" />

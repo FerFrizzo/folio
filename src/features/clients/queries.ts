@@ -4,6 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useAuth } from "@/src/features/auth/AuthProvider";
+import { track } from "@/src/lib/analytics";
 import {
   createClient,
   getClient,
@@ -49,6 +50,7 @@ export function useCreateClient() {
       return createClient(auth.user.uid, input);
     },
     onSuccess: () => {
+      track("client_created");
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: clientKeys.all(auth.user.uid) });
       }

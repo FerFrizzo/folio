@@ -1,6 +1,8 @@
 import { httpsCallable } from "firebase/functions";
 import { File } from "expo-file-system";
 import { getFirebaseFunctions } from "@/src/lib/firebase";
+import { track } from "@/src/lib/analytics";
+import { recordInvoiceSent } from "@/src/features/review";
 
 // Client wrapper around the sendInvoiceEmail callable. Reads each picked
 // file's bytes via expo-file-system v19, base64-encodes, and forwards.
@@ -89,6 +91,8 @@ export async function sendInvoiceEmail(
     body: input.body,
     attachments: encoded,
   });
+  track("invoice_sent", { channel: "email" });
+  void recordInvoiceSent();
   return result.data;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
@@ -8,6 +8,8 @@ import Purchases from "react-native-purchases";
 import RevenueCatUI from "react-native-purchases-ui";
 import { X } from "lucide-react-native";
 import { useAuth } from "@/src/features/auth/AuthProvider";
+import { parsePaywallSource } from "@/src/lib/analytics/paywallSource";
+import { usePaywallTracking, type PurchaseResult } from "@/src/features/paywall/usePaywallTracking";
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -15,6 +17,8 @@ export default function PaywallScreen() {
   const qc = useQueryClient();
   const auth = useAuth();
   const [ready, setReady] = useState(false);
+  const { source: rawSource } = useLocalSearchParams<{ source?: string | string[] }>();
+  const events = usePaywallTracking(parsePaywallSource(rawSource));
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +36,8 @@ export default function PaywallScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  async function onPurchased() {
+  async function onPurchased(result?: PurchaseResult) {
+    if (result) events.onPurchaseCompleted(result);
     if (auth.status === "ready") {
       await qc.invalidateQueries({ queryKey: ["subscription", auth.user.uid] });
     }
@@ -43,7 +48,10 @@ export default function PaywallScreen() {
     <View style={{ flex: 1, paddingTop: insets.top }}>
       <View style={{ flexDirection: "row", justifyContent: "flex-end", padding: 16 }}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            events.onDismissed();
+            router.back();
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Close"
@@ -53,9 +61,15 @@ export default function PaywallScreen() {
       </View>
       {ready ? (
         <RevenueCatUI.Paywall
-          onPurchaseCompleted={onPurchased}
-          onRestoreCompleted={onPurchased}
-          onDismiss={() => router.back()}
+          onPurchaseCompleted={(r) => void onPurchased(r)}
+          onRestoreCompleted={() => {
+            events.onRestoreCompleted();
+            void onPurchased();
+          }}
+          onDismiss={() => {
+            events.onDismissed();
+            router.back();
+          }}
         />
       ) : (
         <View className="flex-1 items-center justify-center gap-6 px-6">

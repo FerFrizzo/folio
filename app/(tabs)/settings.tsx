@@ -11,6 +11,7 @@ import { LineItemLibraryCard } from "@/src/features/settings/LineItemLibraryCard
 import { LogoPicker } from "@/src/features/settings/LogoPicker";
 import { NumberingCard } from "@/src/features/settings/NumberingCard";
 import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
+import { UsageDataCard } from "@/src/features/settings/UsageDataCard";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +51,7 @@ export default function SettingsScreen() {
           <EmailDefaultsCard />
           <LineItemLibraryCard />
           <DataCard />
+          <UsageDataCard />
           <AboutCard />
         </View>
       </ScrollView>

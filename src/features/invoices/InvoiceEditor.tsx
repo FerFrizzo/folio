@@ -49,6 +49,7 @@ import {
 } from "@/src/lib/numbering";
 import { useSuccessButton } from "@/src/lib/useSuccessButton";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
+import { completeManualSend } from "@/src/features/invoices/manualSend";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
 import { invoiceFromEditorState } from "@/src/lib/invoice-preview";
 import { draftBlocker, sendBlocker } from "@/src/lib/invoice-validation";
@@ -445,9 +446,13 @@ export function InvoiceEditor({ initial }: Props) {
         profile: profile.data ?? EMPTY_PROFILE,
         settings: settings.data ?? EMPTY_SETTINGS,
       });
-      await shareInvoicePdf(pdf.uri, `${claimed}.pdf`);
-      triggerSendSuccess();
-      router.replace(`/invoices/${id}`);
+      await completeManualSend({
+        share: () => shareInvoicePdf(pdf.uri, `${claimed}.pdf`),
+        onShared: () => {
+          triggerSendSuccess();
+          router.replace(`/invoices/${id}`);
+        },
+      });
     } catch (err) {
       toast.show({
         message: errorMessage(err, "Couldn't send."),

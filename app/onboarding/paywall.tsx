@@ -7,6 +7,7 @@ import { Button } from "@/src/components/ui/Button";
 import { OnboardingShell } from "@/src/features/onboarding/OnboardingShell";
 import { useOnboardingStore } from "@/src/features/onboarding/store";
 import { useAuth } from "@/src/features/auth/AuthProvider";
+import { usePaywallTracking, type PurchaseResult } from "@/src/features/paywall/usePaywallTracking";
 
 function isRevenueCatReady(): boolean {
   const key =
@@ -21,13 +22,15 @@ export default function OnboardingPaywall() {
   const qc = useQueryClient();
   const auth = useAuth();
   const dismiss = useOnboardingStore((s) => s.dismiss);
+  const events = usePaywallTracking("onboarding");
 
   function finish() {
     dismiss();
     router.replace("/(tabs)/dashboard");
   }
 
-  async function onPurchased() {
+  async function onPurchased(result?: PurchaseResult) {
+    if (result) events.onPurchaseCompleted(result);
     if (auth.status === "ready") {
       await qc.invalidateQueries({ queryKey: ["subscription", auth.user.uid] });
     }
@@ -44,13 +47,26 @@ export default function OnboardingPaywall() {
     >
       {rcReady ? (
         <RevenueCatUI.Paywall
-          onPurchaseCompleted={onPurchased}
-          onRestoreCompleted={onPurchased}
-          onDismiss={finish}
+          onPurchaseCompleted={(r) => void onPurchased(r)}
+          onRestoreCompleted={() => {
+            events.onRestoreCompleted();
+            void onPurchased();
+          }}
+          onDismiss={() => {
+            events.onDismissed();
+            finish();
+          }}
         />
       ) : null}
       <View className="mt-2">
-        <Button label="Continue with free" variant="ghost" onPress={finish} />
+        <Button
+          label="Continue with free"
+          variant="ghost"
+          onPress={() => {
+            events.onDismissed();
+            finish();
+          }}
+        />
       </View>
     </OnboardingShell>
   );

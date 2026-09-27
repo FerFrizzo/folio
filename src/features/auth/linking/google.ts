@@ -6,6 +6,7 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
+import { trackAuthResult } from "@/src/features/auth/trackAuth";
 
 // Google sign-in via native SDK (@react-native-google-signin) on iOS + Android,
 // and via Firebase's signInWithPopup on web.
@@ -41,6 +42,7 @@ export async function signInWithGoogleNative(): Promise<User> {
   const auth = getFirebaseAuth();
   const credential = GoogleAuthProvider.credential(response.data.idToken);
   const result = await signInWithCredential(auth, credential);
+  trackAuthResult(result, "google");
   return result.user;
 }
 
@@ -61,6 +63,7 @@ export async function signInWithGoogleWeb(): Promise<User> {
   provider.addScope("email");
   provider.addScope("profile");
   const result = await signInWithPopup(auth, provider);
+  trackAuthResult(result, "google");
   return result.user;
 }
 

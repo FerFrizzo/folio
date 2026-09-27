@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { httpsCallable } from "firebase/functions";
 import { getFirebaseFunctions } from "@/src/lib/firebase";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking, Platform, Pressable, Text, View } from "react-native";
 import Constants from "expo-constants";
 import { Card } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
@@ -12,6 +12,7 @@ import { errorMessage } from "@/src/lib/zod-message";
 
 const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? "https://example.com/privacy";
 const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL ?? "https://example.com/terms";
+export const RATE_URL = "https://apps.apple.com/app/id6767987024?action=write-review";
 
 export function AboutCard() {
   const auth = useAuth();
@@ -83,6 +84,16 @@ export function AboutCard() {
       </View>
 
       <View className="mt-4 gap-2">
+        {Platform.OS === "ios" ? (
+          <Pressable
+            onPress={() => open(RATE_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Rate Folio on the App Store"
+            className="rounded-button border border-border bg-surface px-3 py-2 active:bg-background"
+          >
+            <Text className="text-body text-foreground">Rate Folio on the App Store →</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => open(PRIVACY_URL)}
           accessibilityRole="link"

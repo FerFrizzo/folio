@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { Button } from "@/src/components/ui/Button";
 import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
 import { OnboardingShell } from "@/src/features/onboarding/OnboardingShell";
+import { track } from "@/src/lib/analytics";
 
 export default function OnboardingPayment() {
   const router = useRouter();
@@ -17,11 +18,17 @@ export default function OnboardingPayment() {
         <Button
           label="Skip"
           variant="ghost"
-          onPress={() => router.replace("/(tabs)/dashboard")}
+          onPress={() => {
+            track("onboarding_step_completed", { step: "payment", skipped: true });
+            router.replace("/(tabs)/dashboard");
+          }}
         />
         <Button
           label="Done"
-          onPress={() => router.replace("/(tabs)/dashboard")}
+          onPress={() => {
+            track("onboarding_step_completed", { step: "payment", skipped: false });
+            router.replace("/(tabs)/dashboard");
+          }}
         />
       </View>
     </OnboardingShell>
