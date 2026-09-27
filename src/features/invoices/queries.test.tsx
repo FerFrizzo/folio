@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, notifyManager } from "@tanstack/react-query";
 
 const mockTrack = jest.fn();
 jest.mock("@/src/lib/analytics", () => ({
@@ -27,12 +27,28 @@ jest.mock("@/src/lib/firestore/invoices", () => ({
 
 import { useCreateDraft, useMarkSent, useRecordPayment } from "@/src/features/invoices/queries";
 
+// React Query batches observer notifications on setTimeout(0), which lands
+// after act() returns. Notify synchronously so every update stays inside act.
+beforeAll(() => notifyManager.setScheduler((cb) => cb()));
+afterAll(() => notifyManager.setScheduler((cb) => setTimeout(cb, 0)));
+
+// One client per test with gcTime: Infinity so no GC timers are scheduled
+// (they would keep Jest alive after the run); cleared after each test.
+let qc: QueryClient;
 function wrapper({ children }: { children: ReactNode }) {
-  const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  qc = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { retry: false, gcTime: Infinity },
+    },
+  });
+});
+afterEach(() => qc.clear());
 
 describe("invoice mutation events", () => {
   it("tracks invoice_drafted after a successful draft", async () => {
