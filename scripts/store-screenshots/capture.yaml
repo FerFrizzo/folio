@@ -1,0 +1,199 @@
+appId: com.frizzo.folio
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- tapOn:
+    text: "Cancel"
+    optional: true
+- extendedWaitUntil:
+    visible: "Forgot password?"
+    timeout: 20000
+- tapOn: "you@example.com"
+- inputText: ${EMAIL}
+- tapOn: "Your password"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Outstanding"
+    timeout: 20000
+- runFlow:
+    when:
+      visible: "Start free trial"
+    commands:
+      - tapOn: "Dismiss upgrade banner"
+
+- openLink: folio://invoices/inv10
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*INV-0010.*"
+    timeout: 15000
+- extendedWaitUntil:
+    notVisible: ".*Generating PDF.*"
+    timeout: 20000
+    optional: true
+- repeat:
+    times: 3
+    while:
+      visible: ".*Generating PDF.*"
+    commands:
+      - back
+      - openLink: folio://invoices/inv10
+      - tapOn:
+          text: "Open"
+          optional: true
+      - extendedWaitUntil:
+          notVisible: ".*Generating PDF.*"
+          timeout: 30000
+          optional: true
+- extendedWaitUntil:
+    notVisible: ".*Generating PDF.*"
+    timeout: 5000
+- extendedWaitUntil:
+    visible: "__settle__"
+    timeout: 4000
+    optional: true
+- takeScreenshot: raw-01-invoice
+
+- openLink: folio://invoices/draft01
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: "Save & send"
+    timeout: 15000
+- tapOn: "Items.*"
+- waitForAnimationToEnd
+- takeScreenshot: raw-02-editor
+- scrollUntilVisible:
+    element: "Insert from library"
+    direction: DOWN
+- tapOn: "Insert from library"
+- waitForAnimationToEnd
+- takeScreenshot: raw-08-library
+- tapOn:
+    point: "50%,15%"
+- waitForAnimationToEnd
+
+- openLink: folio://invoices/inv10
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*INV-0010.*"
+    timeout: 15000
+- extendedWaitUntil:
+    notVisible: ".*Generating PDF.*"
+    timeout: 20000
+    optional: true
+- repeat:
+    times: 3
+    while:
+      visible: ".*Generating PDF.*"
+    commands:
+      - back
+      - openLink: folio://invoices/inv10
+      - tapOn:
+          text: "Open"
+          optional: true
+      - extendedWaitUntil:
+          notVisible: ".*Generating PDF.*"
+          timeout: 30000
+          optional: true
+- extendedWaitUntil:
+    notVisible: ".*Generating PDF.*"
+    timeout: 5000
+- waitForAnimationToEnd
+- tapOn: "Share PDF"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Copy"
+          timeout: 20000
+      - waitForAnimationToEnd
+      - takeScreenshot: raw-03-share
+      - tapOn:
+          point: "50%,10%"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: "__never__"
+          timeout: 5000
+          optional: true
+      - takeScreenshot: raw-03-share
+      - back
+- waitForAnimationToEnd
+
+- openLink: folio://dashboard
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: "Outstanding"
+    timeout: 15000
+- tapOn:
+    text: "Dismiss upgrade banner"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: raw-04-dashboard
+
+- openLink: folio://invoices
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*INV-0010.*"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: raw-05-invoices
+
+- openLink: folio://settings
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*Business profile.*"
+    timeout: 15000
+- runFlow:
+    when:
+      true: ${DEVICE_CLASS === 'ios'}
+    commands:
+      - swipe:
+          start: "50%,70%"
+          end: "50%,41%"
+          duration: 2000
+- runFlow:
+    when:
+      true: ${DEVICE_CLASS === 'android-phone'}
+    commands:
+      - swipe:
+          start: "50%,70%"
+          end: "50%,43%"
+          duration: 2000
+- runFlow:
+    when:
+      true: ${DEVICE_CLASS === 'android-tablet'}
+    commands:
+      - swipe:
+          start: "50%,70%"
+          end: "50%,51%"
+          duration: 2000
+- waitForAnimationToEnd
+- takeScreenshot: raw-06-branding
+
+- openLink: folio://clients
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*Harbourside Café.*"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: raw-09-clients

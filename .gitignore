@@ -79,3 +79,6 @@ bugreport-*.zip
 
 # Expo config plugins are committed (EAS needs them)
 # plugins/
+
+# Raw simulator captures; regenerate with npm run screenshots:capture
+assets/screenshots/raw/

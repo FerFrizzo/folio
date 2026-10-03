@@ -28,7 +28,10 @@
     "eas:release": "eas build --platform ios --profile production --auto-submit",
     "release": "npm run preflight && npm version patch -m \"chore(release): v%s\" && npm run eas:release",
     "release:minor": "npm run preflight && npm version minor -m \"chore(release): v%s\" && npm run eas:release",
-    "release:major": "npm run preflight && npm version major -m \"chore(release): v%s\" && npm run eas:release"
+    "release:major": "npm run preflight && npm version major -m \"chore(release): v%s\" && npm run eas:release",
+    "screenshots:seed": "tsx --env-file=.env scripts/store-screenshots/seed-demo.ts",
+    "screenshots:capture": "scripts/store-screenshots/capture.sh",
+    "screenshots:compose": "node scripts/store-screenshots/compose.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -107,6 +110,7 @@
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "sharp": "^0.34.5",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.2"
   },
   "jest": {

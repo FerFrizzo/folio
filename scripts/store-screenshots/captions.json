@@ -1,0 +1,96 @@
+{
+  "targets": {
+    "ios": {
+      "width": 1320,
+      "height": 2868,
+      "raw": "ios",
+      "out": "ios",
+      "deviceWidth": 0.8,
+      "radius": 0.11
+    },
+    "android-phone": {
+      "width": 1080,
+      "height": 1920,
+      "raw": "android-phone",
+      "out": "android/phone",
+      "deviceWidth": 0.72,
+      "radius": 0.07,
+      "skip": [
+        "raw-03-share"
+      ]
+    },
+    "android-tablet-10": {
+      "width": 1440,
+      "height": 2560,
+      "raw": "android-tablet",
+      "out": "android/tablet-10",
+      "deviceWidth": 0.8,
+      "radius": 0.04,
+      "skip": [
+        "raw-03-share"
+      ]
+    },
+    "android-tablet-7": {
+      "width": 1080,
+      "height": 1920,
+      "raw": "android-tablet",
+      "out": "android/tablet-7",
+      "deviceWidth": 0.8,
+      "radius": 0.04,
+      "skip": [
+        "raw-03-share"
+      ]
+    }
+  },
+  "featureGraphic": {
+    "raw": "android-phone/raw-01-invoice.png",
+    "icon": "assets/images/icon.png",
+    "headline": [
+      "Tax invoices",
+      "in 2 minutes"
+    ],
+    "sub": "ATO-compliant · GST · ABN · PayID"
+  },
+  "slots": [
+    {
+      "raw": "raw-01-invoice",
+      "headline": "Tax invoices\nin 2 minutes",
+      "sub": "ATO-compliant, with your ABN and GST"
+    },
+    {
+      "raw": "raw-02-editor",
+      "headline": "GST worked\nout for you",
+      "sub": "Totals update as you type"
+    },
+    {
+      "raw": "raw-04-dashboard",
+      "headline": "Know who\nowes you",
+      "sub": "Outstanding and paid at a glance"
+    },
+    {
+      "raw": "raw-05-invoices",
+      "headline": "Track every\ninvoice",
+      "sub": "Sent, part-paid and paid in one list"
+    },
+    {
+      "raw": "raw-08-library",
+      "headline": "Repeat jobs\nin seconds",
+      "sub": "Save the items you bill every week"
+    },
+    {
+      "raw": "raw-06-branding",
+      "headline": "Your logo\nand ABN",
+      "sub": "On every invoice, automatically"
+    },
+    {
+      "raw": "raw-09-clients",
+      "headline": "All your clients\nin one place",
+      "sub": "Names, emails and addresses, ready to bill"
+    },
+    {
+      "raw": "raw-03-share",
+      "headline": "Share the PDF\nanywhere",
+      "sub": "Save, print or send in one tap"
+    }
+  ]
+}
