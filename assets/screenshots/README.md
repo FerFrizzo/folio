@@ -49,6 +49,7 @@ Screenshots for both stores are generated, not hand-captured. Each step is re-ru
 | Target | Size | Output |
 | --- | --- | --- |
 | iOS 6.9" iPhone | 1320 × 2868 | `ios/` |
+| iOS 6.5" iPhone | 1284 × 2778 | `ios-6.5/` |
 | Play phone | 1080 × 1920 | `android/phone/` |
 | Play 7" tablet | 1080 × 1920 | `android/tablet-7/` |
 | Play 10" tablet | 1440 × 2560 | `android/tablet-10/` |

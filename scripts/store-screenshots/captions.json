@@ -8,6 +8,14 @@
       "deviceWidth": 0.8,
       "radius": 0.11
     },
+    "ios-6.5": {
+      "width": 1284,
+      "height": 2778,
+      "raw": "ios",
+      "out": "ios-6.5",
+      "deviceWidth": 0.8,
+      "radius": 0.11
+    },
     "android-phone": {
       "width": 1080,
       "height": 1920,
@@ -90,7 +98,16 @@
     {
       "raw": "raw-03-share",
       "headline": "Share the PDF\nanywhere",
-      "sub": "Save, print or send in one tap"
+      "sub": "Save, print or send in one tap",
+      "finished": {
+        "file": "assets/source/store/08-share-ios.jpeg",
+        "crop": {
+          "left": 6,
+          "top": 0,
+          "width": 675,
+          "height": 1460
+        }
+      }
     }
   ]
 }

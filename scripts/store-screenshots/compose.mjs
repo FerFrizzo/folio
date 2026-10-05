@@ -1,5 +1,6 @@
 // Composes captioned store screenshots from the raw captures.
 // Usage: node scripts/store-screenshots/compose.mjs [target...]  (default: every target)
+import { Buffer } from "node:buffer";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -61,6 +62,16 @@ async function composeTarget(name) {
   mkdirSync(outDir, { recursive: true });
   const targetSlots = slots.filter((slot) => !t.skip?.includes(slot.raw));
   for (const [i, slot] of targetSlots.entries()) {
+    const name = `${String(i + 1).padStart(2, "0")}-${slot.raw.replace(/^raw-\d+-/, "")}.png`;
+    if (slot.finished) {
+      await sharp(slot.finished.file)
+        .extract(slot.finished.crop)
+        .resize(W, H, { fit: "cover", kernel: "lanczos3" })
+        .png()
+        .toFile(join(outDir, name));
+      console.log(`wrote ${join(outDir, name)} (finished image)`);
+      continue;
+    }
     const rawFile = join(RAW_ROOT, t.raw, `${slot.raw}.png`);
     if (!existsSync(rawFile)) {
       console.warn(`skip ${name}/${slot.raw}: no raw capture`);
@@ -69,7 +80,7 @@ async function composeTarget(name) {
     const phone = await framedShot(rawFile, Math.round(W * t.deviceWidth), t.radius);
     const { width: phoneW } = await sharp(phone).metadata();
     const top = Math.round((slot.headline.includes("\n") ? 600 : 470) * s);
-    const file = join(outDir, `${String(i + 1).padStart(2, "0")}-${slot.raw.replace(/^raw-\d+-/, "")}.png`);
+    const file = join(outDir, name);
     await sharp(background(W, H))
       .composite([
         { input: caption(W, s, slot.headline, slot.sub), left: 0, top: 0 },
