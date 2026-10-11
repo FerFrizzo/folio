@@ -14,6 +14,7 @@ import {
 import { Platform } from "react-native";
 import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase";
 import { signOutGoogleNative } from "@/features/auth/linking/google";
+import { markSignedIn } from "@/src/features/auth/authPrefs";
 
 type AuthState =
   | { status: "loading"; user: null }
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       auth,
       (user) => {
         if (user) {
+          void markSignedIn();
           setState({ status: "ready", user });
         } else {
           setState({ status: "unauthenticated", user: null });

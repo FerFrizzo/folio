@@ -2,7 +2,6 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  updateProfile,
 } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
@@ -15,10 +14,9 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return result.user;
 }
 
-export async function signUpWithEmail(name: string, email: string, password: string): Promise<User> {
+export async function signUpWithEmail(email: string, password: string): Promise<User> {
   const auth = getFirebaseAuth();
   const result = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(result.user, { displayName: name });
   track("signed_up", { method: "email" });
   return result.user;
 }

@@ -5,10 +5,11 @@ jest.mock("@/src/lib/analytics", () => ({
 jest.mock("@/lib/firebase", () => ({ getFirebaseAuth: () => ({}) }));
 const mockSignIn = jest.fn();
 const mockCreate = jest.fn();
+const mockUpdateProfile = jest.fn();
 jest.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: (...a: unknown[]) => mockSignIn(...a),
   createUserWithEmailAndPassword: (...a: unknown[]) => mockCreate(...a),
-  updateProfile: jest.fn(async () => {}),
+  updateProfile: (...a: unknown[]) => mockUpdateProfile(...a),
   sendPasswordResetEmail: jest.fn(),
 }));
 
@@ -18,8 +19,15 @@ beforeEach(() => jest.clearAllMocks());
 
 it("tracks signed_up after email sign-up", async () => {
   mockCreate.mockResolvedValueOnce({ user: { uid: "u1" } });
-  await signUpWithEmail("Sam", "sam@example.com", "pw123456");
+  await signUpWithEmail("sam@example.com", "pw123456");
+  expect(mockCreate).toHaveBeenCalledWith({}, "sam@example.com", "pw123456");
   expect(mockTrack).toHaveBeenCalledWith("signed_up", { method: "email" });
+});
+
+it("does not set a display name on sign-up", async () => {
+  mockCreate.mockResolvedValueOnce({ user: { uid: "u1" } });
+  await signUpWithEmail("sam@example.com", "pw123456");
+  expect(mockUpdateProfile).not.toHaveBeenCalled();
 });
 
 it("tracks signed_in after email sign-in", async () => {

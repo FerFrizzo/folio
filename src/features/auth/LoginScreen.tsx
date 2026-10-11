@@ -15,8 +15,11 @@ import {
 import { appleAvailableOnPlatform, signInWithApple } from "@/features/auth/linking/apple";
 import { classifyLinkError } from "@/features/auth/linking/linkErrors";
 import { reportAuthError } from "@/features/auth/trackAuth";
+import { hasSignedInBefore } from "@/src/features/auth/authPrefs";
 
 type Mode = "sign-in" | "sign-up" | "forgot-password";
+
+const BENEFITS = ["ATO-compliant", "GST calculated for you", "Free to start"];
 
 const cardShadow = {
   shadowColor: Accent.DEFAULT,
@@ -90,17 +93,31 @@ export function LoginScreen() {
   const toast = useToast();
   const { succeeded, triggerSuccess } = useSuccessButton(1000);
 
-  const [mode, setMode] = useState<Mode>("sign-in");
+  // Most people here are new: open on "Create account" unless this device has
+  // signed in before. Hidden until known so returning users don't see a flip.
+  const [mode, setMode] = useState<Mode>("sign-up");
+  const [modeReady, setModeReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showNewUserHint, setShowNewUserHint] = useState(false);
 
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const [nameError, setNameError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hasSignedInBefore().then((before) => {
+      if (cancelled) return;
+      if (before) setMode("sign-in");
+      setModeReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   useEffect(() => {
@@ -112,13 +129,13 @@ export function LoginScreen() {
   }, []);
 
   function clearErrors() {
-    setNameError(null);
     setEmailError(null);
     setPasswordError(null);
   }
 
   function switchMode(next: Mode) {
     clearErrors();
+    setShowNewUserHint(false);
     setMode(next);
   }
 
@@ -144,11 +161,6 @@ export function LoginScreen() {
       }
     }
 
-    if (mode === "sign-up" && !name.trim()) {
-      setNameError("Name is required.");
-      ok = false;
-    }
-
     return ok;
   }
 
@@ -160,7 +172,7 @@ export function LoginScreen() {
         await signInWithEmail(email.trim(), password);
         triggerSuccess();
       } else if (mode === "sign-up") {
-        await signUpWithEmail(name.trim(), email.trim(), password);
+        await signUpWithEmail(email.trim(), password);
         triggerSuccess();
       } else {
         await sendPasswordReset(email.trim());
@@ -171,6 +183,9 @@ export function LoginScreen() {
       const message =
         mode === "forgot-password" ? classifyLinkError(err).message : reportAuthError(err, "email");
       toast.show({ message, variant: "error" });
+      if (mode === "sign-in" && classifyLinkError(err).kind === "wrong-credentials") {
+        setShowNewUserHint(true);
+      }
     } finally {
       setBusy(false);
     }
@@ -258,6 +273,11 @@ export function LoginScreen() {
     );
   }
 
+  const tabs: { key: "sign-up" | "sign-in"; label: string }[] = [
+    { key: "sign-up", label: "Create account" },
+    { key: "sign-in", label: "Sign in" },
+  ];
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -267,83 +287,94 @@ export function LoginScreen() {
         className="flex-1 bg-background"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingTop: insets.top + 48,
+          paddingTop: insets.top + 32,
           paddingBottom: insets.bottom + 32,
           paddingHorizontal: 24,
           gap: 20,
         }}
       >
-      {/* Brand mark — full logo including wordmark */}
+      {/* Brand + why sign up */}
       {!keyboardVisible ? (
-        <View className="items-center">
+        <View className="items-center gap-3">
           <Image
             source={require("@/assets/images/splash-icon-transparent.png")}
-            style={{ width: 200, height: 200 }}
+            style={{ width: 120, height: 120 }}
             resizeMode="contain"
           />
+          <Text className="text-h1 font-bold text-foreground text-center">
+            Tax invoices in 60 seconds
+          </Text>
+          <View className="flex-row flex-wrap justify-center gap-x-4 gap-y-1">
+            {BENEFITS.map((benefit) => (
+              <View key={benefit} className="flex-row items-center gap-1">
+                <Ionicons name="checkmark-circle" size={16} color={Accent.DEFAULT} />
+                <Text className="text-caption text-muted">{benefit}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       ) : null}
 
-      {/* Auth card */}
+      {/* One-tap sign-in first */}
+      {showSocialSection ? (
+        <View className="gap-3">
+          {showApple ? (
+            <Pressable
+              onPress={() => void handleApple()}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Apple"
+              className="flex-row items-center justify-center gap-3 rounded-button bg-black py-[14px] active:opacity-70"
+              style={{ opacity: busy ? 0.5 : 1 }}
+            >
+              <AntDesign name="apple" size={20} color="#FFFFFF" />
+              <Text className="text-body font-semibold text-white">
+                {busy ? "Signing in…" : "Continue with Apple"}
+              </Text>
+            </Pressable>
+          ) : null}
+          {showGoogle ? (
+            <GoogleSignInButton busy={busy} onBusyChange={setBusy} />
+          ) : null}
+          <View className="flex-row items-center gap-3">
+            <View className="h-px flex-1 bg-border" />
+            <Text className="text-caption text-muted">or use email</Text>
+            <View className="h-px flex-1 bg-border" />
+          </View>
+        </View>
+      ) : null}
+
+      {/* Email card */}
+      {modeReady ? (
       <View
         className="rounded-2xl bg-white p-6 gap-5"
         style={cardShadow}
       >
-        {/* Sign in / Sign up tabs */}
         <View className="flex-row rounded-xl bg-gray-100 p-1">
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: mode === "sign-in" }}
-            className={[
-              "flex-1 items-center rounded-[10px] py-2.5",
-              mode === "sign-in" ? "bg-accent" : "",
-            ].join(" ")}
-            onPress={() => switchMode("sign-in")}
-          >
-            <Text
+          {tabs.map((t) => (
+            <Pressable
+              key={t.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === t.key }}
               className={[
-                "text-label font-semibold",
-                mode === "sign-in" ? "text-white" : "text-muted",
+                "flex-1 items-center rounded-[10px] py-2.5",
+                mode === t.key ? "bg-accent" : "",
               ].join(" ")}
+              onPress={() => switchMode(t.key)}
             >
-              Sign in
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: mode === "sign-up" }}
-            className={[
-              "flex-1 items-center rounded-[10px] py-2.5",
-              mode === "sign-up" ? "bg-accent" : "",
-            ].join(" ")}
-            onPress={() => switchMode("sign-up")}
-          >
-            <Text
-              className={[
-                "text-label font-semibold",
-                mode === "sign-up" ? "text-white" : "text-muted",
-              ].join(" ")}
-            >
-              Sign up
-            </Text>
-          </Pressable>
+              <Text
+                className={[
+                  "text-label font-semibold",
+                  mode === t.key ? "text-white" : "text-muted",
+                ].join(" ")}
+              >
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
-        {/* Form fields */}
         <View className="gap-4">
-          {mode === "sign-up" ? (
-            <Input
-              label="Name"
-              placeholder="Your name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              autoComplete="name"
-              autoCorrect={false}
-              error={nameError}
-            />
-          ) : null}
-
           <Input
             label="Email"
             placeholder="you@example.com"
@@ -393,10 +424,23 @@ export function LoginScreen() {
           </View>
         </View>
 
+        {showNewUserHint ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="New to Folio? Create an account"
+            onPress={() => switchMode("sign-up")}
+            className="items-center"
+          >
+            <Text className="text-caption text-muted">
+              New to Folio? <Text className="text-accent font-semibold">Create an account</Text>
+            </Text>
+          </Pressable>
+        ) : null}
+
         <Button
           label={
             succeeded
-              ? mode === "sign-in" ? "✓ Signed in" : mode === "sign-up" ? "✓ Account created" : "✓ Email sent"
+              ? mode === "sign-in" ? "✓ Signed in" : "✓ Account created"
               : busy
                 ? mode === "sign-in" ? "Signing in…" : "Creating account…"
                 : mode === "sign-in" ? "Continue" : "Create account"
@@ -407,37 +451,6 @@ export function LoginScreen() {
           onPress={() => void handleSubmit()}
         />
       </View>
-
-      {/* Social sign-in */}
-      {showSocialSection ? (
-        <>
-          <View className="flex-row items-center gap-3">
-            <View className="h-px flex-1 bg-border" />
-            <Text className="text-caption text-muted">or continue with</Text>
-            <View className="h-px flex-1 bg-border" />
-          </View>
-
-          <View className="gap-3">
-            {showGoogle ? (
-              <GoogleSignInButton busy={busy} onBusyChange={setBusy} />
-            ) : null}
-            {showApple ? (
-              <Pressable
-                onPress={() => void handleApple()}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel="Continue with Apple"
-                className="flex-row items-center justify-center gap-3 rounded-button bg-white py-[14px] active:opacity-70"
-                style={{ opacity: busy ? 0.5 : 1, ...cardShadow }}
-              >
-                <AntDesign name="apple" size={20} color="#111827" />
-                <Text className="text-body font-semibold text-foreground">
-                  {busy ? "Signing in…" : "Continue with Apple"}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </>
       ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
