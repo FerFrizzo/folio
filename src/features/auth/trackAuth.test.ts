@@ -7,7 +7,7 @@ jest.mock("firebase/auth", () => ({
   getAdditionalUserInfo: (...a: unknown[]) => mockInfo(...a),
 }));
 
-import { trackAuthResult } from "@/src/features/auth/trackAuth";
+import { reportAuthError, trackAuthResult } from "@/src/features/auth/trackAuth";
 
 const cred = {} as never;
 
@@ -36,4 +36,37 @@ it("never throws when Firebase throws", () => {
     throw new Error("bad credential");
   });
   expect(() => trackAuthResult(cred, "google")).not.toThrow();
+});
+
+describe("reportAuthError", () => {
+  it("tracks sign_in_failed with the classified reason and returns the message", () => {
+    const message = reportAuthError({ code: "auth/invalid-credential" }, "email");
+    expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
+      method: "email",
+      reason: "wrong-credentials",
+    });
+    expect(message).toMatch(/email or password is incorrect/i);
+  });
+
+  it("tracks cancellations so abandoned social sign-ins are visible", () => {
+    reportAuthError({ code: "auth/popup-closed-by-user" }, "google");
+    expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
+      method: "google",
+      reason: "popup-closed",
+    });
+  });
+
+  it("never sends the raw error message", () => {
+    reportAuthError({ code: "auth/x", message: "Firebase: Error (auth/x) for a@b.com" }, "apple");
+    expect(JSON.stringify(mockTrack.mock.calls)).not.toMatch(/a@b\.com|Firebase/);
+  });
+
+  it("still returns a message when tracking throws", () => {
+    mockTrack.mockImplementationOnce(() => {
+      throw new Error("posthog down");
+    });
+    expect(reportAuthError({ code: "auth/network-request-failed" }, "email")).toMatch(
+      /connection/i,
+    );
+  });
 });

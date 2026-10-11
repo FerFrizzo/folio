@@ -12,6 +12,22 @@ export type PaywallSource =
 
 export type AuthMethod = "email" | "google" | "apple";
 
+// Classified sign-in failure (see features/auth/linking/linkErrors.ts). Never
+// send the raw Firebase message — it can echo the user's email.
+export type AuthErrorKind =
+  | "credential-in-use"
+  | "email-in-use"
+  | "wrong-credentials"
+  | "invalid-email"
+  | "weak-password"
+  | "too-many-requests"
+  | "user-disabled"
+  | "popup-closed"
+  | "network"
+  | "unsupported-platform"
+  | "cancelled"
+  | "unknown";
+
 export type ReviewTrigger = "first_paid" | "third_sent";
 
 type NoProps = Record<string, never>;
@@ -20,6 +36,7 @@ export type EventProps = {
   screen_viewed: { route: string };
   signed_up: { method: AuthMethod };
   signed_in: { method: AuthMethod };
+  sign_in_failed: { method: AuthMethod; reason: AuthErrorKind };
   onboarding_step_completed: {
     step: "profile" | "logo" | "payment";
     skipped: boolean;

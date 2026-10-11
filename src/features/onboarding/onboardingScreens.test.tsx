@@ -4,8 +4,13 @@ const mockTrack = jest.fn();
 jest.mock("@/src/lib/analytics", () => ({
   track: (...args: unknown[]) => mockTrack(...args),
 }));
+const mockReplace = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
+}));
+let mockEntitlement: "free" | "pro" = "free";
+jest.mock("@/src/features/settings/queries", () => ({
+  useEntitlement: () => mockEntitlement,
 }));
 // The forms talk to Firestore; stub them so only the step buttons remain.
 jest.mock("@/src/features/settings/BusinessProfileForm", () => ({ BusinessProfileForm: () => null }));
@@ -20,7 +25,10 @@ import OnboardingProfile from "@/app/onboarding/index";
 import OnboardingLogo from "@/app/onboarding/logo";
 import OnboardingPayment from "@/app/onboarding/payment";
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockEntitlement = "free";
+});
 
 it.each([
   ["profile", OnboardingProfile, "Next: Logo"],
@@ -40,4 +48,22 @@ it.each([
   const { getByText } = render(<Screen />);
   fireEvent.press(getByText("Skip"));
   expect(mockTrack).toHaveBeenCalledWith("onboarding_step_completed", { step, skipped: true });
+});
+
+// Regression: since the PIN step was removed the payment step went straight to
+// the dashboard, so the onboarding paywall was unreachable.
+describe("payment step routing", () => {
+  it.each(["Done", "Skip"])("%s sends free users to the onboarding paywall", (cta) => {
+    const { getByText } = render(<OnboardingPayment />);
+    fireEvent.press(getByText(cta));
+    expect(mockReplace).toHaveBeenCalledWith("/onboarding/paywall");
+  });
+
+  it.each(["Done", "Skip"])("%s sends Pro users straight to the dashboard", (cta) => {
+    mockEntitlement = "pro";
+    const { getByText } = render(<OnboardingPayment />);
+    fireEvent.press(getByText(cta));
+    expect(mockReplace).toHaveBeenCalledWith("/(tabs)/dashboard");
+    expect(mockReplace).not.toHaveBeenCalledWith("/onboarding/paywall");
+  });
 });

@@ -1,16 +1,11 @@
-// Friendly mapping for Firebase auth-error codes encountered during
-// linkWithCredential flows. The Firebase SDK throws an error with a `code`
-// field; we surface human-readable messages instead of the raw codes so the
-// user knows what to do next.
+import type { AuthErrorKind } from "@/src/lib/analytics";
 
-export type LinkErrorKind =
-  | "credential-in-use"
-  | "email-in-use"
-  | "popup-closed"
-  | "network"
-  | "unsupported-platform"
-  | "cancelled"
-  | "unknown";
+// Friendly mapping for Firebase auth-error codes from the login screen and
+// linkWithCredential flows. The Firebase SDK throws an error with a `code`
+// field; we surface human-readable messages instead of the raw codes (or the
+// raw "Firebase: Error (auth/...)" text) so the user knows what to do next.
+
+export type LinkErrorKind = AuthErrorKind;
 
 type FirebaseAuthError = { code?: string; message?: string };
 
@@ -32,8 +27,32 @@ export function classifyLinkError(error: unknown): {
     case "auth/email-already-in-use":
       return {
         kind: "email-in-use",
-        message:
-          "That email is already in use. Try a different account or sign out first.",
+        message: "An account with this email already exists. Try signing in instead.",
+      };
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return {
+        kind: "wrong-credentials",
+        message: "Email or password is incorrect.",
+      };
+    case "auth/invalid-email":
+      return { kind: "invalid-email", message: "Enter a valid email address." };
+    case "auth/weak-password":
+      return {
+        kind: "weak-password",
+        message: "Choose a stronger password — at least 8 characters.",
+      };
+    case "auth/too-many-requests":
+      return {
+        kind: "too-many-requests",
+        message: "Too many attempts. Wait a few minutes or reset your password.",
+      };
+    case "auth/user-disabled":
+      return {
+        kind: "user-disabled",
+        message: "This account has been disabled. Contact support for help.",
       };
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
@@ -61,8 +80,7 @@ export function classifyLinkError(error: unknown): {
       }
       return {
         kind: "unknown",
-        message:
-          err?.message ?? "Something went wrong. Try again in a moment.",
+        message: "Something went wrong. Try again in a moment.",
       };
   }
 }
