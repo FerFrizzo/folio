@@ -3,10 +3,15 @@ import { useRouter } from "expo-router";
 import { Button } from "@/src/components/ui/Button";
 import { PaymentDetailsForm } from "@/src/features/settings/PaymentDetailsForm";
 import { OnboardingShell } from "@/src/features/onboarding/OnboardingShell";
+import { useEntitlement } from "@/src/features/settings/queries";
 import { track } from "@/src/lib/analytics";
 
 export default function OnboardingPayment() {
   const router = useRouter();
+  const entitlement = useEntitlement();
+  // Last data step: free users see the Pro offer before landing on the dashboard.
+  const next = () =>
+    router.replace(entitlement === "pro" ? "/(tabs)/dashboard" : "/onboarding/paywall");
   return (
     <OnboardingShell
       stepIndex={2}
@@ -20,14 +25,14 @@ export default function OnboardingPayment() {
           variant="ghost"
           onPress={() => {
             track("onboarding_step_completed", { step: "payment", skipped: true });
-            router.replace("/(tabs)/dashboard");
+            next();
           }}
         />
         <Button
           label="Done"
           onPress={() => {
             track("onboarding_step_completed", { step: "payment", skipped: false });
-            router.replace("/(tabs)/dashboard");
+            next();
           }}
         />
       </View>

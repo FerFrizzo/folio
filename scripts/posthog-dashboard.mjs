@@ -106,6 +106,11 @@ const INSIGHTS = [
     description: "Should stay near zero.",
     source: weeklyBars("analytics_opted_out"),
   },
+  {
+    name: "9. Sign-in failures by method and reason",
+    description: "Why people get stuck on the login screen. Compare with signed_up + signed_in.",
+    source: weeklyBars("sign_in_failed", "method", "reason"),
+  },
 ];
 
 async function api(method, path, body) {

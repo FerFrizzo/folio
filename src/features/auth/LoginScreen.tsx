@@ -14,6 +14,7 @@ import {
 } from "@/features/auth/linking/google";
 import { appleAvailableOnPlatform, signInWithApple } from "@/features/auth/linking/apple";
 import { classifyLinkError } from "@/features/auth/linking/linkErrors";
+import { reportAuthError } from "@/features/auth/trackAuth";
 
 type Mode = "sign-in" | "sign-up" | "forgot-password";
 
@@ -61,8 +62,7 @@ function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChang
       }
       toast.show({ message: "Signed in with Google.", variant: "success" });
     } catch (err: unknown) {
-      const { message } = classifyLinkError(err);
-      toast.show({ message, variant: "error" });
+      toast.show({ message: reportAuthError(err, "google"), variant: "error" });
     } finally {
       onBusyChange(false);
     }
@@ -168,7 +168,8 @@ export function LoginScreen() {
         switchMode("sign-in");
       }
     } catch (err: unknown) {
-      const { message } = classifyLinkError(err);
+      const message =
+        mode === "forgot-password" ? classifyLinkError(err).message : reportAuthError(err, "email");
       toast.show({ message, variant: "error" });
     } finally {
       setBusy(false);
@@ -181,8 +182,7 @@ export function LoginScreen() {
       await signInWithApple();
       toast.show({ message: "Signed in with Apple.", variant: "success" });
     } catch (err: unknown) {
-      const { message } = classifyLinkError(err);
-      toast.show({ message, variant: "error" });
+      toast.show({ message: reportAuthError(err, "apple"), variant: "error" });
     } finally {
       setBusy(false);
     }

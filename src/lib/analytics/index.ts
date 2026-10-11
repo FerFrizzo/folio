@@ -5,6 +5,7 @@ import type { AnalyticsEventName, EventProps } from "@/src/lib/analytics/events"
 
 export type {
   AnalyticsEventName,
+  AuthErrorKind,
   AuthMethod,
   EventProps,
   PaywallSource,
