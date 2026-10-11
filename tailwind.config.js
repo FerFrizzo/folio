@@ -5,6 +5,9 @@ module.exports = {
     "./src/**/*.{ts,tsx}",
   ],
   presets: [require("nativewind/preset")],
+  // Folio has no dark mode. "class" lets themeStore force light mode; the
+  // default ("media") follows the device and crashes colorScheme.set() on web.
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
