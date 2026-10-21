@@ -2,6 +2,7 @@ import * as Print from "expo-print";
 import { renderInvoiceHtml as renderPro, type RenderInvoiceArgs } from "@/src/lib/pdf/template-pro";
 import { renderInvoiceHtml as renderFree } from "@/src/lib/pdf/template-free";
 import { sharePdf } from "@/src/lib/pdf/share";
+import { INVOICE_PAGE_MARGINS_MM, pdfPrintOptions } from "@/src/lib/pdf/print-options";
 
 export type GeneratedPdf = {
   uri: string;
@@ -19,7 +20,7 @@ export type GenerateInvoicePdfArgs = RenderInvoiceArgs & {
 export async function generateInvoicePdf(args: GenerateInvoicePdfArgs): Promise<GeneratedPdf> {
   const renderFn = args.isPro ? renderPro : renderFree;
   const html = renderFn(args);
-  const result = await Print.printToFileAsync({ html, base64: false, width: 595, height: 842 });
+  const result = await Print.printToFileAsync(pdfPrintOptions(html, INVOICE_PAGE_MARGINS_MM));
   return { uri: result.uri, html };
 }
 
