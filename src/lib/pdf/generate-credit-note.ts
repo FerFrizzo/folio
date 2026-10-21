@@ -4,6 +4,7 @@ import {
   type RenderCreditNoteArgs,
 } from "@/src/lib/pdf/credit-note-template";
 import { sharePdf } from "@/src/lib/pdf/share";
+import { CREDIT_NOTE_PAGE_MARGINS_MM, pdfPrintOptions } from "@/src/lib/pdf/print-options";
 
 export type GeneratedPdf = {
   uri: string;
@@ -12,7 +13,7 @@ export type GeneratedPdf = {
 
 export async function generateCreditNotePdf(args: RenderCreditNoteArgs): Promise<GeneratedPdf> {
   const html = renderCreditNoteHtml(args);
-  const result = await Print.printToFileAsync({ html, base64: false, width: 595, height: 842 });
+  const result = await Print.printToFileAsync(pdfPrintOptions(html, CREDIT_NOTE_PAGE_MARGINS_MM));
   return { uri: result.uri, html };
 }
 

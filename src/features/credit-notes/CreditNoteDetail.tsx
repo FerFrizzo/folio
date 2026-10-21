@@ -17,6 +17,7 @@ import {
 import { useArchiveCreditNote } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import type { CreditNote } from "@/src/types/schemas";
+import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   creditNote: CreditNote;
@@ -66,6 +67,14 @@ export function CreditNoteDetail({ creditNote }: Props) {
         if (cancelled) return;
         setPdfUri(pdf.uri);
         setPdfHtml(pdf.html);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          toast.show({
+            message: errorMessage(err, "Couldn't generate the PDF."),
+            variant: "error",
+          });
+        }
       } finally {
         if (!cancelled) setGenerating(false);
       }
@@ -80,6 +89,12 @@ export function CreditNoteDetail({ creditNote }: Props) {
     setSharing(true);
     try {
       await shareCreditNotePdf(pdfUri, `${creditNote.number}.pdf`);
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't share."),
+        variant: "error",
+      });
     } finally {
       setSharing(false);
     }
@@ -87,9 +102,17 @@ export function CreditNoteDetail({ creditNote }: Props) {
 
   async function performArchive() {
     setConfirmArchive(false);
-    await archive.mutateAsync(creditNote.id);
-    toast.show({ message: `${creditNote.number} archived.`, variant: "info" });
-    router.back();
+    try {
+      await archive.mutateAsync(creditNote.id);
+      toast.show({ message: `${creditNote.number} archived.`, variant: "info" });
+      router.back();
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't archive."),
+        variant: "error",
+      });
+    }
   }
 
   return (
