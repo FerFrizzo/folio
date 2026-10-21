@@ -26,6 +26,7 @@ import { useCreditNotesForInvoice } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings, useEntitlement } from "@/src/features/settings/queries";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
 import { PaymentsLog } from "@/src/features/invoices/PaymentsLog";
+import { CreditNotesSummary } from "@/src/features/invoices/CreditNotesSummary";
 import { SendEmailSheet } from "@/src/features/invoices/SendEmailSheet";
 import type { Invoice } from "@/src/types/schemas";
 import { errorMessage } from "@/src/lib/zod-message";
@@ -325,17 +326,11 @@ export function InvoiceDetail({ invoice }: Props) {
               Outstanding {formatMoney(invoice.balanceCents, invoice.currency)}
             </Text>
           ) : null}
-          {cnList.length > 0 ? (
-            <View className="mt-3 border-t border-border pt-3">
-              <Text className="text-caption text-muted">
-                Credit notes ({cnList.length}):{" "}
-                {formatMoney(cnTotalCents, invoice.currency)}
-              </Text>
-              <Text className="mt-1 text-body font-semibold text-foreground [font-feature-settings:'tnum']">
-                Net balance: {formatMoney(netBalanceCents, invoice.currency)}
-              </Text>
-            </View>
-          ) : null}
+          <CreditNotesSummary
+            creditNotes={cnList}
+            currency={invoice.currency}
+            netBalanceCents={netBalanceCents}
+          />
         </Card>
 
         {invoice.status !== "draft" ? <PaymentsLog invoice={invoice} /> : null}

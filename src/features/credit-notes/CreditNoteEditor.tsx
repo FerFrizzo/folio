@@ -14,6 +14,7 @@ import { NumberInput } from "@/src/components/ui/NumberInput";
 import { useToast } from "@/src/components/ui/Toast";
 import { useInvoice } from "@/src/features/invoices/queries";
 import { useCreateCreditNote } from "@/src/features/credit-notes/queries";
+import { useIssueCreditNote } from "@/src/features/credit-notes/useIssueCreditNote";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import { generateCreditNotePdf, shareCreditNotePdf } from "@/src/lib/pdf/generate-credit-note";
 import { errorMessage } from "@/src/lib/zod-message";
@@ -78,7 +79,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   const [issueDate, setIssueDate] = useState(todayIso());
   const [reason, setReason] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
-  const [submitting, setSubmitting] = useState(false);
+  const { issue, submitting } = useIssueCreditNote();
 
   // Pre-populate from the original invoice once loaded.
   useEffect(() => {
@@ -140,50 +141,66 @@ export function CreditNoteEditor({ invoiceId }: Props) {
       return;
     }
     if (!inv) return;
-    setSubmitting(true);
-    try {
-      const cn = await create.mutateAsync({
-        originalInvoiceId: inv.id,
-        originalInvoiceNumber: inv.number,
-        currency: inv.currency,
-        clientSnapshot: inv.clientSnapshot,
-        issueDate,
-        reason,
-        lineItems: enrichedLines,
-      });
-      // Generate + share the CN PDF.
-      const pdf = await generateCreditNotePdf({
-        creditNote: cn,
-        profile: profile.data ?? {
-          businessName: "",
-          abn: "",
-          address: "",
-          email: "",
-          phone: "",
-          gstRegistered: true,
-        },
-        settings: settings.data ?? {
-          numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
-          lineItemMode: "basic",
-          defaultGstRate: 0,
-          defaultPaymentTermsDays: 14,
-          defaultCurrency: "AUD",
-          paymentDetails: {},
-          emailDefaults: { subject: "", body: "" },
-          themeMode: "system",
-          biometricEnabled: false,
-        },
-      });
-      await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
-      router.replace(`/invoices/${inv.id}`);
-    } catch (err) {
-      console.error(err);
-      toast.show({
-        message: errorMessage(err, "Couldn't issue."),
-        variant: "error",
-      });
-    } finally {
-      setSubmitting(false);
+    const outcome = await issue({
+      create: () =>
+        create.mutateAsync({
+          originalInvoiceId: inv.id,
+          originalInvoiceNumber: inv.number,
+          currency: inv.currency,
+          clientSnapshot: inv.clientSnapshot,
+          issueDate,
+          reason,
+          lineItems: enrichedLines,
+        }),
+      share: async (cn) => {
+        const pdf = await generateCreditNotePdf({
+          creditNote: cn,
+          profile: profile.data ?? {
+            businessName: "",
+            abn: "",
+            address: "",
+            email: "",
+            phone: "",
+            gstRegistered: true,
+          },
+          settings: settings.data ?? {
+            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
+            lineItemMode: "basic",
+            defaultGstRate: 0,
+            defaultPaymentTermsDays: 14,
+            defaultCurrency: "AUD",
+            paymentDetails: {},
+            emailDefaults: { subject: "", body: "" },
+            themeMode: "system",
+            biometricEnabled: false,
+          },
+        });
+        await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
+      },
+    });
+    switch (outcome.status) {
+      case "issued":
+        router.replace(`/invoices/${inv.id}`);
+        return;
+      case "issued-share-failed":
+        // The credit note exists; leaving the editor stops a retry from
+        // issuing a duplicate. The PDF can be re-shared from its own screen.
+        console.error(outcome.error);
+        toast.show({
+          message: `${outcome.creditNote.number} issued, but the PDF couldn't be shared. Open it from the invoice to share again.`,
+          variant: "warning",
+        });
+        router.replace(`/invoices/${inv.id}`);
+        return;
+      case "failed":
+        console.error(outcome.error);
+        toast.show({
+          message: errorMessage(outcome.error, "Couldn't issue."),
+          variant: "error",
+        });
+        return;
+      case "busy":
+        return;
     }
   }
 
