@@ -45,3 +45,16 @@ export function outstandingCents(
   }
   return total;
 }
+
+// The "Paid · Outstanding" line on an invoice. Hidden until something has been
+// paid. Outstanding is what's left of the invoice itself and never negative;
+// credit notes are reported separately as the net balance.
+export function paidSummary(
+  invoice: Pick<Invoice, "amountPaidCents" | "balanceCents">,
+): { paidCents: number; outstandingCents: number } | null {
+  if (invoice.amountPaidCents <= 0) return null;
+  return {
+    paidCents: invoice.amountPaidCents,
+    outstandingCents: Math.max(0, invoice.balanceCents),
+  };
+}

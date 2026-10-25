@@ -1,4 +1,4 @@
-import { netBalanceCents, outstandingCents } from "@/src/lib/invoice-balance";
+import { netBalanceCents, outstandingCents, paidSummary } from "@/src/lib/invoice-balance";
 import type { CreditNote, Invoice } from "@/src/types/schemas";
 
 function invoice(overrides: Partial<Invoice> = {}): Invoice {
@@ -110,5 +110,31 @@ describe("outstandingCents", () => {
         [credit({ totalCents: -4000 })],
       ),
     ).toBe(7000);
+  });
+});
+
+describe("paidSummary", () => {
+  it("is hidden until something has been paid", () => {
+    expect(paidSummary({ amountPaidCents: 0, balanceCents: 55000 })).toBeNull();
+  });
+
+  it("shows paid and the invoice's own outstanding balance", () => {
+    expect(paidSummary({ amountPaidCents: 20000, balanceCents: 35000 })).toEqual({
+      paidCents: 20000,
+      outstandingCents: 35000,
+    });
+  });
+
+  it("shows zero outstanding on a fully paid invoice", () => {
+    expect(paidSummary({ amountPaidCents: 55000, balanceCents: 0 })).toEqual({
+      paidCents: 55000,
+      outstandingCents: 0,
+    });
+  });
+
+  // Regression: the line showed the net balance, so a paid invoice with a
+  // matching credit note read "Outstanding $-550.00".
+  it("never reports a negative outstanding amount", () => {
+    expect(paidSummary({ amountPaidCents: 55000, balanceCents: -100 })?.outstandingCents).toBe(0);
   });
 });

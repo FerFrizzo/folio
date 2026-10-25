@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -17,11 +17,7 @@ import { useInvoice } from "@/src/features/invoices/queries";
 import { useCreateCreditNote } from "@/src/features/credit-notes/queries";
 import { useIssueCreditNote } from "@/src/features/credit-notes/useIssueCreditNote";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
-import {
-  creditNoteClientId,
-  markCreditNoteSharing,
-  releaseCreditNoteClientId,
-} from "@/src/lib/firestore/creditNotes";
+import { newCreditNoteId } from "@/src/lib/firestore/creditNotes";
 import { generateCreditNotePdf, shareCreditNotePdf } from "@/src/lib/pdf/generate-credit-note";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
@@ -88,9 +84,9 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   const [lines, setLines] = useState<Line[]>([]);
   const { issue, submitting } = useIssueCreditNote();
 
-  useEffect(() => {
-    return () => releaseCreditNoteClientId(invoiceId);
-  }, [invoiceId]);
+  // One credit note id per editor visit. A retry after a lost response
+  // returns the note already written instead of issuing a second one.
+  const creditNoteId = useRef<string | null>(null);
 
   // Pre-populate from the original invoice once loaded.
   useEffect(() => {
@@ -156,7 +152,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
       create: () => {
         if (auth.status !== "ready") throw new Error("Not signed in");
         return create.mutateAsync({
-          id: creditNoteClientId(auth.user.uid, inv.id),
+          id: (creditNoteId.current ??= newCreditNoteId(auth.user.uid)),
           originalInvoiceId: inv.id,
           originalInvoiceNumber: inv.number,
           currency: inv.currency,
@@ -167,34 +163,29 @@ export function CreditNoteEditor({ invoiceId }: Props) {
         });
       },
       share: async (cn) => {
-        markCreditNoteSharing(inv.id, true);
-        try {
-          const pdf = await generateCreditNotePdf({
-            creditNote: cn,
-            profile: profile.data ?? {
-              businessName: "",
-              abn: "",
-              address: "",
-              email: "",
-              phone: "",
-              gstRegistered: true,
-            },
-            settings: settings.data ?? {
-              numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
-              lineItemMode: "basic",
-              defaultGstRate: 0,
-              defaultPaymentTermsDays: 14,
-              defaultCurrency: "AUD",
-              paymentDetails: {},
-              emailDefaults: { subject: "", body: "" },
-              themeMode: "system",
-              biometricEnabled: false,
-            },
-          });
-          await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
-        } finally {
-          markCreditNoteSharing(inv.id, false);
-        }
+        const pdf = await generateCreditNotePdf({
+          creditNote: cn,
+          profile: profile.data ?? {
+            businessName: "",
+            abn: "",
+            address: "",
+            email: "",
+            phone: "",
+            gstRegistered: true,
+          },
+          settings: settings.data ?? {
+            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
+            lineItemMode: "basic",
+            defaultGstRate: 0,
+            defaultPaymentTermsDays: 14,
+            defaultCurrency: "AUD",
+            paymentDetails: {},
+            emailDefaults: { subject: "", body: "" },
+            themeMode: "system",
+            biometricEnabled: false,
+          },
+        });
+        await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
       },
     });
     switch (outcome.status) {

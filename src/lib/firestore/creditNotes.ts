@@ -38,27 +38,11 @@ function toCreditNote(data: Record<string, unknown>, id: string): CreditNote | n
   return parsed.success ? parsed.data : null;
 }
 
-// One id per invoice while the editor is issuing, including across a remount
-// caused by the share sheet. A later visit allocates a new id once sharing
-// has finished and the editor unmounts.
-type CreditNoteSession = { invoiceId: string; id: string; sharing: boolean };
-let creditNoteSession: CreditNoteSession | null = null;
-
-export function creditNoteClientId(uid: string, invoiceId: string): string {
-  if (creditNoteSession?.invoiceId === invoiceId) return creditNoteSession.id;
-  const id = doc(collection(getFirebaseFirestore(), fsPaths.creditNotes(uid))).id;
-  creditNoteSession = { invoiceId, id, sharing: false };
-  return id;
-}
-
-export function markCreditNoteSharing(invoiceId: string, sharing: boolean): void {
-  if (creditNoteSession?.invoiceId === invoiceId) creditNoteSession.sharing = sharing;
-}
-
-export function releaseCreditNoteClientId(invoiceId: string): void {
-  if (creditNoteSession?.invoiceId === invoiceId && !creditNoteSession.sharing) {
-    creditNoteSession = null;
-  }
+// A fresh document id for a credit note the editor is about to issue. The
+// editor keeps it for its lifetime so a retry after a lost response returns
+// the note that was already written instead of issuing a second one.
+export function newCreditNoteId(uid: string): string {
+  return doc(collection(getFirebaseFirestore(), fsPaths.creditNotes(uid))).id;
 }
 
 export async function listCreditNotes(uid: string, includeDeleted = false): Promise<CreditNote[]> {
@@ -125,7 +109,9 @@ export async function createCreditNote(
     ]);
     if (existing.exists()) {
       const already = toCreditNote(existing.data(), ref.id);
-      if (already) return already;
+      // Never overwrite an issued credit note, even one we can't parse.
+      if (!already) throw new Error("This credit note already exists but couldn't be read.");
+      return already;
     }
     if (!invSnap.exists()) throw new Error("Original invoice not found.");
 

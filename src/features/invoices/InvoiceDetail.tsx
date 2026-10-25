@@ -14,7 +14,10 @@ import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useToast } from "@/src/components/ui/Toast";
 import { format, parseISO } from "date-fns";
 import { formatMoney } from "@/src/lib/money";
-import { netBalanceCents as invoiceNetBalanceCents } from "@/src/lib/invoice-balance";
+import {
+  netBalanceCents as invoiceNetBalanceCents,
+  paidSummary,
+} from "@/src/lib/invoice-balance";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import {
@@ -256,6 +259,7 @@ export function InvoiceDetail({ invoice }: Props) {
 
   const cnList = creditNotes.data ?? [];
   const netBalanceCents = invoiceNetBalanceCents(invoice, cnList);
+  const paid = paidSummary(invoice);
 
   return (
     <View className="flex-1 bg-background">
@@ -341,12 +345,12 @@ export function InvoiceDetail({ invoice }: Props) {
               Due {format(parseISO(invoice.dueDate), "d MMM yyyy")}
             </Text>
           ) : null}
-          <Text className="mt-1 text-caption text-muted">
-            {invoice.amountPaidCents > 0
-              ? `Paid ${formatMoney(invoice.amountPaidCents, invoice.currency)} · `
-              : ""}
-            Outstanding {formatMoney(netBalanceCents, invoice.currency)}
-          </Text>
+          {paid ? (
+            <Text className="mt-1 text-caption text-muted">
+              Paid {formatMoney(paid.paidCents, invoice.currency)} ·
+              Outstanding {formatMoney(paid.outstandingCents, invoice.currency)}
+            </Text>
+          ) : null}
           <CreditNotesSummary
             creditNotes={cnList}
             currency={invoice.currency}

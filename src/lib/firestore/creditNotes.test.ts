@@ -1,9 +1,4 @@
-import {
-  createCreditNote,
-  creditNoteClientId,
-  markCreditNoteSharing,
-  releaseCreditNoteClientId,
-} from "@/src/lib/firestore/creditNotes";
+import { createCreditNote, newCreditNoteId } from "@/src/lib/firestore/creditNotes";
 
 const mockDocs = new Map<string, Record<string, unknown>>();
 let mockGenerated = 0;
@@ -96,7 +91,6 @@ beforeEach(() => {
   mockClaim.mockClear();
   mockClaim.mockResolvedValue({ counter: 1, number: "CN-0001" });
   mockDocs.set("users/u1/invoices/inv-1", { creditNoteIds: [] });
-  releaseCreditNoteClientId("inv-1");
 });
 
 describe("createCreditNote", () => {
@@ -109,17 +103,29 @@ describe("createCreditNote", () => {
     const invoice = mockDocs.get("users/u1/invoices/inv-1");
     expect(invoice?.creditNoteIds).toEqual(["cn-client"]);
   });
+
+  it("issues separate credit notes for different ids", async () => {
+    mockClaim
+      .mockResolvedValueOnce({ counter: 1, number: "CN-0001" })
+      .mockResolvedValueOnce({ counter: 2, number: "CN-0002" });
+    const a = await createCreditNote("u1", input, "cn-a");
+    const b = await createCreditNote("u1", input, "cn-b");
+    expect([a.number, b.number]).toEqual(["CN-0001", "CN-0002"]);
+    expect(mockDocs.get("users/u1/invoices/inv-1")?.creditNoteIds).toEqual(["cn-a", "cn-b"]);
+  });
+
+  // Regression: an existing doc that failed to parse was overwritten with a
+  // new number.
+  it("refuses to overwrite an existing credit note it can't read", async () => {
+    mockDocs.set("users/u1/creditNotes/cn-bad", { number: 42 });
+    await expect(createCreditNote("u1", input, "cn-bad")).rejects.toThrow(/couldn't be read/);
+    expect(mockDocs.get("users/u1/creditNotes/cn-bad")).toEqual({ number: 42 });
+    expect(mockClaim).not.toHaveBeenCalled();
+  });
 });
 
-describe("creditNoteClientId", () => {
-  it("reuses the id for the same invoice until the editor releases it", () => {
-    const first = creditNoteClientId("u1", "inv-1");
-    expect(creditNoteClientId("u1", "inv-1")).toBe(first);
-    markCreditNoteSharing("inv-1", true);
-    releaseCreditNoteClientId("inv-1");
-    expect(creditNoteClientId("u1", "inv-1")).toBe(first);
-    markCreditNoteSharing("inv-1", false);
-    releaseCreditNoteClientId("inv-1");
-    expect(creditNoteClientId("u1", "inv-1")).not.toBe(first);
+describe("newCreditNoteId", () => {
+  it("returns a fresh id each call", () => {
+    expect(newCreditNoteId("u1")).not.toBe(newCreditNoteId("u1"));
   });
 });
