@@ -83,12 +83,14 @@ describe("invoiceFromEditorState", () => {
     );
   });
 
-  // Due Date was removed from the editor entirely, so the built invoice must
-  // still validate against the schema with no dueDate at all.
-  it("omits the dueDate key entirely when the editor supplies none", () => {
-    const invoice = build({ dueDate: undefined });
-    expect("dueDate" in invoice).toBe(false);
-    expect(() => InvoiceSchema.parse(invoice)).not.toThrow();
+  it("omits the dueDate key when the editor supplies none or a blank", () => {
+    expect("dueDate" in build({ dueDate: undefined })).toBe(false);
+    expect("dueDate" in build({ dueDate: "   " })).toBe(false);
+    expect(() => InvoiceSchema.parse(build({ dueDate: "" }))).not.toThrow();
+  });
+
+  it("keeps a trimmed due date for the preview PDF", () => {
+    expect(build({ dueDate: " 2026-06-02 " }).dueDate).toBe("2026-06-02");
   });
 
   it("keeps a client-less draft renderable, so preview works before a client is picked", () => {

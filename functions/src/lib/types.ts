@@ -7,8 +7,9 @@ const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const ISO_DATETIME = z.string().datetime({ offset: true }).or(z.string());
 const NON_EMPTY = z.string().min(1, "Required");
 
-// Blank and null are "no date": the field is left off the document so a
-// payment can be saved without one and the PDF can skip the date line.
+// Blank and null are "no date". The field is left off the document so a
+// payment or an invoice due date can be saved without one, and the PDF can
+// skip that line.
 const OptionalISODate = z.preprocess((value) => {
   if (value == null) return undefined;
   if (typeof value !== "string") return value;
@@ -132,7 +133,7 @@ export const InvoiceSchema = z.object({
   clientId: z.string().nullable(),
   clientSnapshot: ClientSnapshotSchema,
   issueDate: ISO_DATE,
-  dueDate: ISO_DATE.optional(),
+  dueDate: OptionalISODate,
   lineItems: z.array(LineItemSchema),
   invoiceDiscount: DiscountSchema.optional(),
   subtotalCents: z.number().int().nonnegative(),

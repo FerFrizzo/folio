@@ -45,6 +45,17 @@ function fmtDate(iso: string): string {
   return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Due date is its own card. Blank, whitespace, and anything that is not a
+// real date are omitted — no empty value and no placeholder.
+function dueDateCard(dueDate: string | undefined): string {
+  const trimmed = dueDate?.trim() ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return "";
+  return `<div class="date-card">
+          <div class="dc-lbl">Due</div>
+          <div class="dc-val">${fmtDate(trimmed)}</div>
+        </div>`;
+}
+
 export type RenderInvoiceArgs = {
   invoice: Invoice;
   profile: Profile;
@@ -504,12 +515,7 @@ export function renderInvoiceHtml({
           <div class="dc-lbl">Issued</div>
           <div class="dc-val">${fmtDate(invoice.issueDate)}</div>
         </div>
-        ${invoice.dueDate
-          ? `<div class="date-card">
-          <div class="dc-lbl">Due</div>
-          <div class="dc-val">${fmtDate(invoice.dueDate)}</div>
-        </div>`
-          : ""}
+        ${dueDateCard(invoice.dueDate)}
       </div>
     </div>
   </header>

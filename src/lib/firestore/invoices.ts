@@ -27,6 +27,7 @@ import {
   ensureInvoiceCounterAtLeastInTransaction,
 } from "@/src/lib/firestore/counters";
 import { parseAutoNumber } from "@/src/lib/numbering";
+import { requireOptionalDueDate } from "@/src/lib/due-date";
 import { parseOptionalPaymentDate } from "@/src/lib/payment-date";
 
 function nowIso(): string {
@@ -52,6 +53,11 @@ function normalizeTimestamps(data: Record<string, unknown>): Record<string, unkn
     if (v instanceof Timestamp) out[k] = v.toDate().toISOString();
   }
   return out;
+}
+
+function storedDueDate(value: string | null | undefined): { dueDate: string } | Record<string, never> {
+  const dueDate = requireOptionalDueDate(value);
+  return dueDate ? { dueDate } : {};
 }
 
 function storedPayment(payment: {
@@ -157,7 +163,7 @@ export async function createDraft(
     clientId: input.clientId,
     clientSnapshot: input.clientSnapshot,
     issueDate: input.issueDate,
-    ...(input.dueDate ? { dueDate: input.dueDate } : {}),
+    ...storedDueDate(input.dueDate),
     lineItems: input.lineItems,
     ...(input.invoiceDiscount ? { invoiceDiscount: input.invoiceDiscount } : {}),
     subtotalCents: totals.subtotalCents,
@@ -195,10 +201,11 @@ export async function updateDraft(
     ...patch,
     updatedAt: nowIso(),
   };
-  // An empty due date removes the field. Writing "" or null would fail the
+  // Blank, whitespace, and null remove the field. Writing them would fail the
   // next read, and omitting the key would leave a stale date in place.
-  if ("dueDate" in patch && !patch.dueDate) {
-    update.dueDate = deleteField();
+  if ("dueDate" in patch) {
+    const dueDate = requireOptionalDueDate(patch.dueDate);
+    update.dueDate = dueDate ?? deleteField();
   }
   if (patch.lineItems || "invoiceDiscount" in patch) {
     // Need both fields available; if updating one, callers should pass both

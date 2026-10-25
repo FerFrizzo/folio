@@ -93,6 +93,13 @@ beforeEach(() => {
 });
 
 describe("reading invoices after a payment change", () => {
+  it("still returns an invoice whose due date was stored as null", async () => {
+    mockState.doc = invoiceDoc({ dueDate: null, status: "sent" });
+    const invoice = await getInvoice("u1", "inv-1");
+    expect(invoice?.id).toBe("inv-1");
+    expect(invoice?.dueDate).toBeUndefined();
+  });
+
   it("still returns an invoice whose paidAt was stored as null", async () => {
     mockState.doc = invoiceDoc({ paidAt: null, status: "sent", amountPaidCents: 0, balanceCents: 11000, payments: [] });
     const invoice = await getInvoice("u1", "inv-1");
@@ -227,5 +234,15 @@ describe("updateDraft due date", () => {
   it("removes the field when the due date is cleared", async () => {
     await updateDraft("u1", "inv-1", { dueDate: "" });
     expect(mockState.updates[0]?.dueDate).toEqual(deleteField());
+  });
+
+  it("removes the field when the due date is only whitespace", async () => {
+    await updateDraft("u1", "inv-1", { dueDate: "   " });
+    expect(mockState.updates[0]?.dueDate).toEqual(deleteField());
+  });
+
+  it("stores a trimmed due date", async () => {
+    await updateDraft("u1", "inv-1", { dueDate: " 2026-06-02 " });
+    expect(mockState.updates[0]?.dueDate).toBe("2026-06-02");
   });
 });

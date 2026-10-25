@@ -54,6 +54,7 @@ import { completeManualSend } from "@/src/features/invoices/manualSend";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
 import { invoiceFromEditorState } from "@/src/lib/invoice-preview";
 import { draftBlocker, sendBlocker } from "@/src/lib/invoice-validation";
+import { dueDateDraftPatch, optionalDueDate } from "@/src/lib/due-date";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import type {
@@ -269,10 +270,8 @@ export function InvoiceEditor({ initial }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, currency, clientId, clientSnapshot, issueDate, dueDate, items, invoiceDiscount, notes]);
 
-  function dueDatePatch(): { dueDate?: string } {
-    if (dueDate === "") return { dueDate: "" };
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return { dueDate };
-    return {};
+  function dueDatePatch(): { dueDate: string } | Record<string, never> {
+    return dueDateDraftPatch(dueDate);
   }
 
   function buildDraftInput(): InvoiceDraftInput {
@@ -342,6 +341,7 @@ export function InvoiceEditor({ initial }: Props) {
     now: string;
     sentAt?: string;
   }): Invoice {
+    const normalizedDueDate = optionalDueDate(dueDate);
     return invoiceFromEditorState({
       id: args.id,
       number: args.number,
@@ -350,7 +350,7 @@ export function InvoiceEditor({ initial }: Props) {
       clientId,
       clientSnapshot,
       issueDate,
-      ...(/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ? { dueDate } : {}),
+      ...(normalizedDueDate ? { dueDate: normalizedDueDate } : {}),
       lineItems: computed.lines,
       invoiceDiscount,
       totals: computed.totals,

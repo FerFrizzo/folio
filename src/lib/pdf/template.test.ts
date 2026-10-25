@@ -210,6 +210,16 @@ describe("renderInvoiceHtml", () => {
       settings,
     });
     expect(bare).not.toContain(">Due<");
+    for (const dueDate of ["", "   "]) {
+      const blank = renderInvoiceHtml({
+        invoice: { ...invoice, dueDate },
+        profile,
+        settings,
+      });
+      expect(blank).not.toContain(">Due<");
+      expect(blank).not.toContain("Invalid Date");
+      expect(blank).not.toMatch(/dc-val"><\/div>/);
+    }
   });
 
   it("keeps the footer in normal flow so a long invoice can paginate", () => {

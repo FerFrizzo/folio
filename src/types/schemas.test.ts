@@ -63,3 +63,39 @@ describe("PaymentRecordSchema date", () => {
     expect(parsed.payments[1]?.date).toBeUndefined();
   });
 });
+
+const invoiceBase = {
+  id: "inv-1",
+  number: "INV-0001",
+  status: "draft" as const,
+  currency: "AUD" as const,
+  clientId: null,
+  clientSnapshot: { name: "Acme" },
+  issueDate: "2026-05-01",
+  lineItems: [],
+  subtotalCents: 100,
+  gstTotalCents: 0,
+  totalCents: 100,
+  balanceCents: 100,
+  createdAt: "2026-05-01T00:00:00.000Z",
+  updatedAt: "2026-05-01T00:00:00.000Z",
+};
+
+describe("InvoiceSchema due date", () => {
+  it("treats blank, whitespace, and null due dates as absent", () => {
+    for (const dueDate of ["", "   ", null]) {
+      const parsed = InvoiceSchema.parse({ ...invoiceBase, dueDate });
+      expect(parsed.dueDate).toBeUndefined();
+    }
+  });
+
+  it("keeps a trimmed due date", () => {
+    expect(InvoiceSchema.parse({ ...invoiceBase, dueDate: " 2026-06-02 " }).dueDate).toBe(
+      "2026-06-02",
+    );
+  });
+
+  it("rejects a due date that is not a calendar date", () => {
+    expect(() => InvoiceSchema.parse({ ...invoiceBase, dueDate: "next week" })).toThrow();
+  });
+});
