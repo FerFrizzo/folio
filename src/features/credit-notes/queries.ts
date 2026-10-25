@@ -6,6 +6,7 @@ import {
   getCreditNote,
   listCreditNotes,
   listCreditNotesForInvoice,
+  restoreCreditNote,
   softDeleteCreditNote,
 } from "@/src/lib/firestore/creditNotes";
 import { invoiceKeys } from "@/src/features/invoices/queries";
@@ -19,13 +20,13 @@ export const creditNoteKeys = {
   detail: (uid: string, id: string) => ["creditNotes", uid, id] as const,
 };
 
-export function useCreditNotes() {
+export function useCreditNotes(includeDeleted = false) {
   const auth = useAuth();
   const uid = auth.status === "ready" ? auth.user.uid : null;
   return useQuery<CreditNote[]>({
-    queryKey: creditNoteKeys.list(uid ?? "anon"),
+    queryKey: [...creditNoteKeys.list(uid ?? "anon"), { includeDeleted }] as const,
     enabled: !!uid,
-    queryFn: () => listCreditNotes(uid as string),
+    queryFn: () => listCreditNotes(uid as string, includeDeleted),
   });
 }
 
@@ -53,9 +54,10 @@ export function useCreateCreditNote() {
   const auth = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreditNoteInput) => {
+    mutationFn: (input: CreditNoteInput & { id?: string }) => {
       if (auth.status !== "ready") throw new Error("Not signed in");
-      return createCreditNote(auth.user.uid, input);
+      const { id, ...rest } = input;
+      return createCreditNote(auth.user.uid, rest, id);
     },
     onSuccess: (cn) => {
       track("credit_note_created");
@@ -67,6 +69,23 @@ export function useCreateCreditNote() {
         qc.invalidateQueries({
           queryKey: creditNoteKeys.forInvoice(auth.user.uid, cn.originalInvoiceId),
         });
+      }
+    },
+  });
+}
+
+export function useRestoreCreditNote() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return restoreCreditNote(auth.user.uid, id);
+    },
+    onSuccess: () => {
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: creditNoteKeys.all(auth.user.uid) });
+        qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
       }
     },
   });

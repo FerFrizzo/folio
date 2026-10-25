@@ -14,6 +14,7 @@ import { X } from "lucide-react-native";
 import { format } from "date-fns";
 import { Button } from "@/src/components/ui/Button";
 import { CollapsibleCard } from "@/src/components/ui/CollapsibleCard";
+import { DateInput } from "@/src/components/ui/DateInput";
 import { IconButton } from "@/src/components/ui/IconButton";
 import { Input } from "@/src/components/ui/Input";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
@@ -169,6 +170,7 @@ export function InvoiceEditor({ initial }: Props) {
     initial?.clientSnapshot ?? { name: "" },
   );
   const [issueDate] = useState<string>(initial?.issueDate ?? todayIso());
+  const [dueDate, setDueDate] = useState<string>(initial?.dueDate ?? "");
   const [items, setItems] = useState<LineItemInput[]>(
     initial ? lineInputsFrom(initial) : [
       {
@@ -250,6 +252,7 @@ export function InvoiceEditor({ initial }: Props) {
       clientId,
       clientSnapshot,
       issueDate,
+      dueDate,
       items,
       invoiceDiscount,
       notes,
@@ -264,13 +267,20 @@ export function InvoiceEditor({ initial }: Props) {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId, currency, clientId, clientSnapshot, issueDate, items, invoiceDiscount, notes]);
+  }, [draftId, currency, clientId, clientSnapshot, issueDate, dueDate, items, invoiceDiscount, notes]);
+
+  function dueDatePatch(): { dueDate?: string } {
+    if (dueDate === "") return { dueDate: "" };
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return { dueDate };
+    return {};
+  }
 
   function buildDraftInput(): InvoiceDraftInput {
     return {
       clientId,
       clientSnapshot,
       issueDate,
+      ...dueDatePatch(),
       currency,
       lineItems: computed.lines,
       ...(invoiceDiscount ? { invoiceDiscount } : {}),
@@ -340,6 +350,7 @@ export function InvoiceEditor({ initial }: Props) {
       clientId,
       clientSnapshot,
       issueDate,
+      ...(/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ? { dueDate } : {}),
       lineItems: computed.lines,
       invoiceDiscount,
       totals: computed.totals,
@@ -535,6 +546,24 @@ export function InvoiceEditor({ initial }: Props) {
               <Text className="mt-1 text-caption text-muted">
                 Clear all lines to change currency.
               </Text>
+            ) : null}
+          </View>
+          <View className="flex-1">
+            <DateInput
+              label="Due date"
+              value={dueDate}
+              onChange={setDueDate}
+              placeholder="Optional"
+            />
+            {dueDate ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear due date"
+                onPress={() => setDueDate("")}
+                className="mt-1"
+              >
+                <Text className="text-caption text-accent">Clear due date</Text>
+              </Pressable>
             ) : null}
           </View>
         </View>

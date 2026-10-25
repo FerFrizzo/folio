@@ -129,7 +129,7 @@ export function DataCard() {
           onPress={runPdfs}
         />
         <Button
-          label="Open archived invoices"
+          label="Open archived documents"
           variant="ghost"
           onPress={openArchived}
         />

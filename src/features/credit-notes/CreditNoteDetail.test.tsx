@@ -41,6 +41,7 @@ jest.mock("@/src/lib/pdf/generate-credit-note", () => ({
 const mockArchive = jest.fn();
 jest.mock("@/src/features/credit-notes/queries", () => ({
   useArchiveCreditNote: () => ({ mutateAsync: mockArchive }),
+  useRestoreCreditNote: () => ({ mutateAsync: jest.fn() }),
 }));
 const mockProfile = { businessName: "Biz" };
 const mockSettings = { numbering: {} };

@@ -12,10 +12,16 @@ import { IconButton } from "@/src/components/ui/IconButton";
 import { Input } from "@/src/components/ui/Input";
 import { NumberInput } from "@/src/components/ui/NumberInput";
 import { useToast } from "@/src/components/ui/Toast";
+import { useAuth } from "@/src/features/auth/AuthProvider";
 import { useInvoice } from "@/src/features/invoices/queries";
 import { useCreateCreditNote } from "@/src/features/credit-notes/queries";
 import { useIssueCreditNote } from "@/src/features/credit-notes/useIssueCreditNote";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
+import {
+  creditNoteClientId,
+  markCreditNoteSharing,
+  releaseCreditNoteClientId,
+} from "@/src/lib/firestore/creditNotes";
 import { generateCreditNotePdf, shareCreditNotePdf } from "@/src/lib/pdf/generate-credit-note";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
@@ -71,6 +77,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const toast = useToast();
+  const auth = useAuth();
   const invoiceQuery = useInvoice(invoiceId);
   const profile = useProfile();
   const settings = useSettings();
@@ -80,6 +87,10 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   const [reason, setReason] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const { issue, submitting } = useIssueCreditNote();
+
+  useEffect(() => {
+    return () => releaseCreditNoteClientId(invoiceId);
+  }, [invoiceId]);
 
   // Pre-populate from the original invoice once loaded.
   useEffect(() => {
@@ -142,8 +153,10 @@ export function CreditNoteEditor({ invoiceId }: Props) {
     }
     if (!inv) return;
     const outcome = await issue({
-      create: () =>
-        create.mutateAsync({
+      create: () => {
+        if (auth.status !== "ready") throw new Error("Not signed in");
+        return create.mutateAsync({
+          id: creditNoteClientId(auth.user.uid, inv.id),
           originalInvoiceId: inv.id,
           originalInvoiceNumber: inv.number,
           currency: inv.currency,
@@ -151,31 +164,37 @@ export function CreditNoteEditor({ invoiceId }: Props) {
           issueDate,
           reason,
           lineItems: enrichedLines,
-        }),
-      share: async (cn) => {
-        const pdf = await generateCreditNotePdf({
-          creditNote: cn,
-          profile: profile.data ?? {
-            businessName: "",
-            abn: "",
-            address: "",
-            email: "",
-            phone: "",
-            gstRegistered: true,
-          },
-          settings: settings.data ?? {
-            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
-            lineItemMode: "basic",
-            defaultGstRate: 0,
-            defaultPaymentTermsDays: 14,
-            defaultCurrency: "AUD",
-            paymentDetails: {},
-            emailDefaults: { subject: "", body: "" },
-            themeMode: "system",
-            biometricEnabled: false,
-          },
         });
-        await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
+      },
+      share: async (cn) => {
+        markCreditNoteSharing(inv.id, true);
+        try {
+          const pdf = await generateCreditNotePdf({
+            creditNote: cn,
+            profile: profile.data ?? {
+              businessName: "",
+              abn: "",
+              address: "",
+              email: "",
+              phone: "",
+              gstRegistered: true,
+            },
+            settings: settings.data ?? {
+              numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
+              lineItemMode: "basic",
+              defaultGstRate: 0,
+              defaultPaymentTermsDays: 14,
+              defaultCurrency: "AUD",
+              paymentDetails: {},
+              emailDefaults: { subject: "", body: "" },
+              themeMode: "system",
+              biometricEnabled: false,
+            },
+          });
+          await shareCreditNotePdf(pdf.uri, `${cn.number}.pdf`);
+        } finally {
+          markCreditNoteSharing(inv.id, false);
+        }
       },
     });
     switch (outcome.status) {

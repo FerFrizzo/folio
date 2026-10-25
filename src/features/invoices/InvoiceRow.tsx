@@ -101,28 +101,37 @@ export function InvoiceRow({
   }
 
   function renderRightActions() {
+    if (!onMarkPaid && !onDelete) return null;
     return (
       <View className="h-full flex-row">
-        <Pressable
-          onPress={tapMarkPaid}
-          accessibilityRole="button"
-          accessibilityLabel="Mark paid"
-          className="h-full w-[96px] items-center justify-center bg-status-paid active:opacity-90"
-        >
-          <Check size={20} color="#FFFFFF" />
-          <Text className="mt-1 text-caption font-semibold text-white">Mark paid</Text>
-        </Pressable>
-        <Pressable
-          onPress={tapDelete}
-          accessibilityRole="button"
-          accessibilityLabel="Delete invoice"
-          className="h-full w-[96px] items-center justify-center bg-status-overdue active:opacity-90"
-        >
-          <Trash2 size={20} color="#FFFFFF" />
-          <Text className="mt-1 text-caption font-semibold text-white">Delete</Text>
-        </Pressable>
+        {onMarkPaid ? (
+          <Pressable
+            onPress={tapMarkPaid}
+            accessibilityRole="button"
+            accessibilityLabel="Mark paid"
+            className="h-full w-[96px] items-center justify-center bg-status-paid active:opacity-90"
+          >
+            <Check size={20} color="#FFFFFF" />
+            <Text className="mt-1 text-caption font-semibold text-white">Mark paid</Text>
+          </Pressable>
+        ) : null}
+        {onDelete ? (
+          <Pressable
+            onPress={tapDelete}
+            accessibilityRole="button"
+            accessibilityLabel="Archive invoice"
+            className="h-full w-[96px] items-center justify-center bg-status-overdue active:opacity-90"
+          >
+            <Trash2 size={20} color="#FFFFFF" />
+            <Text className="mt-1 text-caption font-semibold text-white">Archive</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
+  }
+
+  if (!supportsSwipe || (!onDelete && !onMarkPaid && !(canRecord && onRecordPayment))) {
+    return row;
   }
 
   return (

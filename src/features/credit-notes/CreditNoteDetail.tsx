@@ -14,7 +14,7 @@ import {
   generateCreditNotePdf,
   shareCreditNotePdf,
 } from "@/src/lib/pdf/generate-credit-note";
-import { useArchiveCreditNote } from "@/src/features/credit-notes/queries";
+import { useArchiveCreditNote, useRestoreCreditNote } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import type { CreditNote } from "@/src/types/schemas";
 import { errorMessage } from "@/src/lib/zod-message";
@@ -30,6 +30,7 @@ export function CreditNoteDetail({ creditNote }: Props) {
   const profile = useProfile();
   const settings = useSettings();
   const archive = useArchiveCreditNote();
+  const restore = useRestoreCreditNote();
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfHtml, setPdfHtml] = useState<string | null>(null);
   const [generating, setGenerating] = useState(true);
@@ -100,6 +101,20 @@ export function CreditNoteDetail({ creditNote }: Props) {
     }
   }
 
+  async function performRestore() {
+    try {
+      await restore.mutateAsync(creditNote.id);
+      toast.show({ message: `${creditNote.number} restored.`, variant: "success" });
+      router.back();
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't restore."),
+        variant: "error",
+      });
+    }
+  }
+
   async function performArchive() {
     setConfirmArchive(false);
     try {
@@ -154,8 +169,8 @@ export function CreditNoteDetail({ creditNote }: Props) {
                   title={`${creditNote.number} preview`}
                 />
               ) : null
-            ) : pdfUri ? (
-              <WebView source={{ uri: pdfUri }} style={{ flex: 1 }} />
+            ) : pdfHtml ? (
+              <WebView source={{ html: pdfHtml }} style={{ flex: 1 }} scrollEnabled />
             ) : null}
           </View>
         </Card>
@@ -173,11 +188,15 @@ export function CreditNoteDetail({ creditNote }: Props) {
             disabled={!pdfUri || sharing}
             onPress={share}
           />
-          <Button
-            label="Archive"
-            variant="ghost"
-            onPress={() => setConfirmArchive(true)}
-          />
+          {creditNote.deletedAt ? (
+            <Button label="Restore" onPress={performRestore} />
+          ) : (
+            <Button
+              label="Archive"
+              variant="ghost"
+              onPress={() => setConfirmArchive(true)}
+            />
+          )}
         </View>
       </ScrollView>
 

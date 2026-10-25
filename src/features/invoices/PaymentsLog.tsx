@@ -1,25 +1,56 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { format, parseISO } from "date-fns";
-import { Trash2 } from "lucide-react-native";
+import { Pencil, Trash2 } from "lucide-react-native";
 import { Card } from "@/src/components/ui/Card";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { useToast } from "@/src/components/ui/Toast";
 import { formatMoney } from "@/src/lib/money";
-import { useRemovePayment } from "@/src/features/invoices/queries";
-import type { Invoice } from "@/src/types/schemas";
+import { useRemovePayment, useUpdatePayment } from "@/src/features/invoices/queries";
+import { Sheet } from "@/src/components/ui/Sheet";
+import { Button } from "@/src/components/ui/Button";
+import { CurrencyInput } from "@/src/components/ui/CurrencyInput";
+import { DateInput } from "@/src/components/ui/DateInput";
+import { Input } from "@/src/components/ui/Input";
+import { Select } from "@/src/components/ui/Select";
+import type { Invoice, PaymentRecord } from "@/src/types/schemas";
 import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   invoice: Invoice;
 };
 
+const METHODS = [
+  { value: "Bank transfer", label: "Bank transfer" },
+  { value: "Cash", label: "Cash" },
+  { value: "Card", label: "Card" },
+  { value: "Other", label: "Other" },
+  { value: "Manual", label: "Manual" },
+];
+
+function dollarsToCents(text: string): number {
+  if (!text) return 0;
+  const num = Number(text);
+  if (!Number.isFinite(num)) return 0;
+  return Math.round(num * 100);
+}
+
+function centsToDollars(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 export function PaymentsLog({ invoice }: Props) {
   const toast = useToast();
   const removePayment = useRemovePayment();
+  const updatePayment = useUpdatePayment();
   const [pendingIndex, setPendingIndex] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [date, setDate] = useState("");
+  const [amountText, setAmountText] = useState("");
+  const [method, setMethod] = useState<string | null>(null);
+  const [note, setNote] = useState("");
 
-  if (!invoice.payments.length) {
+  if (!invoice.payments.length && editingIndex === null) {
     return (
       <Card>
         <Text className="text-h2 text-foreground">Payments</Text>
@@ -28,6 +59,14 @@ export function PaymentsLog({ invoice }: Props) {
         </Text>
       </Card>
     );
+  }
+
+  function openEdit(index: number, payment: PaymentRecord) {
+    setEditingIndex(index);
+    setDate(payment.date);
+    setAmountText(centsToDollars(payment.amountCents));
+    setMethod(payment.method ?? null);
+    setNote(payment.note ?? "");
   }
 
   async function performRemove() {
@@ -41,6 +80,46 @@ export function PaymentsLog({ invoice }: Props) {
       console.error(err);
       toast.show({
         message: errorMessage(err, "Couldn't remove."),
+        variant: "error",
+      });
+    }
+  }
+
+  async function saveEdit() {
+    if (editingIndex === null) return;
+    const amountCents = dollarsToCents(amountText);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      toast.show({ message: "Use a date as YYYY-MM-DD.", variant: "error" });
+      return;
+    }
+    const others = invoice.payments.reduce(
+      (sum, p, i) => (i === editingIndex ? sum : sum + p.amountCents),
+      0,
+    );
+    if (others + amountCents > invoice.totalCents) {
+      toast.show({
+        message: `Max for this payment is ${formatMoney(invoice.totalCents - others, invoice.currency)}.`,
+        variant: "error",
+      });
+      return;
+    }
+    try {
+      await updatePayment.mutateAsync({
+        id: invoice.id,
+        index: editingIndex,
+        payment: {
+          date,
+          amountCents,
+          ...(method ? { method } : {}),
+          ...(note ? { note } : {}),
+        },
+      });
+      setEditingIndex(null);
+      toast.show({ message: "Payment updated.", variant: "success" });
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't update."),
         variant: "error",
       });
     }
@@ -65,6 +144,15 @@ export function PaymentsLog({ invoice }: Props) {
               </Text>
             </View>
             <Pressable
+              onPress={() => openEdit(i, p)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit payment"
+              hitSlop={8}
+              className="mr-3"
+            >
+              <Pencil size={16} color="#1473FF" />
+            </Pressable>
+            <Pressable
               onPress={() => setPendingIndex(i)}
               accessibilityRole="button"
               accessibilityLabel="Remove payment"
@@ -79,12 +167,44 @@ export function PaymentsLog({ invoice }: Props) {
       <ConfirmDialog
         visible={pendingIndex !== null}
         title="Remove this payment?"
-        description="This may flip the invoice back to Partial or Sent."
+        description="The invoice stays. Paid amount, balance and status are recalculated."
         confirmLabel="Remove"
         destructive
         onCancel={() => setPendingIndex(null)}
         onConfirm={performRemove}
       />
+
+      <Sheet
+        visible={editingIndex !== null}
+        onClose={() => setEditingIndex(null)}
+        title="Edit payment"
+      >
+        <View className="gap-3">
+          <DateInput label="Payment date" required value={date} onChange={setDate} />
+          <CurrencyInput
+            label="Amount"
+            required
+            value={amountText}
+            onChangeText={setAmountText}
+          />
+          <Select label="Method" value={method} onChange={setMethod} options={METHODS} />
+          <Input
+            label="Note"
+            value={note}
+            onChangeText={setNote}
+            placeholder="Reference, payer, anything else"
+            multiline
+          />
+          <View className="flex-row justify-end gap-2">
+            <Button label="Cancel" variant="ghost" onPress={() => setEditingIndex(null)} />
+            <Button
+              label={updatePayment.isPending ? "Saving…" : "Save payment"}
+              disabled={updatePayment.isPending}
+              onPress={saveEdit}
+            />
+          </View>
+        </View>
+      </Sheet>
     </Card>
   );
 }

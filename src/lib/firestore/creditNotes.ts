@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -27,10 +28,37 @@ function toCreditNote(data: Record<string, unknown>, id: string): CreditNote | n
   const normalized: Record<string, unknown> = { ...data, id };
   for (const k of ["createdAt", "updatedAt", "deletedAt"] as const) {
     const v = normalized[k];
+    if (v == null) {
+      delete normalized[k];
+      continue;
+    }
     if (v instanceof Timestamp) normalized[k] = v.toDate().toISOString();
   }
   const parsed = CreditNoteSchema.safeParse(normalized);
   return parsed.success ? parsed.data : null;
+}
+
+// One id per invoice while the editor is issuing, including across a remount
+// caused by the share sheet. A later visit allocates a new id once sharing
+// has finished and the editor unmounts.
+type CreditNoteSession = { invoiceId: string; id: string; sharing: boolean };
+let creditNoteSession: CreditNoteSession | null = null;
+
+export function creditNoteClientId(uid: string, invoiceId: string): string {
+  if (creditNoteSession?.invoiceId === invoiceId) return creditNoteSession.id;
+  const id = doc(collection(getFirebaseFirestore(), fsPaths.creditNotes(uid))).id;
+  creditNoteSession = { invoiceId, id, sharing: false };
+  return id;
+}
+
+export function markCreditNoteSharing(invoiceId: string, sharing: boolean): void {
+  if (creditNoteSession?.invoiceId === invoiceId) creditNoteSession.sharing = sharing;
+}
+
+export function releaseCreditNoteClientId(invoiceId: string): void {
+  if (creditNoteSession?.invoiceId === invoiceId && !creditNoteSession.sharing) {
+    creditNoteSession = null;
+  }
 }
 
 export async function listCreditNotes(uid: string, includeDeleted = false): Promise<CreditNote[]> {
@@ -75,23 +103,30 @@ export async function getCreditNote(uid: string, id: string): Promise<CreditNote
   return toCreditNote(snap.data(), snap.id);
 }
 
-// Issue a credit note in one shot. Atomically: claim CN counter, write the
-// CN doc, link to the original invoice's creditNoteIds. Failures roll back
-// all three writes.
+// Issue a credit note in one shot. When `id` is supplied and that document
+// already exists, the transaction returns it and does not claim another number.
 export async function createCreditNote(
   uid: string,
   input: CreditNoteInput,
+  id?: string,
 ): Promise<CreditNote> {
   const db = getFirebaseFirestore();
-  const ref = doc(collection(db, fsPaths.creditNotes(uid)));
+  const ref = id
+    ? doc(db, fsPaths.creditNote(uid, id))
+    : doc(collection(db, fsPaths.creditNotes(uid)));
   const invoiceRef = doc(db, fsPaths.invoice(uid, input.originalInvoiceId));
   const settingsRef = doc(db, fsPaths.settings(uid));
 
   const created: CreditNote = await runTransaction(db, async (tx) => {
-    const [invSnap, settingsSnap] = await Promise.all([
+    const [existing, invSnap, settingsSnap] = await Promise.all([
+      tx.get(ref),
       tx.get(invoiceRef),
       tx.get(settingsRef),
     ]);
+    if (existing.exists()) {
+      const already = toCreditNote(existing.data(), ref.id);
+      if (already) return already;
+    }
     if (!invSnap.exists()) throw new Error("Original invoice not found.");
 
     // CN prefix uses a fixed "CN-" until/unless we add a separate setting in
@@ -140,15 +175,25 @@ export async function createCreditNote(
     const existingIds: string[] = Array.isArray(invSnap.data().creditNoteIds)
       ? invSnap.data().creditNoteIds
       : [];
-    tx.update(invoiceRef, {
-      creditNoteIds: [...existingIds, ref.id],
-      updatedAt: createdAt,
-    });
+    if (!existingIds.includes(ref.id)) {
+      tx.update(invoiceRef, {
+        creditNoteIds: [...existingIds, ref.id],
+        updatedAt: createdAt,
+      });
+    }
 
     return CreditNoteSchema.parse({ id: ref.id, ...data });
   });
 
   return created;
+}
+
+export async function restoreCreditNote(uid: string, id: string): Promise<void> {
+  const db = getFirebaseFirestore();
+  await updateDoc(doc(db, fsPaths.creditNote(uid, id)), {
+    deletedAt: deleteField(),
+    updatedAt: nowIso(),
+  });
 }
 
 export async function softDeleteCreditNote(uid: string, id: string): Promise<void> {

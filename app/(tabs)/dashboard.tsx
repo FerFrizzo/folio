@@ -21,7 +21,9 @@ import {
   type PeriodKey,
 } from "@/src/features/dashboard/period";
 import { useInvoices } from "@/src/features/invoices/queries";
+import { useCreditNotes } from "@/src/features/credit-notes/queries";
 import { useProfile } from "@/src/features/settings/queries";
+import { outstandingCents } from "@/src/lib/invoice-balance";
 import { useOnboardingStore } from "@/src/features/onboarding/store";
 import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import { formatMoney } from "@/src/lib/money";
@@ -39,6 +41,7 @@ export default function DashboardScreen() {
   const isWeb = Platform.OS === "web";
   const profile = useProfile();
   const invoicesQuery = useInvoices();
+  const creditNotesQuery = useCreditNotes();
   const hydrate = useOnboardingStore((s) => s.hydrate);
   const [period, setPeriod] = useState<PeriodKey>("month");
 
@@ -53,15 +56,9 @@ export default function DashboardScreen() {
   const range = useMemo(() => periodRange(period, today), [period, today]);
 
   const stats = useMemo(() => {
-    let outstandingCents = 0;
     let paidThisPeriodCents = 0;
     for (const inv of all) {
       if (inv.deletedAt) continue;
-      const display = deriveDisplayStatus(inv, today);
-      const balance = inv.totalCents - inv.amountPaidCents;
-      if (display === "sent" || display === "partial") {
-        outstandingCents += balance;
-      }
       if (
         inv.paidAt &&
         new Date(inv.paidAt) >= range.start &&
@@ -70,8 +67,11 @@ export default function DashboardScreen() {
         paidThisPeriodCents += inv.totalCents;
       }
     }
-    return { outstandingCents, paidThisPeriodCents };
-  }, [all, range, today]);
+    return {
+      outstandingCents: outstandingCents(all, creditNotesQuery.data ?? []),
+      paidThisPeriodCents,
+    };
+  }, [all, creditNotesQuery.data, range]);
 
   const recent = useMemo(
     () =>

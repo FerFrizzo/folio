@@ -26,7 +26,7 @@ export function CreditNotesSummary({ creditNotes, currency, netBalanceCents }: P
             accessibilityRole="button"
             accessibilityLabel={`Open credit note ${cn.number}`}
             onPress={() =>
-              router.push({ pathname: "/credit-notes/[id]", params: { id: cn.id } })
+              router.push(`/credit-notes/${cn.id}`)
             }
             className="flex-row items-center justify-between py-2"
           >

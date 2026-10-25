@@ -1,4 +1,5 @@
 import { adminDb } from "./admin";
+import { omitNullTimestamps } from "./null-timestamps";
 import {
   ProfileSchema,
   SettingsSchema,
@@ -42,7 +43,9 @@ export async function fetchSettings(uid: string): Promise<Settings> {
 export async function fetchInvoice(uid: string, invoiceId: string): Promise<Invoice | null> {
   const snap = await adminDb().doc(paths.invoice(uid, invoiceId)).get();
   if (!snap.exists) return null;
-  const parsed = InvoiceSchema.safeParse({ id: snap.id, ...(snap.data() as object) });
+  const parsed = InvoiceSchema.safeParse(
+    omitNullTimestamps({ id: snap.id, ...(snap.data() as object) }),
+  );
   return parsed.success ? parsed.data : null;
 }
 
@@ -50,7 +53,9 @@ export async function listInvoicesForUser(uid: string): Promise<Invoice[]> {
   const snap = await adminDb().collection(paths.invoices(uid)).orderBy("createdAt", "desc").get();
   const out: Invoice[] = [];
   for (const d of snap.docs) {
-    const parsed = InvoiceSchema.safeParse({ id: d.id, ...d.data() });
+    const parsed = InvoiceSchema.safeParse(
+      omitNullTimestamps({ id: d.id, ...d.data() }),
+    );
     if (parsed.success && !parsed.data.deletedAt) out.push(parsed.data);
   }
   return out;
@@ -67,7 +72,9 @@ export async function listCreditNotesForUser(uid: string): Promise<CreditNote[]>
   const snap = await adminDb().collection(paths.creditNotes(uid)).orderBy("createdAt", "desc").get();
   const out: CreditNote[] = [];
   for (const d of snap.docs) {
-    const parsed = CreditNoteSchema.safeParse({ id: d.id, ...d.data() });
+    const parsed = CreditNoteSchema.safeParse(
+      omitNullTimestamps({ id: d.id, ...d.data() }),
+    );
     if (parsed.success && !parsed.data.deletedAt) out.push(parsed.data);
   }
   return out;
