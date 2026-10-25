@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -12,10 +12,12 @@ import { IconButton } from "@/src/components/ui/IconButton";
 import { Input } from "@/src/components/ui/Input";
 import { NumberInput } from "@/src/components/ui/NumberInput";
 import { useToast } from "@/src/components/ui/Toast";
+import { useAuth } from "@/src/features/auth/AuthProvider";
 import { useInvoice } from "@/src/features/invoices/queries";
 import { useCreateCreditNote } from "@/src/features/credit-notes/queries";
 import { useIssueCreditNote } from "@/src/features/credit-notes/useIssueCreditNote";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
+import { newCreditNoteId } from "@/src/lib/firestore/creditNotes";
 import { generateCreditNotePdf, shareCreditNotePdf } from "@/src/lib/pdf/generate-credit-note";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
@@ -71,6 +73,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const toast = useToast();
+  const auth = useAuth();
   const invoiceQuery = useInvoice(invoiceId);
   const profile = useProfile();
   const settings = useSettings();
@@ -80,6 +83,10 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   const [reason, setReason] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const { issue, submitting } = useIssueCreditNote();
+
+  // One credit note id per editor visit. A retry after a lost response
+  // returns the note already written instead of issuing a second one.
+  const creditNoteId = useRef<string | null>(null);
 
   // Pre-populate from the original invoice once loaded.
   useEffect(() => {
@@ -142,8 +149,10 @@ export function CreditNoteEditor({ invoiceId }: Props) {
     }
     if (!inv) return;
     const outcome = await issue({
-      create: () =>
-        create.mutateAsync({
+      create: () => {
+        if (auth.status !== "ready") throw new Error("Not signed in");
+        return create.mutateAsync({
+          id: (creditNoteId.current ??= newCreditNoteId(auth.user.uid)),
           originalInvoiceId: inv.id,
           originalInvoiceNumber: inv.number,
           currency: inv.currency,
@@ -151,7 +160,8 @@ export function CreditNoteEditor({ invoiceId }: Props) {
           issueDate,
           reason,
           lineItems: enrichedLines,
-        }),
+        });
+      },
       share: async (cn) => {
         const pdf = await generateCreditNotePdf({
           creditNote: cn,

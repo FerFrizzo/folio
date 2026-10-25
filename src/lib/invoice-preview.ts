@@ -1,6 +1,7 @@
 // Builds the Invoice object the editor's in-flight state represents. Shared by
 // Save & Send (which renders the PDF it shares) and Preview, so what the user
 // previews cannot drift from what actually gets sent.
+import { optionalDueDate } from "@/src/lib/due-date";
 import type {
   ClientSnapshot,
   CurrencyCode,
@@ -40,6 +41,7 @@ export type EditorInvoiceInput = {
 };
 
 export function invoiceFromEditorState(input: EditorInvoiceInput): Invoice {
+  const dueDate = optionalDueDate(input.dueDate);
   return {
     id: input.id,
     number: input.number,
@@ -48,7 +50,7 @@ export function invoiceFromEditorState(input: EditorInvoiceInput): Invoice {
     clientId: input.clientId,
     clientSnapshot: input.clientSnapshot,
     issueDate: input.issueDate,
-    ...(input.dueDate ? { dueDate: input.dueDate } : {}),
+    ...(dueDate ? { dueDate } : {}),
     lineItems: input.lineItems,
     ...(input.invoiceDiscount ? { invoiceDiscount: input.invoiceDiscount } : {}),
     subtotalCents: input.totals.subtotalCents,

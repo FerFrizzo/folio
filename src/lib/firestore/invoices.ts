@@ -5,6 +5,7 @@ import {
   getDocs,
   orderBy,
   query,
+  deleteField,
   runTransaction,
   setDoc,
   updateDoc,
@@ -26,6 +27,8 @@ import {
   ensureInvoiceCounterAtLeastInTransaction,
 } from "@/src/lib/firestore/counters";
 import { parseAutoNumber } from "@/src/lib/numbering";
+import { requireOptionalDueDate } from "@/src/lib/due-date";
+import { parseOptionalPaymentDate } from "@/src/lib/payment-date";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -41,9 +44,68 @@ function normalizeTimestamps(data: Record<string, unknown>): Record<string, unkn
     "paidAt",
   ] as const) {
     const v = out[k];
+    // Firestore field deletes round-trip as null. Zod optional() rejects null,
+    // and a failed parse is dropped from every list — including Archived.
+    if (v == null) {
+      delete out[k];
+      continue;
+    }
     if (v instanceof Timestamp) out[k] = v.toDate().toISOString();
   }
   return out;
+}
+
+function storedDueDate(value: string | null | undefined): { dueDate: string } | Record<string, never> {
+  const dueDate = requireOptionalDueDate(value);
+  return dueDate ? { dueDate } : {};
+}
+
+function storedPayment(payment: {
+  date?: string;
+  amountCents: number;
+  method?: string;
+  note?: string;
+}): PaymentRecord {
+  const parsedDate = parseOptionalPaymentDate(payment.date);
+  if (!parsedDate.ok) throw new Error("Use a date as YYYY-MM-DD.");
+  return {
+    ...(parsedDate.date ? { date: parsedDate.date } : {}),
+    amountCents: payment.amountCents,
+    ...(payment.method ? { method: payment.method } : {}),
+    ...(payment.note ? { note: payment.note } : {}),
+  };
+}
+
+function totalsFromPayments(totalCents: number, payments: PaymentRecord[]) {
+  const amountPaidCents = payments.reduce((sum, p) => sum + p.amountCents, 0);
+  if (amountPaidCents > totalCents) {
+    throw new Error("Payments exceed the invoice total.");
+  }
+  const balanceCents = totalCents - amountPaidCents;
+  const status: "sent" | "partial" | "paid" =
+    amountPaidCents >= totalCents ? "paid" : amountPaidCents > 0 ? "partial" : "sent";
+  return { amountPaidCents, balanceCents, status };
+}
+
+function paymentUpdate(
+  data: Record<string, unknown>,
+  payments: PaymentRecord[],
+): Record<string, unknown> {
+  const totalCents: number = typeof data.totalCents === "number" ? data.totalCents : 0;
+  const next = totalsFromPayments(totalCents, payments);
+  const update: Record<string, unknown> = {
+    payments,
+    amountPaidCents: next.amountPaidCents,
+    balanceCents: next.balanceCents,
+    status: next.status,
+    updatedAt: nowIso(),
+  };
+  if (next.status === "paid") {
+    if (data.status !== "paid" || data.paidAt == null) update.paidAt = nowIso();
+  } else {
+    update.paidAt = deleteField();
+  }
+  return update;
 }
 
 function toInvoice(data: Record<string, unknown>, id: string): Invoice | null {
@@ -101,7 +163,7 @@ export async function createDraft(
     clientId: input.clientId,
     clientSnapshot: input.clientSnapshot,
     issueDate: input.issueDate,
-    ...(input.dueDate ? { dueDate: input.dueDate } : {}),
+    ...storedDueDate(input.dueDate),
     lineItems: input.lineItems,
     ...(input.invoiceDiscount ? { invoiceDiscount: input.invoiceDiscount } : {}),
     subtotalCents: totals.subtotalCents,
@@ -139,6 +201,12 @@ export async function updateDraft(
     ...patch,
     updatedAt: nowIso(),
   };
+  // Blank, whitespace, and null remove the field. Writing them would fail the
+  // next read, and omitting the key would leave a stale date in place.
+  if ("dueDate" in patch) {
+    const dueDate = requireOptionalDueDate(patch.dueDate);
+    update.dueDate = dueDate ?? deleteField();
+  }
   if (patch.lineItems || "invoiceDiscount" in patch) {
     // Need both fields available; if updating one, callers should pass both
     // (or we'd need to merge with persisted state — keeping this simple for now).
@@ -309,6 +377,7 @@ export async function recordPayment(
   if (payment.amountCents <= 0) {
     throw new Error("Payment amount must be positive.");
   }
+  const stored = storedPayment(payment);
   const db = getFirebaseFirestore();
   const ref = doc(db, fsPaths.invoice(uid, invoiceId));
 
@@ -334,7 +403,7 @@ export async function recordPayment(
 
     const payments = Array.isArray(data.payments) ? data.payments : [];
     const update: Record<string, unknown> = {
-      payments: [...payments, payment],
+      payments: [...payments, stored],
       amountPaidCents: nextPaid,
       balanceCents: nextBalance,
       status: nextStatus,
@@ -366,27 +435,46 @@ export async function removePayment(
     const removed = payments[paymentIndex];
     if (!removed) throw new Error("Payment not found.");
     const nextPayments = payments.filter((_, i) => i !== paymentIndex);
-    const nextPaid: number = (data.amountPaidCents ?? 0) - removed.amountCents;
-    const totalCents: number = data.totalCents ?? 0;
-    const nextBalance = totalCents - nextPaid;
-    const nextStatus: "sent" | "partial" | "paid" =
-      nextPaid >= totalCents
-        ? "paid"
-        : nextPaid > 0
-          ? "partial"
-          : "sent";
-
-    const update: Record<string, unknown> = {
-      payments: nextPayments,
-      amountPaidCents: nextPaid,
-      balanceCents: nextBalance,
-      status: nextStatus,
-      updatedAt: nowIso(),
-    };
-    if (nextStatus !== "paid") update.paidAt = null;
+    const update = paymentUpdate(data, nextPayments);
     tx.update(ref, update);
+    return { status: update.status as "sent" | "partial" | "paid" };
+  });
+}
 
-    return { status: nextStatus };
+export type PaymentUpdate = {
+  date?: string;
+  amountCents: number;
+  method?: string;
+  note?: string;
+};
+
+// Replace one payment and recompute paid, balance and status from the whole
+// list. Clearing paidAt uses a field delete so the invoice still parses.
+export async function updatePayment(
+  uid: string,
+  invoiceId: string,
+  paymentIndex: number,
+  payment: PaymentUpdate,
+): Promise<{ status: "sent" | "partial" | "paid" }> {
+  if (payment.amountCents <= 0) {
+    throw new Error("Payment amount must be positive.");
+  }
+  const nextPayment = storedPayment(payment);
+  const db = getFirebaseFirestore();
+  const ref = doc(db, fsPaths.invoice(uid, invoiceId));
+
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(`Invoice ${invoiceId} not found`);
+    const data = snap.data();
+    const payments: PaymentRecord[] = Array.isArray(data.payments) ? data.payments : [];
+    if (paymentIndex < 0 || paymentIndex >= payments.length) {
+      throw new Error("Payment index out of range.");
+    }
+    const nextPayments = payments.map((p, i) => (i === paymentIndex ? nextPayment : p));
+    const update = paymentUpdate(data, nextPayments);
+    tx.update(ref, update);
+    return { status: update.status as "sent" | "partial" | "paid" };
   });
 }
 
@@ -413,7 +501,7 @@ export async function linkCreditNote(
 export async function restoreInvoice(uid: string, invoiceId: string): Promise<void> {
   const db = getFirebaseFirestore();
   await updateDoc(doc(db, fsPaths.invoice(uid, invoiceId)), {
-    deletedAt: null,
+    deletedAt: deleteField(),
     updatedAt: nowIso(),
   });
 }

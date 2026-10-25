@@ -4,7 +4,10 @@ import type { FilePrintOptions } from "expo-print";
 export type PageMarginsMm = { top: number; right: number; bottom: number; left: number };
 
 // Must match each template's `@page { margin }` (asserted in the test).
-export const INVOICE_PAGE_MARGINS_MM: PageMarginsMm = { top: 18, right: 16, bottom: 20, left: 16 };
+// 16mm on the left and right keeps the text off the edge iOS was clipping.
+// 12mm on the top and bottom leaves enough height for an invoice that used
+// to fill one full-bleed sheet once that narrower line makes the copy taller.
+export const INVOICE_PAGE_MARGINS_MM: PageMarginsMm = { top: 12, right: 16, bottom: 12, left: 16 };
 export const CREDIT_NOTE_PAGE_MARGINS_MM: PageMarginsMm = { top: 20, right: 15, bottom: 20, left: 15 };
 
 const PT_PER_MM = 72 / 25.4;

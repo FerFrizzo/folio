@@ -41,6 +41,17 @@ function fmtDate(iso: string): string {
   return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Due date is its own card. Blank, whitespace, and anything that is not a
+// real date are omitted — no empty value and no placeholder.
+function dueDateCard(dueDate: string | undefined): string {
+  const trimmed = dueDate?.trim() ?? "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return "";
+  return `<div class="date-card">
+          <div class="dc-lbl">Due</div>
+          <div class="dc-val">${fmtDate(trimmed)}</div>
+        </div>`;
+}
+
 export type RenderInvoiceArgs = {
   invoice: Invoice;
   profile: Profile;
@@ -188,6 +199,37 @@ export function renderInvoiceHtml({
        </section>`
     : "";
 
+  // Recorded payments. The date is its own line and is left out entirely when
+  // the payment has none — no empty value and no placeholder.
+  const receivedItems = invoice.payments.map((payment) => {
+    const lines = [
+      `<div><span class="label">Amount</span><span>${formatMoney(payment.amountCents, invoice.currency)}</span></div>`,
+    ];
+    const paymentDate = payment.date?.trim();
+    if (paymentDate) {
+      lines.push(
+        `<div class="received-date"><span class="label">Date</span><span>${fmtDate(paymentDate)}</span></div>`,
+      );
+    }
+    if (payment.method?.trim()) {
+      lines.push(
+        `<div><span class="label">Method</span><span>${escapeHtml(payment.method.trim())}</span></div>`,
+      );
+    }
+    if (payment.note?.trim()) {
+      lines.push(
+        `<div class="note"><span class="label">Note</span><span>${escapeHtml(payment.note.trim())}</span></div>`,
+      );
+    }
+    return `<div class="received-item">${lines.join("")}</div>`;
+  });
+  const receivedHtml = receivedItems.length
+    ? `<section class="received">
+         <h2>Payments</h2>
+         ${receivedItems.join("")}
+       </section>`
+    : "";
+
   const exportNote = isExport
     ? `<p class="export-note">This invoice is treated as an export — no GST applies under Australian taxation law.</p>`
     : "";
@@ -208,7 +250,7 @@ export function renderInvoiceHtml({
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    @page { size: A4; margin: 18mm 16mm 20mm; }
+    @page { size: A4; margin: 12mm 16mm; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body {
@@ -232,27 +274,27 @@ export function renderInvoiceHtml({
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 28px;
+      gap: 20px;
       background: ${CREAM};
-      padding: 20px 22px 18px;
+      padding: 12px 16px 10px;
       border-radius: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
     .header-rule {
       height: 3px;
       background: ${ACCENT};
       border-radius: 2px;
-      margin-bottom: 22px;
+      margin-bottom: 12px;
     }
     .business { flex: 1; }
-    .logo { max-height: 52px; max-width: 200px; object-fit: contain; display: block; margin-bottom: 10px; }
+    .logo { max-height: 44px; max-width: 180px; object-fit: contain; display: block; margin-bottom: 6px; }
     .business-name {
       font-family: "Fraunces", Georgia, "Times New Roman", serif;
       font-size: 15pt;
       font-weight: 700;
       color: ${NEAR_BLACK};
       line-height: 1.2;
-      margin-bottom: 7px;
+      margin-bottom: 4px;
     }
     .business-meta {
       font-size: 8.5pt;
@@ -268,14 +310,14 @@ export function renderInvoiceHtml({
       color: ${ACCENT};
       letter-spacing: -0.02em;
       line-height: 1;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .doc-number {
       font-size: 12pt;
       font-weight: 700;
       color: ${NEAR_BLACK};
       letter-spacing: 0.01em;
-      margin-bottom: 9px;
+      margin-bottom: 6px;
     }
     /* ── Date cards ── */
     .date-cards {
@@ -307,7 +349,7 @@ export function renderInvoiceHtml({
     }
 
     /* ── Bill to ── */
-    .bill-to { margin-bottom: 22px; }
+    .bill-to { margin-bottom: 12px; }
     .party-name { font-weight: 600; font-size: 11pt; color: ${NEAR_BLACK}; margin-bottom: 3px; }
     .party-meta { font-size: 8.5pt; color: ${STONE}; line-height: 1.55; white-space: pre-line; }
 
@@ -315,7 +357,7 @@ export function renderInvoiceHtml({
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
       font-feature-settings: "tnum";
     }
     table.items thead th {
@@ -331,7 +373,7 @@ export function renderInvoiceHtml({
     table.items thead th:first-child { border-radius: 5px 0 0 5px; }
     table.items thead th:last-child  { border-radius: 0 5px 5px 0; }
     table.items tbody td {
-      padding: 11px 10px;
+      padding: 7px 10px;
       border-bottom: 1pt solid #EDE9E3;
       vertical-align: top;
       font-size: 10pt;
@@ -343,7 +385,7 @@ export function renderInvoiceHtml({
     .line-discount { font-size: 8.5pt; color: ${LIGHT_STONE}; margin-top: 3px; }
 
     /* ── Totals ── */
-    .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+    .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 12px; }
     .totals {
       width: 44%;
       background: #FAF7F3;
@@ -354,7 +396,7 @@ export function renderInvoiceHtml({
     .totals .row {
       display: flex;
       justify-content: space-between;
-      padding: 7px 14px;
+      padding: 5px 14px;
       font-size: 9.5pt;
       border-bottom: 1pt solid ${BORDER_WARM};
     }
@@ -363,7 +405,7 @@ export function renderInvoiceHtml({
     .totals .row.mix .label { font-size: 8.5pt; font-style: italic; }
     .totals .row.grand {
       background: ${ACCENT};
-      padding: 12px 14px;
+      padding: 8px 14px;
       align-items: flex-end;
       border-bottom: none;
     }
@@ -389,8 +431,8 @@ export function renderInvoiceHtml({
       background: ${LIGHT_BLUE};
       border-left: 3pt solid ${ACCENT};
       border-radius: 0 8px 8px 0;
-      padding: 14px 16px;
-      margin-top: 16px;
+      padding: 10px 14px;
+      margin-top: 10px;
     }
     .payment > div {
       display: flex;
@@ -402,10 +444,27 @@ export function renderInvoiceHtml({
     .payment .label { color: ${STONE}; min-width: 60px; font-size: 9pt; }
     .payment .other { align-items: flex-start; white-space: pre-line; }
 
+    /* ── Payments received ── */
+    .received { margin-top: 10px; }
+    .received-item {
+      padding: 4px 0 6px;
+      border-bottom: 1pt solid ${BORDER_WARM};
+    }
+    .received-item:last-child { border-bottom: none; }
+    .received-item > div {
+      display: flex;
+      gap: 12px;
+      padding: 1px 0;
+      font-size: 9.5pt;
+      align-items: baseline;
+    }
+    .received .label { color: ${STONE}; min-width: 60px; font-size: 9pt; }
+    .received .note { align-items: flex-start; white-space: pre-line; }
+
     /* ── Notes ── */
     .notes {
-      margin-top: 14px;
-      padding: 12px 14px;
+      margin-top: 8px;
+      padding: 8px 12px;
       background: #FAF9F7;
       border-left: 3pt solid ${BORDER_WARM};
       border-radius: 0 6px 6px 0;
@@ -428,7 +487,7 @@ export function renderInvoiceHtml({
 
     /* ── Footer ── */
     .footer {
-      margin-top: 28pt;
+      margin-top: 12pt;
       padding-top: 8pt;
       border-top: 1pt solid ${BORDER_WARM};
       text-align: center;
@@ -452,6 +511,7 @@ export function renderInvoiceHtml({
           <div class="dc-lbl">Issued</div>
           <div class="dc-val">${fmtDate(invoice.issueDate)}</div>
         </div>
+        ${dueDateCard(invoice.dueDate)}
       </div>
     </div>
   </header>
@@ -484,6 +544,7 @@ export function renderInvoiceHtml({
   </div>
 
   ${exportNote}
+  ${receivedHtml}
   ${paymentHtml}
 
   ${invoice.notes

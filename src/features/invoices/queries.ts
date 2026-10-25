@@ -22,7 +22,9 @@ import {
   softDeleteInvoice,
   updateDraft,
   updateInvoiceNumber,
+  updatePayment,
   type InvoiceFilter,
+  type PaymentUpdate,
   type RecordPaymentInput,
 } from "@/src/lib/firestore/invoices";
 import type {
@@ -226,6 +228,31 @@ export function useRecordPayment() {
       const fullyPaid = result.status === "paid";
       track("payment_recorded", { fully_paid: fullyPaid });
       if (fullyPaid) void recordInvoicePaid();
+      if (auth.status === "ready") {
+        qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
+        qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });
+      }
+    },
+  });
+}
+
+export function useUpdatePayment() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      index,
+      payment,
+    }: {
+      id: string;
+      index: number;
+      payment: PaymentUpdate;
+    }) => {
+      if (auth.status !== "ready") throw new Error("Not signed in");
+      return updatePayment(auth.user.uid, id, index, payment);
+    },
+    onSuccess: (_, vars) => {
       if (auth.status === "ready") {
         qc.invalidateQueries({ queryKey: invoiceKeys.detail(auth.user.uid, vars.id) });
         qc.invalidateQueries({ queryKey: invoiceKeys.all(auth.user.uid) });

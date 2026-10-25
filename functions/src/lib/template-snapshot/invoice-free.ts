@@ -25,7 +25,7 @@ export function renderInvoiceHtml(args: RenderInvoiceArgs): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-top: 24pt;
+      margin-top: 12pt;
       padding-top: 8pt;
       border-top: 0.5pt solid #D1D5DB;
       font-family: "Inter", sans-serif;

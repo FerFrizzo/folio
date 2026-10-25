@@ -9,7 +9,18 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock("lucide-react-native", () => ({ ArrowLeft: () => null }));
-jest.mock("react-native-webview", () => ({ __esModule: true, default: () => null }));
+jest.mock("react-native-webview", () => {
+  const { View } = jest.requireActual("react-native");
+  return {
+    __esModule: true,
+    default: ({ source }: { source?: { html?: string; uri?: string } }) => (
+      <View
+        testID="credit-note-preview"
+        accessibilityLabel={source?.html ?? source?.uri ?? ""}
+      />
+    ),
+  };
+});
 const mockShow = jest.fn();
 jest.mock("@/src/components/ui/Toast", () => ({
   useToast: () => ({ show: mockShow }),
@@ -41,12 +52,21 @@ jest.mock("@/src/lib/pdf/generate-credit-note", () => ({
 const mockArchive = jest.fn();
 jest.mock("@/src/features/credit-notes/queries", () => ({
   useArchiveCreditNote: () => ({ mutateAsync: mockArchive }),
+  useRestoreCreditNote: () => ({ mutateAsync: jest.fn() }),
 }));
-const mockProfile = { businessName: "Biz" };
-const mockSettings = { numbering: {} };
+const mockQueries = {
+  profile: {
+    data: { businessName: "Biz" } as { businessName: string } | undefined,
+    isPending: false,
+  },
+  settings: {
+    data: { numbering: {} } as { numbering: object } | undefined,
+    isPending: false,
+  },
+};
 jest.mock("@/src/features/settings/queries", () => ({
-  useProfile: () => ({ data: mockProfile }),
-  useSettings: () => ({ data: mockSettings }),
+  useProfile: () => mockQueries.profile,
+  useSettings: () => mockQueries.settings,
 }));
 
 import { CreditNoteDetail } from "@/src/features/credit-notes/CreditNoteDetail";
@@ -58,6 +78,8 @@ const creditNote = {
   issueDate: "2026-10-01",
   currency: "AUD",
   reason: "",
+  subtotalCents: -10000,
+  gstTotalCents: -1000,
   totalCents: -11000,
   clientSnapshot: { name: "Client" },
   lineItems: [],
@@ -66,6 +88,8 @@ const creditNote = {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(console, "error").mockImplementation(() => {});
+  mockQueries.profile = { data: { businessName: "Biz" }, isPending: false };
+  mockQueries.settings = { data: { numbering: {} }, isPending: false };
   mockGenerate.mockResolvedValue({ uri: "file:///cn.pdf", html: "<p/>" });
 });
 afterEach(() => jest.restoreAllMocks());
@@ -123,6 +147,57 @@ describe("CreditNoteDetail", () => {
       expect.objectContaining({ variant: "error" }),
     );
     await waitFor(() => expect(getByText("Share PDF")).toBeTruthy());
+  });
+
+  // Regression: the preview loaded the generated file:// PDF. iOS WKWebView
+  // paints that as a blank page, so opening a credit note never showed the
+  // document. The HTML is shown even if the shareable file is still pending.
+  it("shows the credit note document before the PDF file is ready", async () => {
+    let resolvePdf: (pdf: { uri: string; html: string }) => void = () => {};
+    mockGenerate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePdf = resolve;
+        }),
+    );
+    const { getByTestId, getByLabelText } = render(
+      <CreditNoteDetail creditNote={creditNote} />,
+    );
+    await waitFor(() => expect(getByTestId("credit-note-preview")).toBeTruthy());
+    const preview = getByTestId("credit-note-preview").props.accessibilityLabel as string;
+    expect(preview).toContain("Credit Note");
+    expect(preview).toContain("CN-0002");
+    expect(preview).not.toContain("file://");
+    expect(getByLabelText("Share PDF").props.accessibilityState.disabled).toBe(true);
+
+    await act(async () => {
+      resolvePdf({ uri: "file:///cn.pdf", html: "<p>CN-0002</p>" });
+    });
+    await waitFor(() =>
+      expect(getByLabelText("Share PDF").props.accessibilityState.disabled).toBe(false),
+    );
+  });
+
+  // Regression: bailing out of generation when profile and settings were both
+  // empty left the spinner up forever.
+  it("shows the credit note when profile and settings are missing", async () => {
+    mockQueries.profile = { data: undefined, isPending: false };
+    mockQueries.settings = { data: undefined, isPending: false };
+    mockGenerate.mockImplementation(() => new Promise(() => {}));
+    const { getByTestId } = render(<CreditNoteDetail creditNote={creditNote} />);
+    await waitFor(() => expect(getByTestId("credit-note-preview")).toBeTruthy());
+    expect(mockGenerate).toHaveBeenCalled();
+    const preview = getByTestId("credit-note-preview").props.accessibilityLabel as string;
+    expect(preview).toContain("CN-0002");
+  });
+
+  it("waits to generate while profile and settings are still loading", async () => {
+    mockQueries.profile = { data: undefined, isPending: true };
+    mockQueries.settings = { data: undefined, isPending: true };
+    const { queryByTestId } = render(<CreditNoteDetail creditNote={creditNote} />);
+    await act(async () => {});
+    expect(mockGenerate).not.toHaveBeenCalled();
+    expect(queryByTestId("credit-note-preview")).toBeNull();
   });
 
   // Regression: a failed PDF render left an empty preview and a disabled

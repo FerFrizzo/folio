@@ -42,7 +42,11 @@ function RevenueCatInitializer() {
       return;
     }
     Purchases.setLogLevel(LOG_LEVEL.ERROR);
-    void Purchases.configure({ apiKey: key });
+    try {
+      Purchases.configure({ apiKey: key });
+    } catch (err) {
+      console.warn("[RevenueCat] Configure failed.", err);
+    }
   }, []);
 
   useEffect(() => {

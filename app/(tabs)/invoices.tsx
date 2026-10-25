@@ -19,12 +19,14 @@ import { ListRowSkeleton } from "@/src/components/ui/Skeleton";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { Button } from "@/src/components/ui/Button";
 import { useToast } from "@/src/components/ui/Toast";
-import type { Invoice } from "@/src/types/schemas";
+import type { CreditNote, Invoice } from "@/src/types/schemas";
 import { deriveDisplayStatus } from "@/src/lib/invoice-status";
+import { formatMoney } from "@/src/lib/money";
 import {
   useInvoiceListStore,
   type InvoiceStatusFilter,
 } from "@/src/features/invoices/store";
+import { ListRow } from "@/src/components/ui/ListRow";
 import { InvoiceRow } from "@/src/features/invoices/InvoiceRow";
 import {
   useArchiveInvoice,
@@ -32,7 +34,12 @@ import {
   useInvoices,
   useRestoreInvoice,
 } from "@/src/features/invoices/queries";
+import {
+  useCreditNotes,
+  useRestoreCreditNote,
+} from "@/src/features/credit-notes/queries";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
+import { restoreWithFeedback } from "@/src/features/invoices/restoreWithFeedback";
 import { errorMessage } from "@/src/lib/zod-message";
 
 const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
@@ -65,9 +72,13 @@ export default function InvoicesScreen() {
   const deleteDraft = useDeleteDraft();
   const archiveInvoice = useArchiveInvoice();
   const restoreInvoice = useRestoreInvoice();
+  const creditNotesQuery = useCreditNotes(showArchived);
+  const restoreCreditNote = useRestoreCreditNote();
 
   const [contextInvoice, setContextInvoice] = useState<Invoice | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<Invoice | null>(null);
+  const [contextNote, setContextNote] = useState<CreditNote | null>(null);
+  const [pendingArchive, setPendingArchive] = useState<Invoice | null>(null);
+  const [pendingPermanent, setPendingPermanent] = useState<Invoice | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
 
   const all = useMemo(
@@ -92,6 +103,11 @@ export default function InvoicesScreen() {
     });
   }, [all, query, statusFilter]);
 
+  const archivedNotes = useMemo(
+    () => (showArchived ? (creditNotesQuery.data ?? []).filter((cn) => cn.deletedAt) : []),
+    [creditNotesQuery.data, showArchived],
+  );
+
   function goNew() {
     router.push("/invoices/new");
   }
@@ -100,22 +116,33 @@ export default function InvoicesScreen() {
     router.push(`/invoices/${inv.id}`);
   }
 
-  function confirmDelete(inv: Invoice) {
-    setPendingDelete(inv);
+  function confirmArchive(inv: Invoice) {
+    setPendingArchive(inv);
   }
 
-  async function performDelete() {
-    const target = pendingDelete;
-    setPendingDelete(null);
+  async function performArchive() {
+    const target = pendingArchive;
+    setPendingArchive(null);
     if (!target) return;
     try {
-      if (target.status === "draft") {
-        await deleteDraft.mutateAsync(target.id);
-        toast.show({ message: `${target.number || "Draft"} deleted.`, variant: "warning" });
-      } else {
-        await archiveInvoice.mutateAsync(target.id);
-        toast.show({ message: `${target.number} archived.`, variant: "warning" });
-      }
+      await archiveInvoice.mutateAsync(target.id);
+      toast.show({ message: `${target.number || "Draft"} archived.`, variant: "warning" });
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't archive."),
+        variant: "error",
+      });
+    }
+  }
+
+  async function performPermanentDelete() {
+    const target = pendingPermanent;
+    setPendingPermanent(null);
+    if (!target || target.status !== "draft") return;
+    try {
+      await deleteDraft.mutateAsync(target.id);
+      toast.show({ message: `${target.number || "Draft"} deleted.`, variant: "warning" });
     } catch (err) {
       console.error(err);
       toast.show({
@@ -172,7 +199,7 @@ export default function InvoicesScreen() {
             <ListRowSkeleton key={i} />
           ))}
         </View>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && archivedNotes.length === 0 ? (
         <EmptyState
           title={FILTERED_EMPTY_LABELS[statusFilter]}
           description={
@@ -190,7 +217,10 @@ export default function InvoicesScreen() {
             !isWeb ? (
               <RefreshControl
                 refreshing={invoicesQuery.isFetching && !invoicesQuery.isLoading}
-                onRefresh={() => void invoicesQuery.refetch()}
+                onRefresh={() => {
+                  void invoicesQuery.refetch();
+                  void creditNotesQuery.refetch();
+                }}
               />
             ) : undefined
           }
@@ -202,16 +232,40 @@ export default function InvoicesScreen() {
                 invoice={item}
                 onPress={openInvoice}
                 onLongPress={setContextInvoice}
-                onDelete={confirmDelete}
-                onMarkPaid={async (inv) => {
-                  // Wired in Phase 3: full-amount mark-paid via PaymentSheet's
-                  // shortcut; for the swipe action we open the sheet directly.
-                  setPaymentInvoice(inv);
-                }}
-                onRecordPayment={(inv) => setPaymentInvoice(inv)}
+                onDelete={item.deletedAt ? undefined : confirmArchive}
+                onMarkPaid={
+                  item.deletedAt ? undefined : async (inv) => setPaymentInvoice(inv)
+                }
+                onRecordPayment={
+                  item.deletedAt ? undefined : (inv) => setPaymentInvoice(inv)
+                }
               />
             </View>
           )}
+          ListFooterComponent={
+            showArchived ? (
+              <View className="mt-6 px-4 pb-24">
+                <Text className="text-h2 text-foreground">Credit notes</Text>
+                {archivedNotes.length === 0 ? (
+                  <Text className="mt-2 text-body text-muted">No archived credit notes.</Text>
+                ) : (
+                  <View className="mt-2 overflow-hidden rounded-card border border-border bg-surface">
+                    {archivedNotes.map((cn) => (
+                      <ListRow
+                        key={cn.id}
+                        primary={cn.number}
+                        secondary={`Against ${cn.originalInvoiceNumber}`}
+                        trailingAmount={formatMoney(cn.totalCents, cn.currency)}
+                        onPress={() => router.push(`/credit-notes/${cn.id}`)}
+                        onLongPress={() => setContextNote(cn)}
+                        accessibilityLabel={`Archived credit note ${cn.number}`}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            ) : null
+          }
         />
       )}
 
@@ -240,8 +294,11 @@ export default function InvoicesScreen() {
                   const t = contextInvoice;
                   setContextInvoice(null);
                   if (!t) return;
-                  await restoreInvoice.mutateAsync(t.id);
-                  toast.show({ message: `${t.number || "Draft"} restored.`, variant: "success" });
+                  await restoreWithFeedback(
+                    t.number || "Draft",
+                    () => restoreInvoice.mutateAsync(t.id),
+                    toast,
+                  );
                 }}
               />
               {contextInvoice?.status === "draft" ? (
@@ -251,10 +308,14 @@ export default function InvoicesScreen() {
                   onPress={() => {
                     const t = contextInvoice;
                     setContextInvoice(null);
-                    if (t) confirmDelete(t);
+                    if (t) setPendingPermanent(t);
                   }}
                 />
-              ) : null}
+              ) : (
+                <Text className="text-caption text-muted">
+                  Issued invoices are kept for ATO record-keeping and can&apos;t be deleted.
+                </Text>
+              )}
             </>
           ) : (
             <>
@@ -269,11 +330,11 @@ export default function InvoicesScreen() {
               />
               <Button
                 variant="danger"
-                label={contextInvoice?.status === "draft" ? "Delete" : "Archive"}
+                label="Archive"
                 onPress={() => {
                   const target = contextInvoice;
                   setContextInvoice(null);
-                  if (target) confirmDelete(target);
+                  if (target) confirmArchive(target);
                 }}
               />
             </>
@@ -291,22 +352,59 @@ export default function InvoicesScreen() {
         onClose={() => setPaymentInvoice(null)}
       />
 
+      <Sheet
+        visible={!!contextNote}
+        onClose={() => setContextNote(null)}
+        title={contextNote?.number ?? "Credit note"}
+      >
+        <View className="gap-2">
+          <Button
+            variant="secondary"
+            label="View"
+            onPress={() => {
+              const note = contextNote;
+              setContextNote(null);
+              if (note) router.push(`/credit-notes/${note.id}`);
+            }}
+          />
+          <Button
+            label="Restore"
+            onPress={async () => {
+              const note = contextNote;
+              setContextNote(null);
+              if (!note) return;
+              await restoreWithFeedback(
+                note.number,
+                () => restoreCreditNote.mutateAsync(note.id),
+                toast,
+              );
+            }}
+          />
+          <Text className="text-caption text-muted">
+            Issued credit notes are kept for ATO record-keeping and can&apos;t be deleted.
+          </Text>
+          <Button variant="ghost" label="Cancel" onPress={() => setContextNote(null)} />
+        </View>
+      </Sheet>
+
       <ConfirmDialog
-        visible={!!pendingDelete}
-        title={
-          pendingDelete?.status === "draft"
-            ? `Delete ${pendingDelete?.number || "this draft"}?`
-            : `Archive ${pendingDelete?.number ?? ""}?`
-        }
-        description={
-          pendingDelete?.status === "draft"
-            ? "Drafts are deleted permanently. This can't be undone."
-            : "Archived invoices are hidden from the main list but kept on file for ATO retention."
-        }
-        confirmLabel={pendingDelete?.status === "draft" ? "Delete" : "Archive"}
+        visible={!!pendingArchive}
+        title={`Archive ${pendingArchive?.number || "this draft"}?`}
+        description="Archived documents are hidden from the active lists and balances, and kept on file. Issued invoices and credit notes are retained for ATO record-keeping."
+        confirmLabel="Archive"
         destructive
-        onCancel={() => setPendingDelete(null)}
-        onConfirm={performDelete}
+        onCancel={() => setPendingArchive(null)}
+        onConfirm={performArchive}
+      />
+
+      <ConfirmDialog
+        visible={!!pendingPermanent}
+        title={`Delete ${pendingPermanent?.number || "this draft"} permanently?`}
+        description="Only unsent drafts can be deleted. This can't be undone."
+        confirmLabel="Delete permanently"
+        destructive
+        onCancel={() => setPendingPermanent(null)}
+        onConfirm={performPermanentDelete}
       />
     </View>
   );

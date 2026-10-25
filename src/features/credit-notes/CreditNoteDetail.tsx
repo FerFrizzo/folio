@@ -14,13 +14,35 @@ import {
   generateCreditNotePdf,
   shareCreditNotePdf,
 } from "@/src/lib/pdf/generate-credit-note";
-import { useArchiveCreditNote } from "@/src/features/credit-notes/queries";
+import { renderCreditNoteHtml } from "@/src/lib/pdf/credit-note-template";
+import { useArchiveCreditNote, useRestoreCreditNote } from "@/src/features/credit-notes/queries";
 import { useProfile, useSettings } from "@/src/features/settings/queries";
-import type { CreditNote } from "@/src/types/schemas";
+import type { CreditNote, Profile, Settings } from "@/src/types/schemas";
 import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
   creditNote: CreditNote;
+};
+
+const EMPTY_PROFILE: Profile = {
+  businessName: "",
+  abn: "",
+  address: "",
+  email: "",
+  phone: "",
+  gstRegistered: true,
+};
+
+const EMPTY_SETTINGS: Settings = {
+  numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
+  lineItemMode: "basic",
+  defaultGstRate: 0,
+  defaultPaymentTermsDays: 14,
+  defaultCurrency: "AUD",
+  paymentDetails: {},
+  emailDefaults: { subject: "", body: "" },
+  themeMode: "system",
+  biometricEnabled: false,
 };
 
 export function CreditNoteDetail({ creditNote }: Props) {
@@ -30,6 +52,7 @@ export function CreditNoteDetail({ creditNote }: Props) {
   const profile = useProfile();
   const settings = useSettings();
   const archive = useArchiveCreditNote();
+  const restore = useRestoreCreditNote();
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [pdfHtml, setPdfHtml] = useState<string | null>(null);
   const [generating, setGenerating] = useState(true);
@@ -38,35 +61,51 @@ export function CreditNoteDetail({ creditNote }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!profile.data && !settings.data) return;
-    setGenerating(true);
+    // Both queries still in flight with nothing to render. Returning here
+    // without clearing `generating` used to spin forever when they then
+    // settled empty.
+    const waitingForBusiness =
+      !profile.data &&
+      !settings.data &&
+      (profile.isPending || settings.isPending);
+    if (waitingForBusiness) return;
+
+    const args = {
+      creditNote,
+      profile: profile.data ?? EMPTY_PROFILE,
+      settings: settings.data ?? EMPTY_SETTINGS,
+    };
+    // Show the document immediately. printToFileAsync is only needed for
+    // sharing, and waiting on it left the preview blank whenever the file
+    // was slow or failed.
+    let html = "";
+    try {
+      html = renderCreditNoteHtml(args);
+      if (!cancelled) {
+        setPdfHtml(html);
+        setPdfUri(null);
+        setGenerating(false);
+      }
+    } catch (err) {
+      console.error(err);
+      if (!cancelled) {
+        setGenerating(false);
+        toast.show({
+          message: errorMessage(err, "Couldn't generate the PDF."),
+          variant: "error",
+        });
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
     void (async () => {
       try {
-        const pdf = await generateCreditNotePdf({
-          creditNote,
-          profile: profile.data ?? {
-            businessName: "",
-            abn: "",
-            address: "",
-            email: "",
-            phone: "",
-            gstRegistered: true,
-          },
-          settings: settings.data ?? {
-            numbering: { mode: "auto", prefix: "INV-", minDigits: 4, counter: 0, allowManualNumber: false },
-            lineItemMode: "basic",
-            defaultGstRate: 0,
-            defaultPaymentTermsDays: 14,
-            defaultCurrency: "AUD",
-            paymentDetails: {},
-            emailDefaults: { subject: "", body: "" },
-            themeMode: "system",
-            biometricEnabled: false,
-          },
-        });
+        const pdf = await generateCreditNotePdf(args);
         if (cancelled) return;
         setPdfUri(pdf.uri);
-        setPdfHtml(pdf.html);
+        if (pdf.html !== html) setPdfHtml(pdf.html);
       } catch (err) {
         console.error(err);
         if (!cancelled) {
@@ -75,14 +114,14 @@ export function CreditNoteDetail({ creditNote }: Props) {
             variant: "error",
           });
         }
-      } finally {
-        if (!cancelled) setGenerating(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [creditNote, profile.data, settings.data]);
+    // toast identity is stable; including it re-runs PDF generation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditNote, profile.data, profile.isPending, settings.data, settings.isPending]);
 
   async function share() {
     if (!pdfUri) return;
@@ -97,6 +136,20 @@ export function CreditNoteDetail({ creditNote }: Props) {
       });
     } finally {
       setSharing(false);
+    }
+  }
+
+  async function performRestore() {
+    try {
+      await restore.mutateAsync(creditNote.id);
+      toast.show({ message: `${creditNote.number} restored.`, variant: "success" });
+      router.back();
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't restore."),
+        variant: "error",
+      });
     }
   }
 
@@ -154,8 +207,19 @@ export function CreditNoteDetail({ creditNote }: Props) {
                   title={`${creditNote.number} preview`}
                 />
               ) : null
-            ) : pdfUri ? (
-              <WebView source={{ uri: pdfUri }} style={{ flex: 1 }} />
+            ) : pdfHtml ? (
+              // A file:// PDF stays blank on iOS: WKWebView will not paint it
+              // unless it is given the parent directory as read access. The
+              // HTML document is the same preview invoices already use, with
+              // an explicit height so the WebView is not collapsed inside
+              // the ScrollView.
+              <WebView
+                originWhitelist={["*"]}
+                source={{ html: pdfHtml }}
+                style={{ height: 520 }}
+                scrollEnabled
+                nestedScrollEnabled
+              />
             ) : null}
           </View>
         </Card>
@@ -173,11 +237,15 @@ export function CreditNoteDetail({ creditNote }: Props) {
             disabled={!pdfUri || sharing}
             onPress={share}
           />
-          <Button
-            label="Archive"
-            variant="ghost"
-            onPress={() => setConfirmArchive(true)}
-          />
+          {creditNote.deletedAt ? (
+            <Button label="Restore" onPress={performRestore} />
+          ) : (
+            <Button
+              label="Archive"
+              variant="ghost"
+              onPress={() => setConfirmArchive(true)}
+            />
+          )}
         </View>
       </ScrollView>
 

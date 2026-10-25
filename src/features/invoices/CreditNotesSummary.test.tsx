@@ -47,9 +47,6 @@ describe("CreditNotesSummary", () => {
       />,
     );
     fireEvent.press(getByLabelText("Open credit note CN-0002"));
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/credit-notes/[id]",
-      params: { id: "b" },
-    });
+    expect(mockPush).toHaveBeenCalledWith("/credit-notes/b");
   });
 });

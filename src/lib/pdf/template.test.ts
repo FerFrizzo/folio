@@ -197,15 +197,67 @@ describe("renderInvoiceHtml", () => {
     expect(html).toContain("−$50.00");
   });
 
-  // Due Date was removed from the invoice entirely — only the issue date
-  // renders, and there is no more "due" date-card variant.
-  it("renders only the issue date inside date-cards structure", () => {
+  it("renders a due date only when the invoice has one", () => {
     const html = renderInvoiceHtml({ invoice, profile, settings });
     expect(html).toContain('class="date-cards"');
-    expect(html).toContain('class="date-card"');
-    expect(html).not.toContain('class="date-card due"');
-    expect(html).not.toContain(">Due<");
+    expect(html).toContain(">Due<");
+    expect(html).toContain("15 May 2026");
     expect(html).toContain("01 May 2026");
+    const { dueDate: _due, ...withoutDue } = invoice;
+    const bare = renderInvoiceHtml({
+      invoice: withoutDue as Invoice,
+      profile,
+      settings,
+    });
+    expect(bare).not.toContain(">Due<");
+    for (const dueDate of ["", "   "]) {
+      const blank = renderInvoiceHtml({
+        invoice: { ...invoice, dueDate },
+        profile,
+        settings,
+      });
+      expect(blank).not.toContain(">Due<");
+      expect(blank).not.toContain("Invalid Date");
+      expect(blank).not.toMatch(/dc-val"><\/div>/);
+    }
+  });
+
+  it("keeps the footer in normal flow so a long invoice can paginate", () => {
+    const html = renderInvoiceHtml({ invoice, profile, settings });
+    expect(html).not.toMatch(/position:\s*fixed/);
+    expect(html).not.toMatch(/min-height:\s*100/);
+    expect(html).toContain("margin-top: 12pt");
+  });
+
+  it("prints a payment date only when the payment has one", () => {
+    const html = renderInvoiceHtml({
+      invoice: {
+        ...invoice,
+        payments: [
+          { date: "2026-07-04", amountCents: 1234, method: "Cash", note: "Ref 9" },
+          { amountCents: 5000, method: "Card" },
+        ],
+      },
+      profile,
+      settings,
+    });
+    const start = html.indexOf('<section class="received">');
+    const received = html.slice(start, html.indexOf("</section>", start));
+    expect(received).toContain(">Payments<");
+    expect(received).toContain("$12.34");
+    expect(received).toContain("$50.00");
+    expect(received.match(/class="received-date"/g)).toHaveLength(1);
+    expect(received).toContain(">Date<");
+    expect(received).toContain("04 Jul 2026");
+    expect(received).not.toContain("Payment date");
+    expect(received).not.toContain("—");
+    expect(received).not.toContain("Invalid Date");
+    expect(received).not.toMatch(/<span>\s*<\/span>/);
+  });
+
+  it("does not add a payments block when nothing has been paid", () => {
+    const html = renderInvoiceHtml({ invoice, profile, settings });
+    expect(html).not.toContain('class="received"');
   });
 
   it("does not use the old meta-row structure for dates", () => {

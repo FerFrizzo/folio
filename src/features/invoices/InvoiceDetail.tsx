@@ -12,7 +12,12 @@ import { Input } from "@/src/components/ui/Input";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useToast } from "@/src/components/ui/Toast";
+import { format, parseISO } from "date-fns";
 import { formatMoney } from "@/src/lib/money";
+import {
+  netBalanceCents as invoiceNetBalanceCents,
+  paidSummary,
+} from "@/src/lib/invoice-balance";
 import { generateInvoicePdf, shareInvoicePdf } from "@/src/lib/pdf/generate";
 import { deriveDisplayStatus } from "@/src/lib/invoice-status";
 import {
@@ -20,6 +25,7 @@ import {
   useCheckNumberExists,
   useCreateDraft,
   useRecordPayment,
+  useRestoreInvoice,
   useUpdateInvoiceNumber,
 } from "@/src/features/invoices/queries";
 import { useCreditNotesForInvoice } from "@/src/features/credit-notes/queries";
@@ -43,6 +49,7 @@ export function InvoiceDetail({ invoice }: Props) {
   const settings = useSettings();
   const isPro = useEntitlement() === "pro";
   const archive = useArchiveInvoice();
+  const restore = useRestoreInvoice();
   const createDraft = useCreateDraft();
   const recordPayment = useRecordPayment();
   const updateInvoiceNumber = useUpdateInvoiceNumber();
@@ -170,6 +177,20 @@ export function InvoiceDetail({ invoice }: Props) {
     }
   }
 
+  async function performRestore() {
+    try {
+      await restore.mutateAsync(invoice.id);
+      toast.show({ message: `${invoice.number || "Draft"} restored.`, variant: "success" });
+      router.back();
+    } catch (err) {
+      console.error(err);
+      toast.show({
+        message: errorMessage(err, "Couldn't restore."),
+        variant: "error",
+      });
+    }
+  }
+
   async function markPaidNow() {
     if (invoice.balanceCents <= 0) return;
     try {
@@ -236,10 +257,9 @@ export function InvoiceDetail({ invoice }: Props) {
     }
   }
 
-  // Linked credit note totals → "Net balance" per spec §7.
   const cnList = creditNotes.data ?? [];
-  const cnTotalCents = cnList.reduce((sum, c) => sum + c.totalCents, 0);
-  const netBalanceCents = invoice.totalCents + cnTotalCents - invoice.amountPaidCents;
+  const netBalanceCents = invoiceNetBalanceCents(invoice, cnList);
+  const paid = paidSummary(invoice);
 
   return (
     <View className="flex-1 bg-background">
@@ -320,10 +340,15 @@ export function InvoiceDetail({ invoice }: Props) {
             Subtotal {formatMoney(invoice.subtotalCents, invoice.currency)} ·
             GST {formatMoney(invoice.gstTotalCents, invoice.currency)}
           </Text>
-          {invoice.amountPaidCents > 0 ? (
+          {invoice.dueDate ? (
             <Text className="mt-1 text-caption text-muted">
-              Paid {formatMoney(invoice.amountPaidCents, invoice.currency)} ·
-              Outstanding {formatMoney(invoice.balanceCents, invoice.currency)}
+              Due {format(parseISO(invoice.dueDate), "d MMM yyyy")}
+            </Text>
+          ) : null}
+          {paid ? (
+            <Text className="mt-1 text-caption text-muted">
+              Paid {formatMoney(paid.paidCents, invoice.currency)} ·
+              Outstanding {formatMoney(paid.outstandingCents, invoice.currency)}
             </Text>
           ) : null}
           <CreditNotesSummary
@@ -377,13 +402,15 @@ export function InvoiceDetail({ invoice }: Props) {
             />
           ) : null}
           <Button label="Duplicate as draft" variant="ghost" onPress={duplicate} />
-          {invoice.status !== "draft" ? (
+          {invoice.deletedAt ? (
+            <Button label="Restore" onPress={performRestore} />
+          ) : (
             <Button
               label="Archive"
               variant="ghost"
               onPress={() => setConfirmArchive(true)}
             />
-          ) : null}
+          )}
         </View>
       </ScrollView>
 

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as Print from "expo-print";
 import {
   renderCreditNoteHtml,
@@ -13,6 +14,7 @@ export type GeneratedPdf = {
 
 export async function generateCreditNotePdf(args: RenderCreditNoteArgs): Promise<GeneratedPdf> {
   const html = renderCreditNoteHtml(args);
+  if (Platform.OS === "web") return { uri: "", html };
   const result = await Print.printToFileAsync(pdfPrintOptions(html, CREDIT_NOTE_PAGE_MARGINS_MM));
   return { uri: result.uri, html };
 }

@@ -64,11 +64,28 @@ describe("createDraft", () => {
     expect(mockSetDoc).not.toHaveBeenCalled();
   });
 
-  // Due Date was removed from the editor entirely, so a draft with none must
-  // still write cleanly and never invent a dueDate field.
   it("writes no dueDate field when the input has none", async () => {
     await createDraft("uid1", validInput);
     const [, written] = mockSetDoc.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect("dueDate" in written).toBe(false);
+  });
+
+  it("writes no dueDate field when the due date is blank", async () => {
+    await createDraft("uid1", { ...validInput, dueDate: "   " });
+    const [, written] = mockSetDoc.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    expect("dueDate" in written).toBe(false);
+  });
+
+  it("stores a trimmed due date", async () => {
+    await createDraft("uid1", { ...validInput, dueDate: " 2026-06-02 " });
+    const [, written] = mockSetDoc.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    expect(written.dueDate).toBe("2026-06-02");
+  });
+
+  it("writes nothing when the due date is not a calendar date", async () => {
+    await expect(createDraft("uid1", { ...validInput, dueDate: "next week" })).rejects.toThrow(
+      /YYYY-MM-DD/,
+    );
+    expect(mockSetDoc).not.toHaveBeenCalled();
   });
 });

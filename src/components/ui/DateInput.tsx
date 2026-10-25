@@ -1,4 +1,4 @@
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform, Text, TextInput, View } from "react-native";
 import { cn } from "@/src/lib/cn";
 
 // Phase 1: simple text-display-only date "input". On web we render a real
@@ -35,18 +35,19 @@ export function DateInput({ label, required, error, value, onChange, placeholder
           )}
         />
       ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={label ?? "Select date"}
+        <TextInput
+          accessibilityLabel={label ?? "Date"}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          autoCorrect={false}
           className={cn(
-            "h-11 justify-center rounded-button border bg-surface px-3",
+            "h-11 rounded-button border bg-surface px-3 text-body text-foreground",
             error ? "border-status-overdue" : "border-border",
           )}
-        >
-          <Text className={cn("text-body", value ? "text-foreground" : "text-muted")}>
-            {value || placeholder}
-          </Text>
-        </Pressable>
+        />
       )}
       {error ? (
         <Text className="text-caption text-status-overdue">{error}</Text>

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as Print from "expo-print";
 import { renderInvoiceHtml as renderPro, type RenderInvoiceArgs } from "@/src/lib/pdf/template-pro";
 import { renderInvoiceHtml as renderFree } from "@/src/lib/pdf/template-free";
@@ -20,6 +21,10 @@ export type GenerateInvoicePdfArgs = RenderInvoiceArgs & {
 export async function generateInvoicePdf(args: GenerateInvoicePdfArgs): Promise<GeneratedPdf> {
   const renderFn = args.isPro ? renderPro : renderFree;
   const html = renderFn(args);
+  // The web implementation of printToFileAsync calls window.print() and
+  // returns undefined, so the preview never receives HTML. The page shows
+  // that HTML in an iframe; printing stays a separate action.
+  if (Platform.OS === "web") return { uri: "", html };
   const result = await Print.printToFileAsync(pdfPrintOptions(html, INVOICE_PAGE_MARGINS_MM));
   return { uri: result.uri, html };
 }
