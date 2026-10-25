@@ -8,6 +8,15 @@ const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const ISO_DATETIME = z.string().datetime({ offset: true }).or(z.string());
 const NON_EMPTY = z.string().min(1, "Required");
 
+// Blank and null are "no date": the field is left off the document so a
+// payment can be saved without one and the PDF can skip the date line.
+const OptionalISODate = z.preprocess((value) => {
+  if (value == null) return undefined;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}, ISO_DATE.optional());
+
 export const CurrencyCodeSchema = z.enum(["AUD", "USD", "EUR", "GBP", "NZD"]);
 export type CurrencyCode = z.infer<typeof CurrencyCodeSchema>;
 
@@ -142,12 +151,25 @@ export type LineItem = z.infer<typeof LineItemSchema>;
 export const InvoiceStatusSchema = z.enum(["draft", "sent", "partial", "paid"]);
 export type InvoiceStatus = z.infer<typeof InvoiceStatusSchema>;
 
-export const PaymentRecordSchema = z.object({
-  date: ISO_DATE,
-  amountCents: z.number().int().positive(),
-  method: z.string().optional(),
-  note: z.string().optional(),
-});
+interface PaymentRecordShape {
+  date?: string;
+  amountCents: number;
+  method?: string;
+  note?: string;
+}
+
+export const PaymentRecordSchema = z
+  .object({
+    date: OptionalISODate,
+    amountCents: z.number().int().positive(),
+    method: z.string().optional(),
+    note: z.string().optional(),
+  })
+  .transform((payment): PaymentRecordShape => {
+    if (payment.date) return payment;
+    const { date: _date, ...rest } = payment;
+    return rest;
+  });
 export type PaymentRecord = z.infer<typeof PaymentRecordSchema>;
 
 export const InvoiceSchema = z.object({

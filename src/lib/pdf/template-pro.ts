@@ -188,6 +188,37 @@ export function renderInvoiceHtml({
        </section>`
     : "";
 
+  // Recorded payments. The date is its own line and is left out entirely when
+  // the payment has none — no empty value and no placeholder.
+  const receivedItems = invoice.payments.map((payment) => {
+    const lines = [
+      `<div><span class="label">Amount</span><span>${formatMoney(payment.amountCents, invoice.currency)}</span></div>`,
+    ];
+    const paymentDate = payment.date?.trim();
+    if (paymentDate) {
+      lines.push(
+        `<div class="received-date"><span class="label">Date</span><span>${fmtDate(paymentDate)}</span></div>`,
+      );
+    }
+    if (payment.method?.trim()) {
+      lines.push(
+        `<div><span class="label">Method</span><span>${escapeHtml(payment.method.trim())}</span></div>`,
+      );
+    }
+    if (payment.note?.trim()) {
+      lines.push(
+        `<div class="note"><span class="label">Note</span><span>${escapeHtml(payment.note.trim())}</span></div>`,
+      );
+    }
+    return `<div class="received-item">${lines.join("")}</div>`;
+  });
+  const receivedHtml = receivedItems.length
+    ? `<section class="received">
+         <h2>Payments</h2>
+         ${receivedItems.join("")}
+       </section>`
+    : "";
+
   const exportNote = isExport
     ? `<p class="export-note">This invoice is treated as an export — no GST applies under Australian taxation law.</p>`
     : "";
@@ -402,6 +433,23 @@ export function renderInvoiceHtml({
     .payment .label { color: ${STONE}; min-width: 60px; font-size: 9pt; }
     .payment .other { align-items: flex-start; white-space: pre-line; }
 
+    /* ── Payments received ── */
+    .received { margin-top: 10px; }
+    .received-item {
+      padding: 4px 0 6px;
+      border-bottom: 1pt solid ${BORDER_WARM};
+    }
+    .received-item:last-child { border-bottom: none; }
+    .received-item > div {
+      display: flex;
+      gap: 12px;
+      padding: 1px 0;
+      font-size: 9.5pt;
+      align-items: baseline;
+    }
+    .received .label { color: ${STONE}; min-width: 60px; font-size: 9pt; }
+    .received .note { align-items: flex-start; white-space: pre-line; }
+
     /* ── Notes ── */
     .notes {
       margin-top: 8px;
@@ -490,6 +538,7 @@ export function renderInvoiceHtml({
   </div>
 
   ${exportNote}
+  ${receivedHtml}
   ${paymentHtml}
 
   ${invoice.notes

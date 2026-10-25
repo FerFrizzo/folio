@@ -27,6 +27,7 @@ import {
   ensureInvoiceCounterAtLeastInTransaction,
 } from "@/src/lib/firestore/counters";
 import { parseAutoNumber } from "@/src/lib/numbering";
+import { parseOptionalPaymentDate } from "@/src/lib/payment-date";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -51,6 +52,22 @@ function normalizeTimestamps(data: Record<string, unknown>): Record<string, unkn
     if (v instanceof Timestamp) out[k] = v.toDate().toISOString();
   }
   return out;
+}
+
+function storedPayment(payment: {
+  date?: string;
+  amountCents: number;
+  method?: string;
+  note?: string;
+}): PaymentRecord {
+  const parsedDate = parseOptionalPaymentDate(payment.date);
+  if (!parsedDate.ok) throw new Error("Use a date as YYYY-MM-DD.");
+  return {
+    ...(parsedDate.date ? { date: parsedDate.date } : {}),
+    amountCents: payment.amountCents,
+    ...(payment.method ? { method: payment.method } : {}),
+    ...(payment.note ? { note: payment.note } : {}),
+  };
 }
 
 function totalsFromPayments(totalCents: number, payments: PaymentRecord[]) {
@@ -353,6 +370,7 @@ export async function recordPayment(
   if (payment.amountCents <= 0) {
     throw new Error("Payment amount must be positive.");
   }
+  const stored = storedPayment(payment);
   const db = getFirebaseFirestore();
   const ref = doc(db, fsPaths.invoice(uid, invoiceId));
 
@@ -378,7 +396,7 @@ export async function recordPayment(
 
     const payments = Array.isArray(data.payments) ? data.payments : [];
     const update: Record<string, unknown> = {
-      payments: [...payments, payment],
+      payments: [...payments, stored],
       amountPaidCents: nextPaid,
       balanceCents: nextBalance,
       status: nextStatus,
@@ -417,7 +435,7 @@ export async function removePayment(
 }
 
 export type PaymentUpdate = {
-  date: string;
+  date?: string;
   amountCents: number;
   method?: string;
   note?: string;
@@ -434,6 +452,7 @@ export async function updatePayment(
   if (payment.amountCents <= 0) {
     throw new Error("Payment amount must be positive.");
   }
+  const nextPayment = storedPayment(payment);
   const db = getFirebaseFirestore();
   const ref = doc(db, fsPaths.invoice(uid, invoiceId));
 
@@ -445,12 +464,6 @@ export async function updatePayment(
     if (paymentIndex < 0 || paymentIndex >= payments.length) {
       throw new Error("Payment index out of range.");
     }
-    const nextPayment: PaymentRecord = {
-      date: payment.date,
-      amountCents: payment.amountCents,
-      ...(payment.method ? { method: payment.method } : {}),
-      ...(payment.note ? { note: payment.note } : {}),
-    };
     const nextPayments = payments.map((p, i) => (i === paymentIndex ? nextPayment : p));
     const update = paymentUpdate(data, nextPayments);
     tx.update(ref, update);

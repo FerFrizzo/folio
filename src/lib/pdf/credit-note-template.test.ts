@@ -49,6 +49,13 @@ describe("renderCreditNoteHtml", () => {
     expect(html).toContain("10 May 2026");
   });
 
+  it("does not render a payment date", () => {
+    const html = renderCreditNoteHtml({ creditNote: cn, profile, settings });
+    expect(html).not.toContain("received-date");
+    expect(html).not.toContain(">Payments<");
+    expect(html).not.toContain("Payment date");
+  });
+
   it("includes the reason when provided", () => {
     const html = renderCreditNoteHtml({ creditNote: cn, profile, settings });
     expect(html).toContain("Refund for service not delivered.");

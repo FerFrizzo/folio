@@ -2,6 +2,7 @@ import { deleteField } from "firebase/firestore";
 import {
   getInvoice,
   listInvoices,
+  recordPayment,
   removePayment,
   restoreInvoice,
   updateDraft,
@@ -145,6 +146,36 @@ describe("removePayment", () => {
   });
 });
 
+describe("reading a payment saved without a date", () => {
+  it("still returns the invoice when the date field is null or missing", async () => {
+    mockState.doc = invoiceDoc({
+      payments: [
+        { date: null, amountCents: 4000, method: "Cash" },
+        { amountCents: 2000, method: "Card" },
+      ],
+    });
+    const invoice = await getInvoice("u1", "inv-1");
+    expect(invoice?.payments.map((p) => p.date)).toEqual([undefined, undefined]);
+    expect(invoice?.payments[0]?.amountCents).toBe(4000);
+  });
+});
+
+describe("recordPayment", () => {
+  it("stores a payment with no date field when the date is left blank", async () => {
+    mockState.doc = invoiceDoc({
+      status: "sent",
+      paidAt: null,
+      amountPaidCents: 0,
+      balanceCents: 11000,
+      payments: [],
+    });
+    await recordPayment("u1", "inv-1", { amountCents: 4000, method: "Cash", date: "  " });
+    expect(mockState.updates[0]?.payments).toEqual([
+      { amountCents: 4000, method: "Cash" },
+    ]);
+  });
+});
+
 describe("updatePayment", () => {
   it("lowers a full payment to a partial amount and recalculates status", async () => {
     mockState.doc = invoiceDoc();
@@ -162,6 +193,26 @@ describe("updatePayment", () => {
     expect(update?.balanceCents).toBe(7000);
     expect(update?.status).toBe("partial");
     expect(update?.paidAt).toEqual(deleteField());
+  });
+
+  it("clears the date when the edit leaves it blank", async () => {
+    mockState.doc = invoiceDoc();
+    await updatePayment("u1", "inv-1", 0, {
+      date: "",
+      amountCents: 11000,
+      method: "Bank transfer",
+    });
+    expect(mockState.updates[0]?.payments).toEqual([
+      { amountCents: 11000, method: "Bank transfer" },
+    ]);
+  });
+
+  it("rejects a date that is not YYYY-MM-DD", async () => {
+    mockState.doc = invoiceDoc();
+    await expect(
+      updatePayment("u1", "inv-1", 0, { date: "yesterday", amountCents: 11000 }),
+    ).rejects.toThrow(/YYYY-MM-DD/);
+    expect(mockState.updates).toEqual([]);
   });
 });
 

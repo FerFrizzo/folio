@@ -219,6 +219,37 @@ describe("renderInvoiceHtml", () => {
     expect(html).toContain("margin-top: 12pt");
   });
 
+  it("prints a payment date only when the payment has one", () => {
+    const html = renderInvoiceHtml({
+      invoice: {
+        ...invoice,
+        payments: [
+          { date: "2026-07-04", amountCents: 1234, method: "Cash", note: "Ref 9" },
+          { amountCents: 5000, method: "Card" },
+        ],
+      },
+      profile,
+      settings,
+    });
+    const start = html.indexOf('<section class="received">');
+    const received = html.slice(start, html.indexOf("</section>", start));
+    expect(received).toContain(">Payments<");
+    expect(received).toContain("$12.34");
+    expect(received).toContain("$50.00");
+    expect(received.match(/class="received-date"/g)).toHaveLength(1);
+    expect(received).toContain(">Date<");
+    expect(received).toContain("04 Jul 2026");
+    expect(received).not.toContain("Payment date");
+    expect(received).not.toContain("—");
+    expect(received).not.toContain("Invalid Date");
+    expect(received).not.toMatch(/<span>\s*<\/span>/);
+  });
+
+  it("does not add a payments block when nothing has been paid", () => {
+    const html = renderInvoiceHtml({ invoice, profile, settings });
+    expect(html).not.toContain('class="received"');
+  });
+
   it("does not use the old meta-row structure for dates", () => {
     const html = renderInvoiceHtml({ invoice, profile, settings });
     expect(html).not.toContain('class="meta-row"');

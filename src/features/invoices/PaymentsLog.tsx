@@ -14,6 +14,7 @@ import { DateInput } from "@/src/components/ui/DateInput";
 import { Input } from "@/src/components/ui/Input";
 import { Select } from "@/src/components/ui/Select";
 import type { Invoice, PaymentRecord } from "@/src/types/schemas";
+import { parseOptionalPaymentDate } from "@/src/lib/payment-date";
 import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
@@ -37,6 +38,14 @@ function dollarsToCents(text: string): number {
 
 function centsToDollars(cents: number): string {
   return (cents / 100).toFixed(2);
+}
+
+function paymentCaption(payment: PaymentRecord): string {
+  const parts: string[] = [];
+  if (payment.date) parts.push(format(parseISO(payment.date), "d MMM yyyy"));
+  if (payment.method) parts.push(payment.method);
+  if (payment.note) parts.push(payment.note);
+  return parts.join(" · ");
 }
 
 export function PaymentsLog({ invoice }: Props) {
@@ -63,7 +72,7 @@ export function PaymentsLog({ invoice }: Props) {
 
   function openEdit(index: number, payment: PaymentRecord) {
     setEditingIndex(index);
-    setDate(payment.date);
+    setDate(payment.date ?? "");
     setAmountText(centsToDollars(payment.amountCents));
     setMethod(payment.method ?? null);
     setNote(payment.note ?? "");
@@ -88,7 +97,8 @@ export function PaymentsLog({ invoice }: Props) {
   async function saveEdit() {
     if (editingIndex === null) return;
     const amountCents = dollarsToCents(amountText);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const parsedDate = parseOptionalPaymentDate(date);
+    if (!parsedDate.ok) {
       toast.show({ message: "Use a date as YYYY-MM-DD.", variant: "error" });
       return;
     }
@@ -108,7 +118,7 @@ export function PaymentsLog({ invoice }: Props) {
         id: invoice.id,
         index: editingIndex,
         payment: {
-          date,
+          ...(parsedDate.date ? { date: parsedDate.date } : {}),
           amountCents,
           ...(method ? { method } : {}),
           ...(note ? { note } : {}),
@@ -129,39 +139,41 @@ export function PaymentsLog({ invoice }: Props) {
     <Card>
       <Text className="text-h2 text-foreground">Payments</Text>
       <View className="mt-3 gap-2">
-        {invoice.payments.map((p, i) => (
-          <View
-            key={`${p.date}-${i}`}
-            className="flex-row items-center justify-between border-b border-border py-2 last:border-b-0"
-          >
-            <View className="flex-1">
-              <Text className="text-body text-foreground">
-                {formatMoney(p.amountCents, invoice.currency)}
-              </Text>
-              <Text className="text-caption text-muted">
-                {format(parseISO(p.date), "d MMM yyyy")} · {p.method ?? "—"}
-                {p.note ? ` · ${p.note}` : ""}
-              </Text>
+        {invoice.payments.map((p, i) => {
+          const caption = paymentCaption(p);
+          return (
+            <View
+              key={`${p.date ?? "undated"}-${i}`}
+              className="flex-row items-center justify-between border-b border-border py-2 last:border-b-0"
+            >
+              <View className="flex-1">
+                <Text className="text-body text-foreground">
+                  {formatMoney(p.amountCents, invoice.currency)}
+                </Text>
+                {caption ? (
+                  <Text className="text-caption text-muted">{caption}</Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={() => openEdit(i, p)}
+                accessibilityRole="button"
+                accessibilityLabel="Edit payment"
+                hitSlop={8}
+                className="mr-3"
+              >
+                <Pencil size={16} color="#1473FF" />
+              </Pressable>
+              <Pressable
+                onPress={() => setPendingIndex(i)}
+                accessibilityRole="button"
+                accessibilityLabel="Remove payment"
+                hitSlop={8}
+              >
+                <Trash2 size={16} color="#C0392B" />
+              </Pressable>
             </View>
-            <Pressable
-              onPress={() => openEdit(i, p)}
-              accessibilityRole="button"
-              accessibilityLabel="Edit payment"
-              hitSlop={8}
-              className="mr-3"
-            >
-              <Pencil size={16} color="#1473FF" />
-            </Pressable>
-            <Pressable
-              onPress={() => setPendingIndex(i)}
-              accessibilityRole="button"
-              accessibilityLabel="Remove payment"
-              hitSlop={8}
-            >
-              <Trash2 size={16} color="#C0392B" />
-            </Pressable>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <ConfirmDialog
@@ -180,7 +192,7 @@ export function PaymentsLog({ invoice }: Props) {
         title="Edit payment"
       >
         <View className="gap-3">
-          <DateInput label="Payment date" required value={date} onChange={setDate} />
+          <DateInput label="Payment date" value={date} onChange={setDate} />
           <CurrencyInput
             label="Amount"
             required

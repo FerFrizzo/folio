@@ -12,6 +12,7 @@ import { useSuccessButton } from "@/lib/useSuccessButton";
 import { useRecordPayment } from "@/src/features/invoices/queries";
 import type { Invoice } from "@/src/types/schemas";
 import { formatMoney } from "@/src/lib/money";
+import { parseOptionalPaymentDate } from "@/src/lib/payment-date";
 import { errorMessage } from "@/src/lib/zod-message";
 
 type Props = {
@@ -63,6 +64,11 @@ export function PaymentSheet({ invoice, onClose }: Props) {
   async function submit() {
     if (!invoice) return;
     const amountCents = dollarsToCents(amountText);
+    const parsedDate = parseOptionalPaymentDate(date);
+    if (!parsedDate.ok) {
+      toast.show({ message: "Use a date as YYYY-MM-DD.", variant: "error" });
+      return;
+    }
     if (amountCents <= 0) {
       toast.show({ message: "Enter a positive amount.", variant: "error" });
       return;
@@ -78,7 +84,7 @@ export function PaymentSheet({ invoice, onClose }: Props) {
       await recordPayment.mutateAsync({
         id: invoice.id,
         payment: {
-          date,
+          ...(parsedDate.date ? { date: parsedDate.date } : {}),
           amountCents,
           ...(method ? { method } : {}),
           ...(note ? { note } : {}),
@@ -102,7 +108,7 @@ export function PaymentSheet({ invoice, onClose }: Props) {
         <Text className="text-caption text-muted">
           Outstanding: {formatMoney(invoice.balanceCents, invoice.currency)}
         </Text>
-        <DateInput label="Payment date" required value={date} onChange={setDate} />
+        <DateInput label="Payment date" value={date} onChange={setDate} />
         <CurrencyInput
           label="Amount"
           required
