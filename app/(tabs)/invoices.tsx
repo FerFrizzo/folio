@@ -39,6 +39,7 @@ import {
   useRestoreCreditNote,
 } from "@/src/features/credit-notes/queries";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
+import { restoreWithFeedback } from "@/src/features/invoices/restoreWithFeedback";
 import { errorMessage } from "@/src/lib/zod-message";
 
 const FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
@@ -293,8 +294,11 @@ export default function InvoicesScreen() {
                   const t = contextInvoice;
                   setContextInvoice(null);
                   if (!t) return;
-                  await restoreInvoice.mutateAsync(t.id);
-                  toast.show({ message: `${t.number || "Draft"} restored.`, variant: "success" });
+                  await restoreWithFeedback(
+                    t.number || "Draft",
+                    () => restoreInvoice.mutateAsync(t.id),
+                    toast,
+                  );
                 }}
               />
               {contextInvoice?.status === "draft" ? (
@@ -369,8 +373,11 @@ export default function InvoicesScreen() {
               const note = contextNote;
               setContextNote(null);
               if (!note) return;
-              await restoreCreditNote.mutateAsync(note.id);
-              toast.show({ message: `${note.number} restored.`, variant: "success" });
+              await restoreWithFeedback(
+                note.number,
+                () => restoreCreditNote.mutateAsync(note.id),
+                toast,
+              );
             }}
           />
           <Text className="text-caption text-muted">
