@@ -250,7 +250,7 @@ export function renderInvoiceHtml({
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    @page { size: A4; margin: 18mm 16mm 20mm; }
+    @page { size: A4; margin: 12mm 16mm; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body {

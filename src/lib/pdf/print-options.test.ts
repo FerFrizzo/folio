@@ -53,7 +53,7 @@ describe("pdfPrintOptions", () => {
       base64: false,
       width: 595,
       height: 842,
-      margins: { top: 51.02, right: 45.35, bottom: 56.69, left: 45.35 },
+      margins: { top: 34.02, right: 45.35, bottom: 34.02, left: 45.35 },
     });
   });
 
@@ -65,6 +65,19 @@ describe("pdfPrintOptions", () => {
       bottom: 56.69,
       left: 42.52,
     });
+  });
+
+  // Regression: the iOS margin fix stopped left-edge clipping but the old
+  // 18mm/20mm vertical margins, on top of a narrower line, pushed a one-page
+  // invoice onto a second sheet. Side margins stay large enough to clear the
+  // printer's unprintable area.
+  it("keeps a 16mm side margin and a shorter vertical margin", () => {
+    expect(INVOICE_PAGE_MARGINS_MM.left).toBe(16);
+    expect(INVOICE_PAGE_MARGINS_MM.right).toBe(16);
+    expect(INVOICE_PAGE_MARGINS_MM.top + INVOICE_PAGE_MARGINS_MM.bottom).toBeLessThanOrEqual(24);
+    const printable =
+      842 - mmToPt(INVOICE_PAGE_MARGINS_MM.top) - mmToPt(INVOICE_PAGE_MARGINS_MM.bottom);
+    expect(printable).toBeGreaterThan(760);
   });
 
   it.each(["android", "web"] as const)("leaves margins to CSS @page on %s", (os) => {
