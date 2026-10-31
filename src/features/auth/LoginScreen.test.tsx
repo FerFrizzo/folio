@@ -18,14 +18,16 @@ jest.mock("@/features/auth/email", () => ({
   signUpWithEmail: (...a: unknown[]) => mockSignUp(...a),
   sendPasswordReset: jest.fn(),
 }));
+const mockGoogle = jest.fn();
 jest.mock("@/features/auth/linking/google", () => ({
   googleConfigured: () => true,
-  signInWithGoogleNative: jest.fn(),
+  signInWithGoogleNative: (...a: unknown[]) => mockGoogle(...a),
   signInWithGoogleWeb: jest.fn(),
 }));
+const mockApple = jest.fn();
 jest.mock("@/features/auth/linking/apple", () => ({
   appleAvailableOnPlatform: () => true,
-  signInWithApple: jest.fn(),
+  signInWithApple: (...a: unknown[]) => mockApple(...a),
 }));
 let mockSignedInBefore = false;
 jest.mock("@/src/features/auth/authPrefs", () => ({
@@ -144,5 +146,30 @@ describe("layout", () => {
     expect(google).toBeGreaterThan(-1);
     expect(apple).toBeLessThan(email);
     expect(google).toBeLessThan(email);
+  });
+});
+
+describe("social sign-in", () => {
+  const codeError = (code: string) => Object.assign(new Error("x"), { code });
+
+  it.each([
+    ["Google", () => mockGoogle, "google/cancelled"],
+    ["Apple", () => mockApple, "ERR_REQUEST_CANCELED"],
+  ])("shows nothing when the user cancels %s", async (name, fn, code) => {
+    fn().mockRejectedValueOnce(codeError(code));
+    await renderScreen();
+    fireEvent.press(screen.getByRole("button", { name: `Continue with ${name}` }));
+    await waitFor(() => expect(fn()).toHaveBeenCalled());
+    await act(async () => {});
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when Google sign-in fails", async () => {
+    mockGoogle.mockRejectedValueOnce(codeError("10"));
+    await renderScreen();
+    fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "error" })),
+    );
   });
 });

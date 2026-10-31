@@ -26,6 +26,9 @@ export type AuthErrorKind =
   | "network"
   | "unsupported-platform"
   | "cancelled"
+  | "provider-misconfigured"
+  | "play-services"
+  | "provider-failed"
   | "unknown";
 
 export type ReviewTrigger = "first_paid" | "third_sent";
@@ -36,7 +39,9 @@ export type EventProps = {
   screen_viewed: { route: string };
   signed_up: { method: AuthMethod };
   signed_in: { method: AuthMethod };
-  sign_in_failed: { method: AuthMethod; reason: AuthErrorKind };
+  // code: the SDK's error code (e.g. "auth/…", "10", "ERR_REQUEST_FAILED"),
+  // filtered by safeErrorCode — never the message.
+  sign_in_failed: { method: AuthMethod; reason: AuthErrorKind; code: string };
   onboarding_step_completed: {
     step: "profile" | "logo" | "payment";
     skipped: boolean;

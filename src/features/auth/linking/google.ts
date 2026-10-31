@@ -24,6 +24,26 @@ async function getGoogleSignin() {
   return GoogleSignin;
 }
 
+function codedError(code: string, message: string): Error & { code: string } {
+  return Object.assign(new Error(message), { code });
+}
+
+type SignInResponse =
+  | { type: "success"; data: { idToken: string | null } }
+  | { type: "cancelled"; data: null };
+
+// The SDK resolves (rather than rejects) when the user closes the sheet, so
+// both outcomes become coded errors that classifyLinkError understands.
+export function idTokenFrom(response: SignInResponse): string {
+  if (response.type === "cancelled") {
+    throw codedError("google/cancelled", "Google sign-in was cancelled.");
+  }
+  if (!response.data.idToken) {
+    throw codedError("google/no-id-token", "Google sign-in did not return an ID token.");
+  }
+  return response.data.idToken;
+}
+
 // Native sign-in via Google Identity Services SDK. Returns a Firebase User.
 export async function signInWithGoogleNative(): Promise<User> {
   const GoogleSignin = await getGoogleSignin();
@@ -33,14 +53,10 @@ export async function signInWithGoogleNative(): Promise<User> {
   try { await GoogleSignin.signOut(); } catch { /* ok if not signed in */ }
 
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const response = await GoogleSignin.signIn();
-
-  if (!response.data?.idToken) {
-    throw new Error("Google sign-in did not return an ID token.");
-  }
+  const idToken = idTokenFrom(await GoogleSignin.signIn());
 
   const auth = getFirebaseAuth();
-  const credential = GoogleAuthProvider.credential(response.data.idToken);
+  const credential = GoogleAuthProvider.credential(idToken);
   const result = await signInWithCredential(auth, credential);
   trackAuthResult(result, "google");
   return result.user;

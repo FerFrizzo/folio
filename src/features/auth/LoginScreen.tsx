@@ -65,7 +65,8 @@ function GoogleSignInButton({ busy, onBusyChange }: { busy: boolean; onBusyChang
       }
       toast.show({ message: "Signed in with Google.", variant: "success" });
     } catch (err: unknown) {
-      toast.show({ message: reportAuthError(err, "google"), variant: "error" });
+      const message = reportAuthError(err, "google");
+      if (message) toast.show({ message, variant: "error" });
     } finally {
       onBusyChange(false);
     }
@@ -182,7 +183,7 @@ export function LoginScreen() {
     } catch (err: unknown) {
       const message =
         mode === "forgot-password" ? classifyLinkError(err).message : reportAuthError(err, "email");
-      toast.show({ message, variant: "error" });
+      if (message) toast.show({ message, variant: "error" });
       if (mode === "sign-in" && classifyLinkError(err).kind === "wrong-credentials") {
         setShowNewUserHint(true);
       }
@@ -197,7 +198,8 @@ export function LoginScreen() {
       await signInWithApple();
       toast.show({ message: "Signed in with Apple.", variant: "success" });
     } catch (err: unknown) {
-      toast.show({ message: reportAuthError(err, "apple"), variant: "error" });
+      const message = reportAuthError(err, "apple");
+      if (message) toast.show({ message, variant: "error" });
     } finally {
       setBusy(false);
     }

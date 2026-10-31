@@ -71,7 +71,9 @@ export async function linkApple(): Promise<AppleLinkResult> {
   });
 
   if (!credential.identityToken) {
-    throw new Error("Apple did not return an identity token.");
+    throw Object.assign(new Error("Apple did not return an identity token."), {
+      code: "apple/no-identity-token",
+    });
   }
 
   const provider = new OAuthProvider(PROVIDER_ID);
@@ -118,7 +120,9 @@ export async function signInWithApple(): Promise<User> {
     nonce: hashed,
   });
   if (!credential.identityToken) {
-    throw new Error("Apple did not return an identity token.");
+    throw Object.assign(new Error("Apple did not return an identity token."), {
+      code: "apple/no-identity-token",
+    });
   }
   const provider = new OAuthProvider(PROVIDER_ID);
   const oauthCredential = provider.credential({
