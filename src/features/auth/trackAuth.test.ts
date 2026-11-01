@@ -44,6 +44,7 @@ describe("reportAuthError", () => {
     expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
       method: "email",
       reason: "wrong-credentials",
+      code: "auth/invalid-credential",
     });
     expect(message).toMatch(/email or password is incorrect/i);
   });
@@ -53,6 +54,22 @@ describe("reportAuthError", () => {
     expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
       method: "google",
       reason: "popup-closed",
+      code: "auth/popup-closed-by-user",
+    });
+  });
+
+  it("returns no message when the user cancelled, so nothing is shown", () => {
+    expect(reportAuthError({ code: "google/cancelled" }, "google")).toBeNull();
+    expect(reportAuthError({ code: "ERR_REQUEST_CANCELED" }, "apple")).toBeNull();
+    expect(reportAuthError({ code: "auth/popup-closed-by-user" }, "google")).toBeNull();
+  });
+
+  it("sends the native code for errors it can't classify", () => {
+    reportAuthError({ code: "SOME_NEW_CODE", message: "detail" }, "apple");
+    expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
+      method: "apple",
+      reason: "unknown",
+      code: "SOME_NEW_CODE",
     });
   });
 
