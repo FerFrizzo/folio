@@ -54,7 +54,7 @@ import { completeManualSend } from "@/src/features/invoices/manualSend";
 import { computeFromInputs, type LineInput } from "@/src/lib/invoice-totals";
 import { invoiceFromEditorState } from "@/src/lib/invoice-preview";
 import { draftBlocker, sendBlocker } from "@/src/lib/invoice-validation";
-import { dueDateDraftPatch, optionalDueDate } from "@/src/lib/due-date";
+import { acceptDueDate, dueDateDraftPatch } from "@/src/lib/due-date";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import type {
@@ -248,6 +248,9 @@ export function InvoiceEditor({ initial }: Props) {
   const lastSerializedRef = useRef<string>("");
   useEffect(() => {
     if (!draftId) return;
+    // A leftover non-date must not autosave as "Saved" with the due date missing.
+    // The field shows the error until the user picks a day or clears it.
+    if (!acceptDueDate(dueDate).ok) return;
     const serialized = JSON.stringify({
       currency,
       clientId,
@@ -332,6 +335,11 @@ export function InvoiceEditor({ initial }: Props) {
     await setDraftNumber.mutateAsync({ id, number });
   }
 
+  function dueDateBlocker(): string | null {
+    const accepted = acceptDueDate(dueDate);
+    return accepted.ok ? null : accepted.message;
+  }
+
   // One mapping from editor state to an Invoice, shared by Save & Send and the
   // preview, so what the user previews is what actually gets rendered on send.
   function buildInvoice(args: {
@@ -341,7 +349,7 @@ export function InvoiceEditor({ initial }: Props) {
     now: string;
     sentAt?: string;
   }): Invoice {
-    const normalizedDueDate = optionalDueDate(dueDate);
+    const trimmedDue = dueDate.trim();
     return invoiceFromEditorState({
       id: args.id,
       number: args.number,
@@ -350,7 +358,7 @@ export function InvoiceEditor({ initial }: Props) {
       clientId,
       clientSnapshot,
       issueDate,
-      ...(normalizedDueDate ? { dueDate: normalizedDueDate } : {}),
+      ...(trimmedDue ? { dueDate: trimmedDue } : {}),
       lineItems: computed.lines,
       invoiceDiscount,
       totals: computed.totals,
@@ -390,6 +398,11 @@ export function InvoiceEditor({ initial }: Props) {
       showBlocker("Can't save yet", blocked);
       return;
     }
+    const dueMessage = dueDateBlocker();
+    if (dueMessage) {
+      showBlocker("Check the due date", dueMessage);
+      return;
+    }
     setSubmitting(true);
     try {
       const id = await persistDraft();
@@ -410,6 +423,11 @@ export function InvoiceEditor({ initial }: Props) {
     const error = validate();
     if (error) {
       showBlocker("Can't send yet", error);
+      return;
+    }
+    const dueMessage = dueDateBlocker();
+    if (dueMessage) {
+      showBlocker("Check the due date", dueMessage);
       return;
     }
     setSubmitting(true);
@@ -514,7 +532,14 @@ export function InvoiceEditor({ initial }: Props) {
         </View>
         <View className="flex-row items-center gap-2">
           <Pressable
-            onPress={() => setPreviewOpen(true)}
+            onPress={() => {
+              const dueMessage = dueDateBlocker();
+              if (dueMessage) {
+                showBlocker("Check the due date", dueMessage);
+                return;
+              }
+              setPreviewOpen(true);
+            }}
             accessibilityRole="button"
             accessibilityLabel="Preview invoice"
             className="rounded-chip border border-border bg-surface px-3 py-1 active:bg-background"
@@ -553,7 +578,7 @@ export function InvoiceEditor({ initial }: Props) {
               label="Due date"
               value={dueDate}
               onChange={setDueDate}
-              placeholder="Optional"
+              placeholder="Select date"
             />
             {dueDate ? (
               <Pressable

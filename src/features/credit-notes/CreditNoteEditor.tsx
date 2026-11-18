@@ -19,6 +19,7 @@ import { useIssueCreditNote } from "@/src/features/credit-notes/useIssueCreditNo
 import { useProfile, useSettings } from "@/src/features/settings/queries";
 import { newCreditNoteId } from "@/src/lib/firestore/creditNotes";
 import { generateCreditNotePdf, shareCreditNotePdf } from "@/src/lib/pdf/generate-credit-note";
+import { isRealIsoDate } from "@/src/lib/iso-date";
 import { errorMessage } from "@/src/lib/zod-message";
 import { formatMoney } from "@/src/lib/money";
 import type {
@@ -132,6 +133,7 @@ export function CreditNoteEditor({ invoiceId }: Props) {
   }
 
   function validate(): string | null {
+    if (!isRealIsoDate(issueDate.trim())) return "Choose an issue date.";
     if (!inv) return "Original invoice not found.";
     if (lines.length === 0) return "Add at least one refund line.";
     if (totals.totalCents >= 0) {

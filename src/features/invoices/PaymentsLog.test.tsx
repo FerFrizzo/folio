@@ -1,6 +1,11 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { Platform } from "react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { PaymentsLog } from "@/src/features/invoices/PaymentsLog";
-import { InvoiceSchema, type Invoice, type PaymentRecord } from "@/src/types/schemas";
+import {
+  InvoiceSchema,
+  type Invoice,
+  type PaymentRecord,
+} from "@/src/types/schemas";
 
 const mockUpdate = jest.fn();
 const mockToast = jest.fn();
@@ -37,6 +42,7 @@ function invoice(payments: PaymentRecord[]): Invoice {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUpdate.mockResolvedValue({ status: "paid" });
+  Platform.OS = "ios";
 });
 
 describe("PaymentsLog payment date", () => {
@@ -58,11 +64,13 @@ describe("PaymentsLog payment date", () => {
   it("saves an edit with a blank date", async () => {
     const view = render(
       <PaymentsLog
-        invoice={invoice([{ date: "2026-05-25", amountCents: 55000, method: "Bank transfer" }])}
+        invoice={invoice([
+          { date: "2026-05-25", amountCents: 55000, method: "Bank transfer" },
+        ])}
       />,
     );
     fireEvent.press(view.getByLabelText("Edit payment"));
-    fireEvent.changeText(view.getByLabelText("Payment date"), "");
+    fireEvent.press(view.getByLabelText("Clear date"));
     fireEvent.press(view.getByText("Save payment"));
 
     await waitFor(() =>
@@ -77,21 +85,34 @@ describe("PaymentsLog payment date", () => {
     );
   });
 
-  it("still rejects a malformed date", async () => {
+  it("saves a date chosen from the picker", async () => {
     const view = render(
       <PaymentsLog
         invoice={invoice([{ amountCents: 55000, method: "Cash" }])}
       />,
     );
     fireEvent.press(view.getByLabelText("Edit payment"));
-    fireEvent.changeText(view.getByLabelText("Payment date"), "25-05-2026");
+    fireEvent.press(view.getByLabelText("Payment date"));
+    const date = new Date(2026, 4, 25);
+    act(() => {
+      view
+        .getByTestId("date-picker")
+        .props.onChange(
+          {
+            type: "set",
+            nativeEvent: { timestamp: date.getTime(), utcOffset: 0 },
+          },
+          date,
+        );
+    });
     fireEvent.press(view.getByText("Save payment"));
 
     await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ variant: "error", message: "Use a date as YYYY-MM-DD." }),
-      ),
+      expect(mockUpdate).toHaveBeenCalledWith({
+        id: "inv-1",
+        index: 0,
+        payment: { date: "2026-05-25", amountCents: 55000, method: "Cash" },
+      }),
     );
-    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

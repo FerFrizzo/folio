@@ -12,7 +12,9 @@ const line: LineItem = {
   lineTotalCents: 33000,
 };
 
-function build(overrides: Partial<Parameters<typeof invoiceFromEditorState>[0]> = {}) {
+function build(
+  overrides: Partial<Parameters<typeof invoiceFromEditorState>[0]> = {},
+) {
   return invoiceFromEditorState({
     id: "inv-1",
     number: "INV-0005",
@@ -91,6 +93,11 @@ describe("invoiceFromEditorState", () => {
 
   it("keeps a trimmed due date for the preview PDF", () => {
     expect(build({ dueDate: " 2026-06-02 " }).dueDate).toBe("2026-06-02");
+  });
+
+  it("refuses a due date that is not a calendar day", () => {
+    expect(() => build({ dueDate: "30" })).toThrow(/18 Dec 2026/);
+    expect(() => build({ dueDate: "18/12/2026" })).toThrow(/18 Dec 2026/);
   });
 
   it("keeps a client-less draft renderable, so preview works before a client is picked", () => {

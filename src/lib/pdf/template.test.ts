@@ -210,7 +210,7 @@ describe("renderInvoiceHtml", () => {
       settings,
     });
     expect(bare).not.toContain(">Due<");
-    for (const dueDate of ["", "   "]) {
+    for (const dueDate of ["", "   ", "30", "18/12/2026", "next week"]) {
       const blank = renderInvoiceHtml({
         invoice: { ...invoice, dueDate },
         profile,

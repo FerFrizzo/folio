@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { PaymentSheet } from "@/src/features/invoices/PaymentSheet";
 import { InvoiceSchema, type Invoice } from "@/src/types/schemas";
@@ -38,12 +39,36 @@ function invoice(): Invoice {
 beforeEach(() => {
   jest.clearAllMocks();
   mockMutate.mockResolvedValue({ status: "paid" });
+  Platform.OS = "ios";
 });
+
+function pickPaymentDate(
+  view: ReturnType<typeof render>,
+  year: number,
+  monthIndex: number,
+  day: number,
+) {
+  fireEvent.press(view.getByLabelText("Payment date"));
+  const date = new Date(year, monthIndex, day);
+  act(() => {
+    view
+      .getByTestId("date-picker")
+      .props.onChange(
+        {
+          type: "set",
+          nativeEvent: { timestamp: date.getTime(), utcOffset: 0 },
+        },
+        date,
+      );
+  });
+}
 
 describe("PaymentSheet payment date", () => {
   it("records a payment when the date is cleared", async () => {
-    const view = render(<PaymentSheet invoice={invoice()} onClose={jest.fn()} />);
-    fireEvent.changeText(view.getByLabelText("Payment date"), "");
+    const view = render(
+      <PaymentSheet invoice={invoice()} onClose={jest.fn()} />,
+    );
+    fireEvent.press(view.getByLabelText("Clear date"));
     fireEvent.press(view.getByLabelText("Record payment"));
 
     await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(1));
@@ -57,32 +82,26 @@ describe("PaymentSheet payment date", () => {
     });
   });
 
-  it("keeps a date the user entered", async () => {
-    const view = render(<PaymentSheet invoice={invoice()} onClose={jest.fn()} />);
-    fireEvent.changeText(view.getByLabelText("Payment date"), "2026-05-25");
+  it("keeps a date the user picked", async () => {
+    const view = render(
+      <PaymentSheet invoice={invoice()} onClose={jest.fn()} />,
+    );
+    pickPaymentDate(view, 2026, 4, 25);
+    expect(view.getByText("25 May 2026")).toBeTruthy();
     fireEvent.press(view.getByLabelText("Record payment"));
 
     await waitFor(() =>
       expect(mockMutate).toHaveBeenCalledWith({
         id: "inv-1",
-        payment: { date: "2026-05-25", amountCents: 55000, method: "Bank transfer" },
+        payment: {
+          date: "2026-05-25",
+          amountCents: 55000,
+          method: "Bank transfer",
+        },
       }),
     );
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 900));
     });
-  });
-
-  it("blocks a date that is not blank and not YYYY-MM-DD", async () => {
-    const view = render(<PaymentSheet invoice={invoice()} onClose={jest.fn()} />);
-    fireEvent.changeText(view.getByLabelText("Payment date"), "yesterday");
-    fireEvent.press(view.getByLabelText("Record payment"));
-
-    await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ variant: "error", message: "Use a date as YYYY-MM-DD." }),
-      ),
-    );
-    expect(mockMutate).not.toHaveBeenCalled();
   });
 });
