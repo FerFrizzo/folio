@@ -59,8 +59,22 @@ const config: ExpoConfig = {
     "expo-web-browser",
     "expo-font",
     [
+      "@react-native-community/datetimepicker",
+      {
+        android: {
+          datePicker: {
+            colorAccent: { light: "#1473FF" },
+            colorControlActivated: { light: "#1473FF" },
+          },
+        },
+      },
+    ],
+    [
       "@react-native-google-signin/google-signin",
-      { iosUrlScheme: "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k" },
+      {
+        iosUrlScheme:
+          "com.googleusercontent.apps.792742422119-kf13rer4hi8vkojt9najtuj0m2cens7k",
+      },
     ],
     [
       "expo-splash-screen",

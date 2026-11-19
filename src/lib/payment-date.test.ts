@@ -17,5 +17,7 @@ describe("parseOptionalPaymentDate", () => {
   it("rejects any other text", () => {
     expect(parseOptionalPaymentDate("yesterday")).toEqual({ ok: false });
     expect(parseOptionalPaymentDate("25/05/2026")).toEqual({ ok: false });
+    expect(parseOptionalPaymentDate("30")).toEqual({ ok: false });
+    expect(parseOptionalPaymentDate("2026-02-31")).toEqual({ ok: false });
   });
 });

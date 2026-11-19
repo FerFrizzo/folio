@@ -14,6 +14,7 @@ import { DateInput } from "@/src/components/ui/DateInput";
 import { Input } from "@/src/components/ui/Input";
 import { Select } from "@/src/components/ui/Select";
 import type { Invoice, PaymentRecord } from "@/src/types/schemas";
+import { dateEntryError } from "@/src/lib/iso-date";
 import { parseOptionalPaymentDate } from "@/src/lib/payment-date";
 import { errorMessage } from "@/src/lib/zod-message";
 
@@ -99,7 +100,10 @@ export function PaymentsLog({ invoice }: Props) {
     const amountCents = dollarsToCents(amountText);
     const parsedDate = parseOptionalPaymentDate(date);
     if (!parsedDate.ok) {
-      toast.show({ message: "Use a date as YYYY-MM-DD.", variant: "error" });
+      toast.show({
+        message: dateEntryError(date) ?? "Choose a valid date.",
+        variant: "error",
+      });
       return;
     }
     const others = invoice.payments.reduce(
@@ -192,7 +196,7 @@ export function PaymentsLog({ invoice }: Props) {
         title="Edit payment"
       >
         <View className="gap-3">
-          <DateInput label="Payment date" value={date} onChange={setDate} />
+          <DateInput label="Payment date" value={date} onChange={setDate} clearable />
           <CurrencyInput
             label="Amount"
             required
