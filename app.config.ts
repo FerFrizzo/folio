@@ -52,6 +52,9 @@ const config: ExpoConfig = {
   },
   plugins: [
     "./plugins/withModularHeaders",
+    // Keeps the portrait lock without making Play hide the app from
+    // Chromebooks / landscape-only tablets / XR (see plugin for details).
+    "./plugins/withOptionalScreenFeatures",
     "expo-router",
     "expo-secure-store",
     "expo-local-authentication",

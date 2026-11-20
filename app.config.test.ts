@@ -13,3 +13,15 @@ describe("app.config version", () => {
     expect(config.runtimeVersion).toEqual({ policy: "appVersion" });
   });
 });
+
+describe("app.config Android screen features", () => {
+  it("stays portrait-locked", () => {
+    expect(config.orientation).toBe("portrait");
+  });
+
+  it("registers the plugin that marks the portrait screen feature optional", () => {
+    // Without it, Play infers a required android.hardware.screen.portrait
+    // from the orientation lock and blocks the release in pre-review checks.
+    expect(config.plugins).toContain("./plugins/withOptionalScreenFeatures");
+  });
+});
