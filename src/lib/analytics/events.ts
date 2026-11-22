@@ -29,6 +29,7 @@ export type AuthErrorKind =
   | "provider-misconfigured"
   | "play-services"
   | "provider-failed"
+  | "in-progress"
   | "unknown";
 
 export type ReviewTrigger = "first_paid" | "third_sent";

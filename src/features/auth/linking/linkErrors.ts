@@ -96,6 +96,22 @@ export function classifyLinkError(
         kind: "provider-misconfigured",
         message: `${PROVIDER_NAME[method]} sign-in isn't working right now. Use email to sign in for now.`,
       };
+    case "7": // Android CommonStatusCodes.NETWORK_ERROR
+      return {
+        kind: "network",
+        message: "Couldn't reach the server. Check your connection and try again.",
+      };
+    case "ASYNC_OP_IN_PROGRESS": // google-signin: an earlier sign-in hasn't settled yet
+      return {
+        kind: "in-progress",
+        message: `${PROVIDER_NAME[method]} sign-in is still finishing. Wait a moment and try again.`,
+      };
+    case "ERR_REQUEST_UNKNOWN": // ASAuthorizationError.unknown: usually no Apple Account on the device
+      return {
+        kind: "provider-failed",
+        message:
+          "Apple sign-in didn't complete. Check you're signed in to your Apple Account in Settings, or use email instead.",
+      };
     case "PLAY_SERVICES_NOT_AVAILABLE":
       return {
         kind: "play-services",
@@ -104,9 +120,11 @@ export function classifyLinkError(
     case "google/no-id-token":
     case "apple/no-identity-token":
     case "12500": // Android SIGN_IN_FAILED
+    case "8": // Android CommonStatusCodes.INTERNAL_ERROR (transient)
+    case "-1": // iOS kGIDSignInErrorCodeUnknown
+    case "-2": // iOS kGIDSignInErrorCodeKeychain
     case "NULL_PRESENTER":
     case "ERR_REQUEST_FAILED":
-    case "ERR_REQUEST_UNKNOWN":
     case "ERR_REQUEST_NOT_HANDLED":
     case "ERR_REQUEST_INVALID_RESPONSE":
     case "ERR_REQUEST_NOT_INTERACTIVE":
