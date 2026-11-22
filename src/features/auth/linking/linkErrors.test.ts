@@ -1,4 +1,7 @@
-import { classifyLinkError, safeErrorCode } from "@/src/features/auth/linking/linkErrors";
+import {
+  classifyLinkError,
+  safeErrorCode,
+} from "@/src/features/auth/linking/linkErrors";
 
 describe("classifyLinkError", () => {
   it("maps credential-already-in-use to a friendly message", () => {
@@ -14,9 +17,9 @@ describe("classifyLinkError", () => {
   });
 
   it("treats popup-closed as a cancellation", () => {
-    expect(
-      classifyLinkError({ code: "auth/popup-closed-by-user" }).kind,
-    ).toBe("popup-closed");
+    expect(classifyLinkError({ code: "auth/popup-closed-by-user" }).kind).toBe(
+      "popup-closed",
+    );
     expect(
       classifyLinkError({ code: "auth/cancelled-popup-request" }).kind,
     ).toBe("popup-closed");
@@ -29,7 +32,10 @@ describe("classifyLinkError", () => {
   });
 
   it("falls back to unknown with a generic message", () => {
-    const out = classifyLinkError({ code: "auth/something-new", message: "Detail" });
+    const out = classifyLinkError({
+      code: "auth/something-new",
+      message: "Detail",
+    });
     expect(out.kind).toBe("unknown");
     expect(out.message).toMatch(/something went wrong/i);
   });
@@ -53,7 +59,10 @@ describe("classifyLinkError", () => {
     "auth/user-not-found",
     "auth/invalid-login-credentials",
   ])("maps %s to wrong-credentials", (code) => {
-    const out = classifyLinkError({ code, message: `Firebase: Error (${code}).` });
+    const out = classifyLinkError({
+      code,
+      message: `Firebase: Error (${code}).`,
+    });
     expect(out.kind).toBe("wrong-credentials");
     expect(out.message).toMatch(/email or password is incorrect/i);
   });
@@ -89,7 +98,10 @@ describe("native sign-in errors", () => {
   });
 
   it("flags Google DEVELOPER_ERROR as a misconfiguration", () => {
-    const out = classifyLinkError({ code: "10", message: "DEVELOPER_ERROR: Follow troubleshooting" });
+    const out = classifyLinkError({
+      code: "10",
+      message: "DEVELOPER_ERROR: Follow troubleshooting",
+    });
     expect(out.kind).toBe("provider-misconfigured");
     expect(out.message).not.toMatch(/developer_error|troubleshooting/i);
   });
@@ -105,7 +117,6 @@ describe("native sign-in errors", () => {
     "apple/no-identity-token",
     "12500", // Android SIGN_IN_FAILED
     "ERR_REQUEST_FAILED",
-    "ERR_REQUEST_UNKNOWN",
     "ERR_REQUEST_NOT_HANDLED",
     "ERR_REQUEST_INVALID_RESPONSE",
     "ERR_REQUEST_NOT_INTERACTIVE",
@@ -114,22 +125,73 @@ describe("native sign-in errors", () => {
     expect(classifyLinkError({ code }).kind).toBe("provider-failed");
   });
 
+  // Codes seen as reason "unknown" in sign_in_failed events in Nov 2026.
+  it.each([
+    "8", // Android CommonStatusCodes.INTERNAL_ERROR
+    "-1", // iOS kGIDSignInErrorCodeUnknown
+    "-2", // iOS kGIDSignInErrorCodeKeychain
+  ])("treats Google code %s as a provider failure", (code) => {
+    const out = classifyLinkError({ code, message: "raw sdk text" }, "google");
+    expect(out.kind).toBe("provider-failed");
+    expect(out.message).toMatch(/google sign-in didn't complete/i);
+  });
+
+  it("accepts the Android status code as a number too", () => {
+    expect(classifyLinkError({ code: 8 }, "google").kind).toBe(
+      "provider-failed",
+    );
+    expect(classifyLinkError({ code: 7 }, "google").kind).toBe("network");
+  });
+
+  it("treats Android NETWORK_ERROR (7) as a network failure", () => {
+    const out = classifyLinkError({ code: "7" }, "google");
+    expect(out.kind).toBe("network");
+    expect(out.message).toMatch(/check your connection/i);
+  });
+
+  it("reports a sign-in that is still running as in-progress, not unknown", () => {
+    const out = classifyLinkError({ code: "ASYNC_OP_IN_PROGRESS" }, "google");
+    expect(out.kind).toBe("in-progress");
+    expect(out.message).toMatch(/google sign-in is still finishing/i);
+  });
+
+  it("points Apple's unknown error at the device's Apple Account", () => {
+    const out = classifyLinkError(
+      {
+        code: "ERR_REQUEST_UNKNOWN",
+        message:
+          "The operation couldn't be completed. (com.apple.AuthenticationServices.AuthorizationError error 1000.)",
+      },
+      "apple",
+    );
+    expect(out.kind).toBe("provider-failed");
+    expect(out.message).toMatch(/apple account/i);
+    expect(out.message).not.toMatch(/AuthorizationError|1000/);
+  });
+
+  it("keeps unrelated short numeric codes unknown", () => {
+    expect(classifyLinkError({ code: "9" }, "google").kind).toBe("unknown");
+    expect(classifyLinkError({ code: "-3" }, "google").kind).toBe("unknown");
+  });
+
   it("names the provider instead of email/password for a rejected Google or Apple token", () => {
-    expect(classifyLinkError({ code: "auth/invalid-credential" }, "google").message).toMatch(
-      /google/i,
-    );
-    expect(classifyLinkError({ code: "auth/invalid-credential" }, "apple").message).toMatch(
-      /apple/i,
-    );
-    expect(classifyLinkError({ code: "auth/invalid-credential" }, "email").message).toMatch(
-      /email or password/i,
-    );
+    expect(
+      classifyLinkError({ code: "auth/invalid-credential" }, "google").message,
+    ).toMatch(/google/i);
+    expect(
+      classifyLinkError({ code: "auth/invalid-credential" }, "apple").message,
+    ).toMatch(/apple/i);
+    expect(
+      classifyLinkError({ code: "auth/invalid-credential" }, "email").message,
+    ).toMatch(/email or password/i);
   });
 });
 
 describe("safeErrorCode", () => {
   it("returns string and numeric codes", () => {
-    expect(safeErrorCode({ code: "auth/network-request-failed" })).toBe("auth/network-request-failed");
+    expect(safeErrorCode({ code: "auth/network-request-failed" })).toBe(
+      "auth/network-request-failed",
+    );
     expect(safeErrorCode({ code: 10 })).toBe("10");
     expect(safeErrorCode({ code: "-5" })).toBe("-5");
   });

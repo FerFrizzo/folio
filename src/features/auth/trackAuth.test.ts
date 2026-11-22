@@ -64,6 +64,16 @@ describe("reportAuthError", () => {
     expect(reportAuthError({ code: "auth/popup-closed-by-user" }, "google")).toBeNull();
   });
 
+  it("shows a message for an in-progress Google sign-in instead of failing silently", () => {
+    const message = reportAuthError({ code: "ASYNC_OP_IN_PROGRESS" }, "google");
+    expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
+      method: "google",
+      reason: "in-progress",
+      code: "ASYNC_OP_IN_PROGRESS",
+    });
+    expect(message).toMatch(/still finishing/i);
+  });
+
   it("sends the native code for errors it can't classify", () => {
     reportAuthError({ code: "SOME_NEW_CODE", message: "detail" }, "apple");
     expect(mockTrack).toHaveBeenCalledWith("sign_in_failed", {
